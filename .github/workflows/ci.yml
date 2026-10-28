@@ -100,6 +100,11 @@ jobs:
           shellcheck --version | sed -n 2p
           actionlint --version | head -n 1
           jq --version
+          # Диалект awk: на раннерах GitHub и на своих раннерах проектов он
+          # может различаться (gawk, mawk), а скрипты обвязки должны жить с обоими.
+          readlink -f "$(command -v awk)"
+          awk -W version 2>&1 | head -n 1
+          bash --version | head -n 1
           echo "rustc=$(rustc --version | cut -d' ' -f2)" >>"$GITHUB_OUTPUT"
 
       # Каталог сборки Rust вне временного каталога скрипта — чтобы его можно
