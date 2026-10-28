@@ -1,0 +1,73 @@
+{% if monorepo %}
+{% set uikit_dir = 'packages/uikit' %}
+{% set uikit_name = '@' ~ project_name ~ '/uikit' %}
+{% set component_path = 'packages/uikit/src/components/<имя>.tsx' %}
+{% set component_import = '@' ~ project_name ~ '/uikit/components/<имя>' %}
+{% set utils_import = '@' ~ project_name ~ '/uikit/lib/utils' %}
+{% set globals_css = 'packages/uikit/src/styles/globals.css' %}
+{% else %}
+{% set uikit_dir = 'src/components/ui' %}
+{% set uikit_name = 'src/components/ui' %}
+{% set component_path = 'src/components/ui/<имя>.tsx' %}
+{% set component_import = '@/components/ui/<имя>' %}
+{% set utils_import = '@/lib/utils' %}
+{% set globals_css = 'src/styles/globals.css' %}
+{% endif %}
+---
+name: uikit-component
+description: Use when adding or changing a UI kit component in {{ uikit_dir }} — the shadcn convention this project follows, theme tokens, cva variants, and the boundary between UI kit components and app screens.
+---
+
+# Компонент UIKit
+
+UIKit живёт в `{{ uikit_dir }}` и следует соглашению shadcn: компонент **копируется в репозиторий и принадлежит нам**, а не подключается зависимостью. Значит его можно и нужно править под проект — но по правилам ниже, иначе набор перестанет быть системой.
+
+## Сначала — а туда ли компонент
+
+- Компоненту нужен доменный тип, тип из контракта с сервером, доменное слово или состояние бизнес-логики? Тогда это не компонент UIKit, а часть экрана. Его место — рядом с экраном.
+- Компонент осмысленно выглядит в любом другом проекте (кнопка, таблица, поповер, бейдж)? Тогда это UIKit.
+- Компонент уже есть в `{{ uikit_name }}`? Тогда ничего не заводим — пользуемся существующим и, если не хватает, расширяем его вариантом, а не клонируем.
+
+{% if monorepo %}
+UIKit не зависит ни от одного другого пакета репозитория. Проверка простая: `packages/uikit/package.json` не должен получить ни одной внутренней зависимости.
+{% else %}
+UIKit не импортирует ничего из экранов и из кода работы с данными: в `src/components/ui` импортируются только внешние пакеты, `@/lib/*` и другие компоненты UIKit.
+{% endif %}
+
+## Порядок
+
+1. **Ставь компонент через CLI.** {% if monorepo %}`cd packages/uikit && bunx shadcn@latest add <имя>`{% else %}`bunx shadcn@latest add <имя>` из корня{% endif %}: `components.json` настроен так, что файл ляжет в `{{ component_path }}`. Руками компонент пишется только тогда, когда его нет в реестре.
+
+   Конфигурация набора — `components.json`: стиль `base-nova`, база компонентов `@base-ui/react` (не Radix), база цвета `zinc`, иконки `@remixicon/react`, шрифт Geist, css-переменные. Проект может её сменить — тогда верна его `components.json`, а не этот абзац.
+2. **Варианты — через `cva`.** Размеры, тона, состояния описываются `class-variance-authority`, а не набором булевых пропсов и не ветвлением в JSX. Дефолтный вариант задаётся явно в `defaultVariants`.
+3. **Классы сливай через `cn`.** `import { cn } from "{{ utils_import }}"`. Компонент обязан принимать `className` и прокидывать его последним аргументом `cn`, иначе его нельзя будет настроить с места использования.
+4. **Цвет — только токеном.** Разрешены переменные из `{{ globals_css }}` и соответствующие им утилиты Tailwind (`bg-background`, `text-foreground`, `border-border`, `ring-ring` и прочие из блока `@theme inline`). Литералы `#rrggbb`, `rgb()`, `oklch()` и цветовые классы Tailwind внутри компонента запрещены: на них ломается тёмная тема. Нужен новый цвет — добавь токен в оба блока `:root` и `.dark`.
+5. **Пропсы наружу.** Расширяй нативный тип элемента (`React.ComponentProps<"button">`), прокидывай `ref` и остальные пропсы через `...props`. Компонент, съедающий `aria-*` и обработчики, непригоден.
+6. **Экспорт.** {% if monorepo %}Ничего добавлять не нужно: карта `exports` в `packages/uikit/package.json` отдаёт `./components/*` пофайлово.{% else %}Ничего добавлять не нужно: компонент импортируется по пути файла.{% endif %} Импорт — `{{ component_import }}`. Барреля `index.ts` в этом наборе нет намеренно: он заставлял бы править индекс на каждый `shadcn add`.
+
+## Клавиатура и доступность
+
+Интерактивный элемент — это `button` или `a`, а не `div` с `onClick`. Фокус виден и оформлен через `--ring`. Цветом ничего не сообщается в одиночку: состояние несёт ещё и текст или значок.
+
+## Проверка
+
+```
+{% if monorepo %}
+bun run --filter '{{ uikit_name }}' typecheck
+bunx biome check packages/uikit
+bun run build
+{% else %}
+bun run typecheck
+bunx biome check src/components/ui
+bun run build
+{% endif %}
+```
+
+Компоненты shadcn приходят отформатированными под prettier, а у нас biome — первый `bunx biome check --write` после установки компонента это нормально и ожидаемо.
+
+## Чего не делать
+
+- Не тащить в UIKit одноразовый компонент, который нужен ровно одному экрану.
+- Не заводить второй компонент вместо варианта у существующего.
+- Не завязывать компонент на данные: он получает пропсы, а не ходит за ними сам.
+- Не менять `components.json` под один компонент — это конфигурация всего набора.

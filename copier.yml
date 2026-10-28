@@ -17,15 +17,34 @@ _envops:
   keep_trailing_newline: true
   trim_blocks: true
   lstrip_blocks: true
+# Частичные файлы для include: тело агента одно на Claude Code и Pi. Загрузчик
+# Jinja у Copier ищет от корня репозитория, а не от `_subdirectory`, поэтому
+# include пишется с префиксом `template/_partials/`.
+_exclude:
+  - _partials
+
+# Только при создании проекта: OpenSpec кладёт свои команды и скиллы для Claude
+# Code и Pi. Это generated, в шаблоне их нет; существующий `openspec/config.yaml`
+# init не перезаписывает (проверено на OpenSpec 1.12.0).
+_tasks:
+  - command: >-
+      if command -v openspec >/dev/null 2>&1; then
+      openspec init --tools claude,pi --no-animation;
+      else
+      echo "harness: openspec не найден в PATH, выполните в проекте openspec init --tools claude,pi" >&2;
+      fi
+    when: "{{ _copier_operation == 'copy' }}"
 
 # Стартовые файлы: создаются один раз и дальше принадлежат проекту, обновление
 # шаблона их не трогает. Всё, что не перечислено, — управляемое: обновляется у
-# всех проектов (`.harness/`, `knowledge/spec-unfolded.sh` и его тест,
+# всех проектов (`.harness/`, агенты `.claude/agents/` и скиллы шаблона в
+# `.claude/skills/`, `knowledge/spec-unfolded.sh` и его тест,
 # `rust-toolchain.toml`, `rustfmt.toml`, `turbo.json`, `tsconfig.base.json`).
 _skip_if_exists:
   - README.md
   - CLAUDE.md
   - .gitignore
+  - openspec/config.yaml
   # Rust
   - Cargo.toml
   - crates/app/**
