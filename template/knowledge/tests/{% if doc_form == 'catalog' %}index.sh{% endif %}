@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Тесты `knowledge/index.sh`: оглавление собирается из файлов каталога,
+# повторный прогон его не меняет, README без меток — ошибка, `--stage` ставит
+# изменённый README в индекс. Проект синтетический, во временном каталоге.
+#
+# Запуск: knowledge/tests/index.sh
+set -uo pipefail
+
+# Под git-хуком в окружении стоят GIT_DIR и прочие: git смотрел бы в репозиторий
+# хука, а не во временный.
+while IFS='=' read -r name _; do
+  case "$name" in GIT_*) unset "$name" ;; esac
+done < <(env)
+
+here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
+script="$here/../index.sh"
+
+pass=0
+fail=0
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
+bad() { fail=$((fail + 1)); printf '  ПРОВАЛ %s\n     ожидалось: %s\n     получено: %s\n' "$1" "$2" "${3:-<пусто>}"; }
+
+toc='<!-- оглавление: собирает knowledge/index.sh, руками не править -->\n_пусто_\n<!-- /оглавление -->\n'
+
+setup() {
+  rm -rf "$tmp/repo"
+  mkdir -p "$tmp/repo/knowledge/decisions" "$tmp/repo/knowledge/lessons"
+  cp "$script" "$tmp/repo/knowledge/"
+  printf 'decisions_path: knowledge/decisions\nlessons_path: knowledge/lessons\n' > "$tmp/repo/.copier-answers.yml"
+  printf "# Решения\n\nФормат.\n\n$toc" > "$tmp/repo/knowledge/decisions/README.md"
+  printf "# Уроки\n\n$toc" > "$tmp/repo/knowledge/lessons/README.md"
+}
+
+echo "index.sh"
+
+setup
+out=$("$tmp/repo/knowledge/index.sh" 2>&1); code=$?
+{ [ $code -eq 0 ] && [ -z "$out" ] && grep -q '^_пусто_$' "$tmp/repo/knowledge/decisions/README.md"; } \
+  && ok "пустой каталог — оглавление пустое, файлы не трогаются" \
+  || bad "пустой каталог — оглавление пустое, файлы не трогаются" "молчание, _пусто_" "код $code: $out"
+
+printf '# Второе решение\n\nТекст.\n' > "$tmp/repo/knowledge/decisions/2026-10-02-second.md"
+printf '# Первое решение\n\nТекст.\n' > "$tmp/repo/knowledge/decisions/2026-10-01-first.md"
+printf '# Урок\n' > "$tmp/repo/knowledge/lessons/2026-10-03-lesson.md"
+"$tmp/repo/knowledge/index.sh" >/dev/null 2>&1; code=$?
+block=$(sed -n '/<!-- оглавление/,/<!-- \/оглавление/p' "$tmp/repo/knowledge/decisions/README.md" | sed '1d;$d')
+want='- [Первое решение](2026-10-01-first.md)
+- [Второе решение](2026-10-02-second.md)'
+{ [ $code -eq 0 ] && [ "$block" = "$want" ]; } \
+  && ok "оглавление решений по именам файлов" || bad "оглавление решений по именам файлов" "$want" "код $code: $block"
+grep -qF -- '- [Урок](2026-10-03-lesson.md)' "$tmp/repo/knowledge/lessons/README.md" \
+  && ok "оглавление уроков" || bad "оглавление уроков" "строка урока" "$(cat "$tmp/repo/knowledge/lessons/README.md")"
+grep -q '^Формат\.$' "$tmp/repo/knowledge/decisions/README.md" \
+  && ok "текст вне меток не тронут" || bad "текст вне меток не тронут" "Формат." "$(cat "$tmp/repo/knowledge/decisions/README.md")"
+
+before=$(cat "$tmp/repo/knowledge/decisions/README.md")
+out=$("$tmp/repo/knowledge/index.sh" 2>&1)
+{ [ -z "$out" ] && [ "$before" = "$(cat "$tmp/repo/knowledge/decisions/README.md")" ]; } \
+  && ok "повторный прогон ничего не меняет" || bad "повторный прогон ничего не меняет" "молчание" "$out"
+
+printf '# Уроки\n\nБез меток.\n' > "$tmp/repo/knowledge/lessons/README.md"
+out=$("$tmp/repo/knowledge/index.sh" 2>&1); code=$?
+{ [ $code -eq 1 ] && [[ "$out" == *"нет меток оглавления"* ]]; } \
+  && ok "README без меток — код 1" || bad "README без меток — код 1" "код 1 и жалоба" "код $code: $out"
+
+# --stage: новая запись в индексе, README — нет; после прогона README тоже там.
+setup
+git -C "$tmp/repo" init -q
+git -C "$tmp/repo" add -A
+git -C "$tmp/repo" -c user.email=t@t -c user.name=t commit -q -m base
+printf '# Решение\n' > "$tmp/repo/knowledge/decisions/2026-10-05-new.md"
+git -C "$tmp/repo" add knowledge/decisions/2026-10-05-new.md
+(cd "$tmp/repo" && ./knowledge/index.sh --stage >/dev/null 2>&1)
+staged=$(git -C "$tmp/repo" diff --cached --name-only | sort | tr '\n' ' ')
+[ "$staged" = "knowledge/decisions/2026-10-05-new.md knowledge/decisions/README.md " ] \
+  && ok "--stage ставит README в индекс" || bad "--stage ставит README в индекс" "запись и README" "$staged"
+
+echo
+printf 'итого: %d прошло, %d провалено\n' "$pass" "$fail"
+[ "$fail" -eq 0 ]
