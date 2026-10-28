@@ -1,0 +1,218 @@
+{% set gh = "${{" %}
+# Общие проверки обвязки. Управляемый файл: обновляется шаблоном, руками
+# не правится. Зовётся из `ci.yml` проекта (`uses: ./.github/workflows/harness.yml`);
+# свои джобы проект пишет там.
+#
+# Делят ответственность с lefthook: тот стережёт коммит и пуш на машине
+# разработчика, CI — то, что локальный хук пропустить может: обход через
+# --no-verify и glob-фильтры.
+name: harness
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Раннер — метка строкой (`ubuntu-latest`) или массив меток в JSON (`["self-hosted", "ci"]`)
+        type: string
+        default: ubuntu-latest
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Какие джобы нужны этой правке. Правка README не должна стоить прогона
+  # сборки. Ошибка фильтра опасна только в одну сторону: пропущенная проверка
+  # выглядит как зелёная. Поэтому у дорогой rust условие обратное: она идёт на
+  # любой файл, если он не входит в явный список того, чего cargo не видит.
+  # Новый каталог, о котором здесь забыли, запускает её, а не тихо пропускает.
+  # js и harness дешёвые, им хватает прямого списка.
+  changes:
+    name: changes
+    runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
+    # Таймауты у всех джоб: зависшая джоба без таймаута (по умолчанию 6 часов)
+    # держит очередь раннера.
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+{% if rust %}
+      rust: {{ gh }} steps.code.outputs.rust }}
+{% endif %}
+{% if frontend %}
+      js: {{ gh }} steps.any.outputs.js }}
+{% endif %}
+      harness: {{ gh }} steps.any.outputs.harness }}
+    steps:
+      - uses: actions/checkout@v7
+{% if rust %}
+
+      - id: code
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: every
+          filters: |
+            rust:
+              - "**"
+              - "!**/*.md"
+{% if frontend and monorepo %}
+              - "!apps/**"
+              - "!packages/**"
+              - "!biome.json"
+              - "!turbo.json"
+              - "!package.json"
+              - "!bun.lock"
+{% endif %}
+              - "!.claude/**"
+              - "!.harness/**"
+              - "!knowledge/**"
+              - "!openspec/**"
+              - "!.mcp.json"
+              - "!lefthook.yml"
+              - "!.copier-answers.yml"
+{% endif %}
+
+      - id: any
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+{% if frontend %}
+            js:
+              - "**/*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc,css,html}"
+{% if monorepo %}
+              - apps/**
+              - packages/**
+{% else %}
+              - src/**
+{% endif %}
+              - bun.lock
+              - .github/workflows/**
+{% endif %}
+            harness:
+              - .harness/**
+              - .claude/**
+              - knowledge/**
+              - lefthook.yml
+              - .copier-answers.yml
+              - "{{ open_questions_path }}"
+              - "{{ stages_path }}"
+{% if doc_form == 'catalog' %}
+              - "{{ spec_path }}/**"
+              - "{{ revisions_path }}/**"
+{% endif %}
+{% if frontend %}
+              - package.json
+              - bun.lock
+{% endif %}
+{% if rust %}
+              - rust-toolchain.toml
+{% endif %}
+              - .github/workflows/**
+{% if rust %}
+
+  rust:
+    name: rust
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      # Тулчейн берётся из rust-toolchain.toml: rustup доставит компоненты сам.
+      # Кеш GitHub — только на чистой машине: у своего раннера каталог сборки
+      # постоянный.
+      - uses: Swatinem/rust-cache@v2
+        if: runner.environment == 'github-hosted'
+
+      - name: Форматирование
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy{% if monorepo %} --workspace{% endif %} --all-targets --all-features -- -D warnings
+
+      - name: Тесты
+        run: cargo test{% if monorepo %} --workspace{% endif %}
+
+{% endif %}
+{% if frontend %}
+
+  js:
+    name: js
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
+    runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Версия bun берётся из packageManager в package.json.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+{% if monorepo %}
+
+      # Кеш turbo поверх кеша GitHub Actions: ни аккаунта, ни секретов.
+      - uses: rharkor/caching-for-turbo@v2.5.1
+{% endif %}
+
+      - name: Установка
+        run: bun install --frozen-lockfile
+
+      - name: Типы
+        run: bun run typecheck
+
+      - name: Линт
+        run: bun run lint
+
+      - name: Тесты
+        run: bun run test
+
+      - name: Сборка
+        run: bun run build
+{% endif %}
+
+  harness:
+    name: harness
+    needs: changes
+    if: needs.changes.outputs.harness == 'true'
+    runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Тесты гоняют lefthook на временных репозиториях{% if rust %}, зовут rustfmt{% endif %}{% if frontend %}, bunx biome и tsc{% endif %}.
+      - uses: oven-sh/setup-bun@v2
+{% if frontend %}
+        with:
+          bun-version-file: package.json
+
+      - name: Установка
+        run: bun install --frozen-lockfile
+{% else %}
+        with:
+          bun-version: latest
+
+      - name: lefthook
+        run: bun add --global lefthook@2.1.12
+{% endif %}
+
+      - name: Тесты хуков
+        run: ./.harness/hooks/tests/run.sh
+
+      - name: Тесты knowledge/
+        run: for t in knowledge/tests/*.sh; do "./$t" || exit 1; done
+{% if doc_form == 'catalog' %}
+
+      # Оглавления knowledge/ — generated. Расхождение с содержимым обязано быть
+      # красным прогоном. `git status --porcelain`, а не `git diff --exit-code`:
+      # дифф слеп к добавленному и удалённому файлу.
+      - name: Оглавления собраны
+        run: |
+          ./knowledge/index.sh
+          status=$(git status --porcelain -- knowledge/)
+          if [ -n "$status" ]; then
+            printf 'Оглавления knowledge/ разошлись с содержимым — прогони ./knowledge/index.sh и закоммить:\n%s\n' "$status" >&2
+            exit 1
+          fi
+{% endif %}

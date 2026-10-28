@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Слот post-edit-async (PostToolUse/Write|Edit, асинхронный), модуль frontend:
+# проверяет типы в пакете, которому принадлежит файл. Выход 2 будит модель
+# с текстом ошибки.
+#
+# Проверяющая команда подменяема через `HARNESS_TSC` — как `HARNESS_CLIPPY`
+# у соседнего хука, и по той же причине: окно между вердиктом и диском
+# воспроизводится подставной командой, а не расчётом на то, что настоящий
+# `tsc` окажется медленнее стороннего сторожа.
+#
+# Предохранитель против шквала: вердикт, устаревший к моменту готовности,
+# не будит — см. `lib/staleness.sh`. `tsc` считает секунды, а правка идёт
+# пачкой: без предохранителя каждый промежуточный кадр рефакторинга будил
+# сессию текстом о состоянии, которого на диске уже нет.
+set -uo pipefail
+
+here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
+# shellcheck source=lib/staleness.sh
+. "$here/lib/staleness.sh"
+
+input=$(cat)
+# Правка субагента не будит главную сессию: исполнитель идёт по TDD,
+# и красные промежуточные состояния — его рабочий ход, а не сигнал.
+# Свои проверки он гоняет сам, главная сессия — полный прогон перед PR.
+# Признак — поле `agent_id`: Claude Code кладёт его только в события субагентов.
+[ -n "$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null)" ] && exit 0
+f=$(printf '%s' "$input" | jq -r '.tool_response.filePath // .tool_input.file_path // empty' 2>/dev/null) || exit 0
+case "$f" in
+  *.ts|*.tsx) ;;
+  *) exit 0 ;;
+esac
+
+{% if monorepo %}
+# apps/<name>/… или packages/<name>/… — разбор средствами оболочки:
+# BSD sed не поддерживает \| в basic regex, на нём этот разбор молча давал пустоту.
+case "$f" in
+  */apps/*|apps/*) area=apps ;;
+  */packages/*|packages/*) area=packages ;;
+  *) exit 0 ;;
+esac
+
+prefix=${f%%"$area"/*}
+rest=${f#*"$area"/}
+name=${rest%%/*}
+[ -n "$name" ] || exit 0
+dir="${prefix}${area}/${name}"
+{% else %}
+# Одно приложение в корне: пакет — корень проекта, которому принадлежит файл.
+case "$f" in
+  */node_modules/* | node_modules/* | */dist/* | dist/*) exit 0 ;;
+esac
+case "$f" in
+  /*) file_dir=${f%/*} ;;
+  */*) file_dir=$PWD/${f%/*} ;;
+  *) file_dir=$PWD ;;
+esac
+dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
+# git даёт физический путь (на macOS `/private/var/…` вместо `/var/…`); путь
+# правленого файла приводится к тому же виду, иначе проверка устаревания
+# не узнает в нём себя.
+f="$(cd "$file_dir" && pwd -P)/${f##*/}"
+{% endif %}
+[ -f "$dir/tsconfig.json" ] || exit 0
+
+mark=$(stale_marker)
+trap 'stale_drop "$mark"' EXIT
+
+tsc=${HARNESS_TSC:-bunx tsc}
+out=$(cd "$dir" && $tsc --noEmit 2>&1) && exit 0
+
+# Дерево ушло вперёд, пока считали: правка пачкой продолжается, и этот вердикт
+# уже не о том, что лежит на диске. Следующая правка запустит проверку заново,
+# а у последней правки пачки следующей не будет — она и доложит.
+stale_since "$mark" "$dir" "$f" && exit 0
+
+printf 'tsc: %s не проходит проверку типов\n\n%s\n' "$dir" "$(printf '%s' "$out" | tail -40)" >&2
+exit 2

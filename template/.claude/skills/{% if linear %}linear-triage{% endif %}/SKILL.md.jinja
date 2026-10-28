@@ -1,4 +1,4 @@
-{% set stages = stages_path | default(spec_path ~ '/03-stages.md') %}
+{% set stages = stages_path %}
 ---
 name: linear-triage
 description: Use when the owner asks to разобрать Linear or входящие от заказчика, when a question has to go to the customer, when a change, fix or harness PR starts (it needs its {{ tracker_prefix }}-N), or when any tracked work reaches a PR, a merge or a deploy.

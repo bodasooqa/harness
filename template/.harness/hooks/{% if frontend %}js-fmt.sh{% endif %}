@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Слот post-edit (PostToolUse/Write|Edit), модуль frontend: форматирует и чинит
+# только что записанный JS/TS/CSS файл.
+set -uo pipefail
+
+f=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' 2>/dev/null) || exit 0
+case "$f" in
+  *.ts|*.tsx|*.js|*.jsx|*.json|*.jsonc|*.css) ;;
+  *) exit 0 ;;
+esac
+case "$f" in
+  # Фикстура — внешний ответ байт в байт. Исключение в `biome.json` не спасает:
+  # оно от корня этого дерева, а файл может лежать в соседнем.
+  */tests/fixtures/*) exit 0 ;;
+esac
+[ -f "$f" ] || exit 0
+
+bunx biome check --write --no-errors-on-unmatched "$f" >/dev/null 2>&1 || true
+exit 0

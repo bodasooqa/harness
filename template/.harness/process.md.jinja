@@ -1,4 +1,4 @@
-{% set stages = stages_path | default(spec_path ~ '/03-stages.md') %}
+{% set stages = stages_path %}
 # Правила процесса
 
 Общие правила работы из шаблона [harness](https://github.com/bodasooqa/harness). Файл управляемый: обновляется `copier update`, руками не правится. Своё проект пишет в корневой `CLAUDE.md` (домен, стек, границы пакетов, источники правды, определения) и в `.harness/local/`.
@@ -152,7 +152,7 @@ bun run --filter '@{{ project_name }}/<пакет>' <script>    # одна за�
 - **Субагенты:**{% if rust %} исполнитель `rust-developer`{% if monorepo %} (только `crates/`){% endif %}{% if frontend %} и{% endif %}{% endif %}{% if frontend %} исполнитель `frontend-developer`{% if monorepo %} (`apps/` и `packages/`){% endif %}{% endif %} — Sonnet; ревьюеры{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Исполнители скиллы не вызывают, а читают файлом: путь назван в их промпте.
 - **Дополнения агентов:** `.harness/local/agents/<имя>.md` — домен, инварианты, проектные скиллы для агента `<имя>`; агент читает его до начала работы, и при расхождении дополнение сильнее общего промпта. Каталог `.harness/local/` — проектный; что в нём лежит — его README.
 - **Хуки** живут в `.harness/hooks/` и вызываются одним диспетчером на событие из настроек агента: на правку — форматирование и проверки по пакету, на команду — охрана общего каталога, на старте и выходе — доклад о дереве и хвостах. Проектные хуки — `.harness/local/hooks/<слот>/`, контракт в `.harness/hooks/README.md`.
-- **Git-хуки (lefthook):** pre-commit — форматирование staged-файлов, секреты, сборка блоков `knowledge/`; pre-push — только редкие проверки инвариантов. Полные проверки — в CI.
+- **Git-хуки (lefthook):** pre-commit — форматирование staged-файлов, секреты, перенос закрытых вопросов в архив{% if doc_form == 'catalog' %} и оглавления `knowledge/`{% endif %}; pre-push — только редкие проверки инвариантов. Полные проверки — в CI.
 - **OpenSpec:** propose/apply/archive, конфигурация в `openspec/config.yaml`, состояние — `openspec list`, `openspec status`.
 {% if linear %}
 - **Linear** (MCP) — канал с заказчиком и журнал всей работы: каждый change, фикс и PR обвязки — задача в проекте этапа до первого пуша, `{{ tracker_prefix }}-N` в начале заголовка PR. Порядок — скилл `linear-triage`. При расхождении верен репозиторий.

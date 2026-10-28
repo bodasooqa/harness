@@ -4,14 +4,20 @@
 # Для каждой раскладки `copier copy` из текущего рабочего каталога репозитория
 # (с незакоммиченными правками) во временный каталог, затем в нём проверки
 # стека: Rust — fmt, clippy, тесты; фронт — install, typecheck, lint, тесты,
-# сборка; форма документов catalog — тест knowledge/tests/spec-unfolded.sh;
-# обвязка — шаг harness-files: набор агентов и скиллов, нет остатков Jinja,
-# доменных слов и каталога `_partials`.
+# сборка; обвязка — шаг harness-files: набор агентов и скиллов, нет остатков
+# Jinja, доменных слов и каталога `_partials`; хуки и git-хуки — тесты хуков
+# `.harness/hooks/tests/run.sh`, тесты `knowledge/tests/`, `lefthook validate`,
+# actionlint (если установлен) и shellcheck по скриптам `.harness/` и
+# `knowledge/`.
 #
 # Шестой прогон, monolith, — полная раскладка с формой документов monolith,
-# путями старой формы и модулем Linear: только copier и harness-files (стек тот
-# же, что у full), плюс проверка, что тексты ссылаются на файлы-журналы, а не
-# на каталоги.
+# путями старой формы и модулем Linear: copier, harness-files и проверки хуков
+# (стек тот же, что у full, его не собираем; bun install — только ради biome и
+# tsc в тестах хуков), плюс проверка, что тексты ссылаются на файлы-журналы,
+# а не на каталоги.
+#
+# lefthook берётся `bunx lefthook@2.1.12` через обёртку в PATH: в раскладках
+# без фронта его в node_modules нет.
 #
 # Использование:
 #   scripts/check-layouts.sh               все пять раскладок и monolith
@@ -27,7 +33,7 @@ repo=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
 all_layouts="full rust-workspace rust-crate web-monorepo web-app monolith"
 
 usage() {
-  sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 layouts=$all_layouts
@@ -77,14 +83,40 @@ layout_data() {
 # Что обязано быть (+) и чего быть не должно (-) в раскладке.
 # shellcheck disable=SC2329
 layout_shape() {
+  local common="+.harness/hooks/dispatch.sh +.harness/hooks/tests/run.sh +.harness/local/README.md"
+  common="$common +.claude/settings.json +lefthook.yml +.harness/lefthook.yml"
+  common="$common +.github/workflows/ci.yml +.github/workflows/harness.yml +knowledge/due.sh"
   case "$1" in
-    full) echo "+crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src" ;;
-    rust-workspace) echo "+crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json" ;;
-    rust-crate) echo "+src/main.rs -crates -package.json -.harness/biome.json" ;;
-    web-monorepo) echo "+apps/web/package.json +packages/uikit/package.json -Cargo.toml -src" ;;
-    web-app) echo "+src/main.tsx +src/components/ui/.gitkeep +components.json -apps -packages -turbo.json -Cargo.toml" ;;
-    monolith) echo "+crates/app/Cargo.toml +apps/web/package.json -docs/spec -knowledge/decisions -knowledge/spec-unfolded.sh" ;;
+    full) echo "$common +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
+    rust-workspace) echo "$common +crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json -.harness/hooks/js-fmt.sh" ;;
+    rust-crate) echo "$common +src/main.rs -crates -package.json -.harness/biome.json -.harness/hooks/js-typecheck.sh" ;;
+    web-monorepo) echo "$common +apps/web/package.json +packages/uikit/package.json -Cargo.toml -src +.harness/biome.json -.harness/hooks/rust-fmt.sh" ;;
+    web-app) echo "$common +src/main.tsx +src/components/ui/.gitkeep +components.json -apps -packages -turbo.json -Cargo.toml -.harness/hooks/rust-clippy.sh" ;;
+    monolith) echo "$common +crates/app/Cargo.toml +apps/web/package.json -docs/spec -knowledge/decisions -knowledge/spec-unfolded.sh -knowledge/index.sh" ;;
   esac
+}
+
+# Тесты knowledge/ — каждый исполняемым файлом, как их зовут lefthook и CI.
+# shellcheck disable=SC2329
+run_knowledge_tests() {
+  local t
+  for t in knowledge/tests/*.sh; do
+    echo "== $t"
+    "./$t" || return 1
+  done
+}
+
+# Линт скриптов обвязки и knowledge/ (shellcheck) с уровня warning: замечания
+# info и style — идиомы тестов (`проверка && ok || bad`) и source по пути от
+# самого скрипта.
+# shellcheck disable=SC2329
+run_shellcheck() {
+  local -a files=()
+  local file
+  while IFS= read -r file; do
+    files+=("$file")
+  done < <(find .harness knowledge -type f -name '*.sh' | sort)
+  shellcheck -x -S warning "${files[@]}"
 }
 
 # Значение ключа из файла ответов проекта (`ключ: значение`).
@@ -201,6 +233,11 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/check-layouts.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 # Общий каталог сборки Rust на все раскладки: зависимости собираются один раз.
 export CARGO_TARGET_DIR="$work/cargo-target"
+# lefthook для раскладок без фронта и для `lefthook validate`.
+mkdir -p "$work/bin"
+printf '#!/bin/sh\nexec bunx lefthook@2.1.12 "$@"\n' >"$work/bin/lefthook"
+chmod +x "$work/bin/lefthook"
+export PATH="$work/bin:$PATH"
 
 summary=""
 failed=0
@@ -255,9 +292,21 @@ for layout in $layouts; do
       step "bun test" bun run test
       step "build" bun run build
     fi
-    if [[ -f "$dst/knowledge/tests/spec-unfolded.sh" ]]; then
-      step "catalog" bash knowledge/tests/spec-unfolded.sh
+  fi
+  if ((copied)); then
+    if [[ "$layout" == monolith ]]; then
+      step "bun install" bun install
     fi
+    # Проект — git-репозиторий, как у пользователя: actionlint ищет корень
+    # по .git, хуки — общий каталог.
+    step "git init" git init -q -b main
+    step "hook tests" .harness/hooks/tests/run.sh
+    step "knowledge" run_knowledge_tests
+    step "lefthook" lefthook validate
+    if command -v actionlint >/dev/null 2>&1; then
+      step "actionlint" actionlint
+    fi
+    step "shellcheck" run_shellcheck
   fi
 
   if ((layout_ok)); then

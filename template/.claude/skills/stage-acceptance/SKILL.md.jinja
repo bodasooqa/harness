@@ -1,4 +1,4 @@
-{% set stages = stages_path | default(spec_path ~ '/03-stages.md') %}
+{% set stages = stages_path %}
 ---
 name: stage-acceptance
 description: Use when all changes of a stage are archived and the stage is about to be declared done — the acceptance procedure before the stage-closing commit and before any change of the next stage may start.

@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Оглавления каталогов решений и уроков.
+#
+# Решения и уроки лежат по файлу на запись; оглавление каталога — список
+# записей в его README.md между метками
+#   <!-- оглавление: собирает knowledge/index.sh, руками не править -->
+#   <!-- /оглавление -->
+# Ручное оглавление разъезжается с содержимым первым же забытым файлом. Здесь
+# оно — производная от файлов, и держит его pre-commit, а не дисциплина.
+#
+# Строка оглавления — `- [Заголовок](файл.md)`: заголовок — первая строка `# `
+# файла, порядок — по имени файла (имя начинается с даты).
+#
+# Режимы:
+#   index.sh           переписывает оглавления; код 1, если в README нет меток
+#   index.sh --stage   то же и ставит в индекс изменённые README — так зовёт
+#                      pre-commit: новая запись в индексе, а README обычно нет
+#
+# Каталоги — `decisions_path` и `lessons_path` из `.copier-answers.yml`.
+set -euo pipefail
+
+root=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
+answers="$root/.copier-answers.yml"
+
+mode=${1:-}
+case "$mode" in
+  "" | --stage) ;;
+  --help | -h)
+    sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    printf 'index.sh: непонятный аргумент %s. Ожидается --stage или ничего.\n' "$mode" >&2
+    exit 2
+    ;;
+esac
+
+# Значение ключа верхнего уровня из файла ответов: `ключ: значение`, кавычки снимаются.
+answer() {
+  local key=$1 value
+  value=$(awk -v key="$key" -v q="'" '
+    index($0, key ":") == 1 {
+      v = substr($0, length(key) + 2)
+      sub(/^[ \t]+/, "", v)
+      sub(/[ \t]+$/, "", v)
+      f = substr(v, 1, 1)
+      if (length(v) >= 2 && (f == "\"" || f == q) && substr(v, length(v), 1) == f)
+        v = substr(v, 2, length(v) - 2)
+      print v
+      exit
+    }
+  ' "$answers")
+  if [[ -z "$value" ]]; then
+    printf 'index.sh: в %s нет ключа %s\n' "$answers" "$key" >&2
+    exit 1
+  fi
+  value=${value#./}
+  value=${value%/}
+  printf '%s\n' "$value"
+}
+
+if [[ ! -f "$answers" ]]; then
+  printf 'index.sh: нет файла ответов шаблона %s\n' "$answers" >&2
+  exit 1
+fi
+
+cd "$root"
+
+status=0
+for dir in "$(answer decisions_path)" "$(answer lessons_path)"; do
+  readme="$dir/README.md"
+  [[ -f "$readme" ]] || continue
+  rc=0
+  perl -CSD -Mutf8 -0777 -e '
+    my ($dir, $readme) = @ARGV;
+    open my $fh, "<:encoding(UTF-8)", $readme or die "не читается $readme: $!\n";
+    my $text = do { local $/; <$fh> };
+    close $fh;
+
+    unless ($text =~ /<!-- оглавление:.*?-->/s) {
+      warn "$readme: нет меток оглавления, пропущен\n";
+      exit 3;
+    }
+
+    opendir my $dh, $dir or die "не читается $dir: $!\n";
+    my @files = sort grep { /\.md\z/ && $_ ne "README.md" && -f "$dir/$_" } readdir $dh;
+    closedir $dh;
+
+    my @items;
+    for my $f (@files) {
+      open my $ef, "<:encoding(UTF-8)", "$dir/$f" or die "не читается $dir/$f: $!\n";
+      my $title;
+      local $/ = "\n";
+      while (my $l = <$ef>) {
+        if ($l =~ /^# (.+?)\s*$/) { $title = $1; last }
+      }
+      close $ef;
+      $title //= $f;
+      push @items, "- [$title]($f)";
+    }
+    my $block = @items ? join("\n", @items) : "_пусто_";
+
+    my $new = $text;
+    $new =~ s{(<!-- оглавление:.*?-->\n).*?(<!-- /оглавление -->)}{$1$block\n$2}s
+      or die "$readme: метки оглавления не парные\n";
+
+    exit 0 if $new eq $text;
+    open my $out, ">:encoding(UTF-8)", $readme or die "не пишется $readme: $!\n";
+    print $out $new;
+    close $out;
+    print "оглавление обновлено: $readme\n";
+    exit 4;
+  ' "$dir" "$readme" || rc=$?
+  case "$rc" in
+    0) ;;
+    3) status=1 ;;
+    4) [[ "$mode" == --stage ]] && git add -- "$readme" ;;
+    *) exit 1 ;;
+  esac
+done
+
+exit "$status"

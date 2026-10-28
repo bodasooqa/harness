@@ -37,14 +37,19 @@ _tasks:
 
 # Стартовые файлы: создаются один раз и дальше принадлежат проекту, обновление
 # шаблона их не трогает. Всё, что не перечислено, — управляемое: обновляется у
-# всех проектов (`.harness/`, агенты `.claude/agents/` и скиллы шаблона в
-# `.claude/skills/`, `knowledge/spec-unfolded.sh` и его тест,
+# всех проектов (`.harness/` кроме `.harness/local/`, `.claude/settings.json`,
+# агенты `.claude/agents/` и скиллы шаблона в `.claude/skills/`, скрипты
+# `knowledge/` и их тесты, `.github/workflows/harness.yml`,
 # `rust-toolchain.toml`, `rustfmt.toml`, `turbo.json`, `tsconfig.base.json`).
 _skip_if_exists:
   - README.md
   - CLAUDE.md
   - .gitignore
   - openspec/config.yaml
+  # Точки расширения обвязки: свои хуки проекта, свои git-хуки, свои джобы CI
+  - .harness/local/**
+  - lefthook.yml
+  - .github/workflows/ci.yml
   # Rust
   - Cargo.toml
   - crates/app/**
@@ -176,5 +181,16 @@ open_questions_path:
   help: Путь к файлу открытых вопросов
   validator: >-
     {% if not open_questions_path %}
+    Укажите путь
+    {% endif %}
+
+# Таблицу читает `knowledge/due.sh`: сроки открытых вопросов «к этапу N»
+# сверяются с состоянием этапов. В форме catalog таблица — в разделе этапов ТЗ.
+stages_path:
+  type: str
+  default: "{% if doc_form == 'catalog' %}{{ spec_path }}/03-stages.md{% endif %}"
+  help: Путь к файлу с таблицей состояния этапов (`| N. Название | состояние |`, состояния «в работе», «закрыт»)
+  validator: >-
+    {% if not stages_path %}
     Укажите путь
     {% endif %}

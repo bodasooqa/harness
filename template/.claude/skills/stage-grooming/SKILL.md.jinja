@@ -1,4 +1,4 @@
-{% set stages = stages_path | default(spec_path ~ '/03-stages.md') %}
+{% set stages = stages_path %}
 ---
 name: stage-grooming
 description: Use when a stage is about to start — before the first change of the stage, and whenever knowledge/due.sh --overdue turns red. Reviews open questions whose deadline has come.

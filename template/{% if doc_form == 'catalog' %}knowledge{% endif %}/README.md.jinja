@@ -21,5 +21,9 @@
 
 - `{{ decisions_path }}` — решения, по файлу на решение. Формат — в README каталога.
 - `{{ lessons_path }}` — уроки, по файлу на урок. Формат — в README каталога.
-- `{{ open_questions_path }}` — открытые вопросы со сроками, одним файлом.
+- `{{ open_questions_path }}` — открытые вопросы со сроками, одним файлом; закрытые уходят в `{{ open_questions_path[:-3] if open_questions_path.endswith('.md') else open_questions_path }}-closed.md`.
+- `due.sh` — открытые вопросы, которым настал срок, по таблице этапов `{{ stages_path }}`; `--overdue` — только просрочка (pre-push).
+- `archive-questions.sh` — переносит закрытые вопросы в архив (pre-commit).
+- `index.sh` — оглавления `{{ decisions_path }}/README.md` и `{{ lessons_path }}/README.md` между метками (pre-commit).
+- `tests/` — тесты скриптов; гоняются на pre-push и в CI.
 - `spec-unfolded.sh` — список ревизий ТЗ, ещё не сведённых в разделы; с `--write` обновляет блок в README ТЗ. Тест — `tests/spec-unfolded.sh`.
