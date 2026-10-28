@@ -62,3 +62,7 @@ copier copy gh:bodasooqa/harness my-project
 Проверка всех раскладок — `scripts/check-layouts.sh` (`--only <имя>` для одной).
 
 Обновления в проект приносит workflow: новая версия шаблона → `copier update` → PR → вливается сам, если CI зелёный и конфликтов нет.
+
+## Релизы
+
+Тег ставится сам после зелёного CI влитого PR, по его метке: `release:minor` — minor, `release:patch` или без метки — patch, `release:none` — без тега; `release:major` автотега не получает — мажор ставится вручную с заметкой о миграции в [`CHANGELOG.md`](CHANGELOG.md).

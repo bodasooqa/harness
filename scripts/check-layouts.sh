@@ -232,7 +232,8 @@ check_shape() {
 work=$(mktemp -d "${TMPDIR:-/tmp}/check-layouts.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 # Общий каталог сборки Rust на все раскладки: зависимости собираются один раз.
-export CARGO_TARGET_DIR="$work/cargo-target"
+# Заданный в окружении (CI кладёт его в кеш) не перекрывается.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$work/cargo-target}"
 # lefthook для раскладок без фронта и для `lefthook validate`.
 mkdir -p "$work/bin"
 printf '#!/bin/sh\nexec bunx lefthook@2.1.12 "$@"\n' >"$work/bin/lefthook"
