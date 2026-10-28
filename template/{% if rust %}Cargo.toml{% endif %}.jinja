@@ -1,0 +1,33 @@
+{% if monorepo %}
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+# Единственное место, где закреплены версии зависимостей.
+# Крейт подключает нужное через `dep = { workspace = true }`, а не пишет версию у себя.
+[workspace.dependencies]
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+anyhow = "1"
+{% else %}
+[package]
+name = "{{ project_name }}"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+{% endif %}

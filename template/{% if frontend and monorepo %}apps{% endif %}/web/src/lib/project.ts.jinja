@@ -1,0 +1,7 @@
+/** Имя проекта — из ответов шаблона. */
+export const projectName = "{{ project_name }}";
+
+/** Заголовок вкладки: раздел и имя проекта, без раздела — одно имя. */
+export function pageTitle(section?: string): string {
+  return section ? `${section} · ${projectName}` : projectName;
+}

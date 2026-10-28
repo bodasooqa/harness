@@ -1,0 +1,67 @@
+# {{ project_name }}
+
+Что делает проект — описать здесь.
+
+Создан из шаблона [harness](https://github.com/bodasooqa/harness); ответы на его вопросы — `.copier-answers.yml`.
+
+## Где что лежит
+
+{% if rust and monorepo %}
+- `crates/` — Rust, Cargo-воркспейс; версии зависимостей закреплены в `[workspace.dependencies]` корневого `Cargo.toml`. `crates/app` — бинарь.
+{% elif rust %}
+- `src/` — Rust, один крейт в корне.
+{% endif %}
+{% if frontend and monorepo %}
+- `apps/web` — веб-клиент, React SPA на Vite.
+- `packages/uikit` — компоненты по соглашению shadcn и тема.
+{% elif frontend %}
+- `src/` — React SPA на Vite; компоненты по соглашению shadcn — `src/components/ui`.
+{% endif %}
+{% if doc_form == 'catalog' %}
+- `{{ spec_path }}` — ТЗ, по файлу на раздел; журнал ревизий — `{{ revisions_path }}`.
+- `knowledge/` — решения, уроки, открытые вопросы.
+{% else %}
+- `{{ spec_path }}` — ТЗ; журнал ревизий — `{{ revisions_path }}`.
+{% endif %}
+
+## Как запустить
+
+{% if rust %}
+Rust (stable, edition 2024):
+
+```sh
+{% if monorepo %}
+cargo run -p {{ project_name }}-app
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+{% else %}
+cargo run
+cargo test
+cargo clippy --all-targets -- -D warnings
+{% endif %}
+cargo fmt --check
+```
+{% if frontend %}
+
+{% endif %}
+{% endif %}
+{% if frontend %}
+Фронт (bun{% if monorepo %} и turbo{% endif %}):
+
+```sh
+bun install
+bun run dev         # vite
+bun run typecheck
+bun run lint        # biome
+bun run test
+bun run build
+```
+{% endif %}
+
+## Обновление обвязки
+
+```sh
+copier update
+```
+
+Новая версия шаблона накатывается трёхсторонним слиянием: правки проекта сохраняются, конфликт виден в файле.
