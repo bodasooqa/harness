@@ -1,0 +1,15 @@
+{% if rust and monorepo %}
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
+{% elif rust %}
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test
+{% endif %}
+{% if frontend %}
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+{% endif %}

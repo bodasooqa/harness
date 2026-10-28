@@ -1,0 +1,8 @@
+---
+name: rust-reviewer
+description: Ревью Rust-части — паники и unwrap вне тестов, unsafe, блокирующие вызовы в async, магические числа вместо конфигурации, println и секреты в логах, тихая обработка запрещённых случаев. Запускать перед коммитом Rust-изменений.
+tools: Read, Grep, Glob, Bash
+model: opus
+---
+
+{% include 'template/_partials/agents/rust-reviewer.md.jinja' %}
