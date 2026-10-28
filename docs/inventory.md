@@ -122,7 +122,7 @@
 | `package.json` (корень) | стартовое, `frontend` | `name`, скрипты `typecheck`/`build`/`test`/`lint`/`dev` через turbo |
 | `turbo.json`, `tsconfig.base.json` | общее, `frontend` | — |
 | `biome.json` | общее + стартовое | Управляемый общий конфиг; стартовый `biome.json` с `extends`; исключения `.sqlx`, fixtures — screener |
-| `packages/uikit/` | стартовое, `frontend` | `@screener/uikit` → `@{{name}}/uikit`. Без бренда kelv: `logo.tsx`, `lib/kelv-mark-motion.ts` не копируются. Иней (`frost-overlay.tsx`, `lib/frost*`) и замки тарифов (`locked-*`) — продуктовые экраны screener, не копируются. Остальные примитивы shadcn и `hooks/`, `styles/globals.css` — копируются с тестами |
+| `packages/uikit/` | стартовое, `frontend` | Только каркас пакета, без примитивов (решение владельца 28.10.2026): `package.json` (`@{{name}}/uikit`, экспорты как у screener), `tsconfig`, `components.json` для shadcn, `CLAUDE.md`, `src/styles/globals.css` с токенами нейтральной темы shadcn (zinc), `src/lib/utils.ts` (`cn`), пустые `components/` и `hooks/`. Компоненты в каждом проекте свои; screener'овские не копируются |
 | `apps/web/` | стартовое, `frontend` | Пустое Vite + React SPA на `uikit` |
 | `docker-compose.yml` | screener | Postgres |
 
@@ -144,4 +144,4 @@
 
 - `contract-change` — общий, а не screener: процедура не зависит от домена, зависит только список контрактов.
 - `session-tree` — общее, а не модуль `orca`: хук работает через `git worktree` и Orca не вызывает.
-- Иней, замки тарифов и бренд kelv из `uikit` в стартовый `uikit` не идут: это продуктовые экраны screener, а не примитивы.
+- ~~Иней, замки тарифов и бренд kelv из `uikit` не идут, остальные примитивы копируются~~ — заменено решением владельца: стартовый `uikit` — пустой каркас с токенами zinc и `cn`, без примитивов.

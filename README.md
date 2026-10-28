@@ -6,13 +6,13 @@
 
 ## Состояние
 
-Фаза 0 из плана: репозиторий, дизайн и план. Шаблона ещё нет.
+Фаза 2 из плана: каркас шаблона. `copier copy` создаёт пустой проект любой из пяти раскладок с зелёными сборкой, typecheck, lint и тестами; агентской обвязки (агенты, скиллы, хуки) ещё нет.
 
 | Фаза | Что | Состояние |
 |---|---|---|
 | 0 | Репозиторий, дизайн, план | готово |
-| 1 | Инвентаризация обвязки screener | — |
-| 2 | Каркас шаблона, пять раскладок | — |
+| 1 | Инвентаризация обвязки screener | готово |
+| 2 | Каркас шаблона, пять раскладок | готово |
 | 3 | Обвязка для Claude Code | — |
 | 4 | Обвязка для Pi | — |
 | 5 | CI и релизы | — |
@@ -31,7 +31,34 @@
 
 ```sh
 uv tool install copier
-copier copy gh:bodasooqa/harness my-project   # вопросы: Rust, фронт, монорепо, модули
+copier copy gh:bodasooqa/harness my-project
 ```
+
+Вопросы шаблона (`copier.yml`):
+
+| Вопрос | Что | По умолчанию |
+|---|---|---|
+| `project_name` | Имя в kebab-case; из него имена пакетов `<имя>-<крейт>` и `@<имя>/<пакет>` | — |
+| `rust` | Rust в проекте | да |
+| `frontend` | Фронт: React SPA на Vite, bun, biome | да |
+| `monorepo` | Монорепо или один крейт / одно приложение в корне. При Rust и фронте не спрашивается: всегда монорепо | да |
+| `linear` | Модуль Linear | нет |
+| `tracker_prefix` | Префикс задач Linear (`DEN`); только при `linear` | — |
+| `orca` | Модуль Orca: рабочее дерево на сессию | да |
+| `telegram` | Скилл `telegram-bot`; только при `rust` | нет |
+| `doc_form` | Форма документов: `catalog` — ТЗ каталогом, ревизии, решения и уроки по файлу; `monolith` — одним файлом, для существующих проектов | `catalog` |
+| `spec_path`, `revisions_path`, `decisions_path`, `lessons_path`, `open_questions_path` | Пути к ТЗ, журналу ревизий, решениям, урокам, открытым вопросам | при `catalog`: `docs/spec`, `docs/spec/revisions`, `knowledge/decisions`, `knowledge/lessons`, `knowledge/open-questions.md`; при `monolith` — вводятся |
+
+Раскладки:
+
+| Rust | Фронт | Монорепо | Что в корне |
+|---|---|---|---|
+| да | да | да | Cargo-воркспейс `crates/app`, `apps/web`, `packages/uikit`; bun и turbo |
+| да | нет | да | Cargo-воркспейс `crates/app` |
+| да | нет | нет | один крейт, `src/main.rs` |
+| нет | да | да | `apps/web`, `packages/uikit`; bun и turbo |
+| нет | да | нет | одно приложение, `src/` с компонентами в `src/components/ui` |
+
+Проверка всех раскладок — `scripts/check-layouts.sh` (`--only <имя>` для одной).
 
 Обновления в проект приносит workflow: новая версия шаблона → `copier update` → PR → вливается сам, если CI зелёный и конфликтов нет.

@@ -1,0 +1,12 @@
+{% if rust %}
+target/
+{% endif %}
+{% if frontend %}
+node_modules/
+dist/
+{% endif %}
+{% if frontend and monorepo %}
+.turbo/
+{% endif %}
+.env
+.DS_Store
