@@ -40,6 +40,9 @@ permissions:
 
 env:
   COPIER_VERSION: 9.19.1
+  # gh и uv — на случай раннера, где их нет (шаг «Инструменты»).
+  GH_VERSION: 2.102.0
+  UV_VERSION: 0.12.24
   TEMPLATE_URL: ${{ vars.HARNESS_TEMPLATE_URL || 'https://github.com/bodasooqa/harness' }}
 
 jobs:
@@ -55,6 +58,36 @@ jobs:
       WANT: ${{ inputs.version }}
       EVENT: ${{ github.event_name }}
     steps:
+      # На hosted-раннере gh и pipx есть, на своём их может не быть. Недостающее
+      # ставится закреплённой версией в каталог джоба, система раннера не
+      # трогается. Тот же шаг — в harness-automerge.yml.
+      - name: Инструменты
+        run: |
+          set -euo pipefail
+          need_gh=0 need_uv=0
+          command -v gh >/dev/null 2>&1 || need_gh=1
+          command -v pipx >/dev/null 2>&1 || command -v uvx >/dev/null 2>&1 || need_uv=1
+          [ $need_gh = 0 ] && [ $need_uv = 0 ] && exit 0
+          case "$(uname -s)/$(uname -m)" in
+            Linux/x86_64) gh_arch=amd64 uv_arch=x86_64 ;;
+            Linux/aarch64|Linux/arm64) gh_arch=arm64 uv_arch=aarch64 ;;
+            *)
+              echo "::error title=Нет gh или uv::На раннере $(uname -s)/$(uname -m) нужны gh и pipx или uv: сам шаг ставит их только на Linux x86_64 и arm64."
+              exit 1 ;;
+          esac
+          bin="$RUNNER_TEMP/harness-bin"
+          mkdir -p "$bin"
+          if [ $need_gh = 1 ]; then
+            name="gh_${GH_VERSION}_linux_${gh_arch}"
+            curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/${name}.tar.gz" \
+              | tar -xz -C "$bin" --strip-components=2 "${name}/bin/gh"
+          fi
+          if [ $need_uv = 1 ]; then
+            curl -fsSL "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${uv_arch}-unknown-linux-gnu.tar.gz" \
+              | tar -xz -C "$bin" --strip-components=1
+          fi
+          echo "$bin" >>"$GITHUB_PATH"
+
       # Владелец токена — автор PR обновления и его коммитов. Ту же подпись
       # (имя — логин, почта — noreply GitHub) сверяет harness-automerge.yml.
       - name: Секрет

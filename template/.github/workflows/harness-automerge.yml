@@ -32,6 +32,10 @@ concurrency:
 # ветку запустил её CI.
 permissions: {}
 
+env:
+  # gh — на случай раннера, где его нет (шаг «Инструменты»).
+  GH_VERSION: 2.102.0
+
 jobs:
   merge:
     name: merge
@@ -49,6 +53,25 @@ jobs:
       BRANCH: ${{ github.event.workflow_run.head_branch }}
       SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      # Как в harness-update.yml: на своём раннере gh может не быть.
+      - name: Инструменты
+        run: |
+          set -euo pipefail
+          command -v gh >/dev/null 2>&1 && exit 0
+          case "$(uname -s)/$(uname -m)" in
+            Linux/x86_64) gh_arch=amd64 ;;
+            Linux/aarch64|Linux/arm64) gh_arch=arm64 ;;
+            *)
+              echo "::error title=Нет gh::На раннере $(uname -s)/$(uname -m) нужен gh: сам шаг ставит его только на Linux x86_64 и arm64."
+              exit 1 ;;
+          esac
+          bin="$RUNNER_TEMP/harness-bin"
+          mkdir -p "$bin"
+          name="gh_${GH_VERSION}_linux_${gh_arch}"
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/${name}.tar.gz" \
+            | tar -xz -C "$bin" --strip-components=2 "${name}/bin/gh"
+          echo "$bin" >>"$GITHUB_PATH"
+
       - name: Вливание
         run: |
           set -euo pipefail
