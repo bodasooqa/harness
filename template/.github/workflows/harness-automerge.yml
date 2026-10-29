@@ -97,7 +97,7 @@ jobs:
             jq -rs --arg name "$me" --arg email "$email" '[.[][]
               | select(.commit.author.name != $name or .commit.author.email != $email
                   or .commit.committer.name != $name or .commit.committer.email != $email)
-              | "\(.sha[0:7]) \(.commit.author.name) <\(.commit.author.email)>"] | join(", ")')
+              | .sha[0:7]] | join(", ")')
           if [ -n "$foreign" ]; then
             say "В PR #$number есть коммиты не от обновления: $foreign — не вливаю."
             gh pr comment "$number" -R "$REPO" --body "Автовливание пропущено: в ветке есть коммиты не от обновления харнесса ($foreign). Проверь их и влей PR вручную."
