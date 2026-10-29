@@ -1,0 +1,47 @@
+{#
+  Метаданные агентов — один источник для `.claude/agents/` и `.pi/agents/`.
+  Тело агента — `<имя>.md.jinja` рядом. Подключается так:
+  `{% from 'template/_partials/agents/meta.jinja' import agents, pi_tools with context %}`.
+
+  `tools` — имена инструментов Claude Code; для Pi их переводит `pi_tools` по таблице
+  `pi_tool_names` (инструменты Pi — документация пакета `@gotgenes/pi-subagents`, раздел
+  «Tool selection»). У Claude `Glob` ищет и файлы, и каталоги; в Pi это `find` и `ls`.
+
+  `model` — класс модели Claude Code; в Pi он переводится вопросом шаблона `pi_models`.
+#}
+{% set agents = {
+  "rust-developer": {
+    "description": "Исполнитель в Rust-части" ~ (" (crates/)" if monorepo else "") ~ ". Получает сформулированную задачу с уже принятым решением и доводит её до зелёных проверок. Знает границы пакетов и правила кода проекта. Решения не принимает — спорное возвращает вопросом.",
+    "tools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"],
+    "model": "sonnet",
+  },
+  "rust-reviewer": {
+    "description": "Ревью Rust-части — паники и unwrap вне тестов, unsafe, блокирующие вызовы в async, магические числа вместо конфигурации, println и секреты в логах, тихая обработка запрещённых случаев. Запускать перед коммитом Rust-изменений.",
+    "tools": ["Read", "Grep", "Glob", "Bash"],
+    "model": "opus",
+  },
+  "frontend-developer": {
+    "description": "Исполнитель во фронтенде" ~ (" (apps/ и packages/)" if monorepo else "") ~ " — экраны и компоненты UIKit. Получает сформулированную задачу с уже принятым решением и доводит её до зелёных проверок. Знает соглашение shadcn и правило «экран собирается из готовых компонентов UIKit». Решения не принимает — спорное возвращает вопросом.",
+    "tools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"],
+    "model": "sonnet",
+  },
+  "frontend-reviewer": {
+    "description": "Ревью фронтенда — граница UIKit и экранов, соглашение shadcn, токены темы вместо цветов, типы только из контракта, доступность. Запускать перед коммитом фронтовой части.",
+    "tools": ["Read", "Grep", "Glob", "Bash"],
+    "model": "opus",
+  },
+  "spec-auditor": {
+    "description": "Сверяет реализацию с ТЗ (" ~ spec_path ~ ") — параграфы, на которые ссылается change, общие инварианты и инварианты домена из дополнения проекта, границы пакетов. Запускать перед приёмкой этапа, перед архивацией change'а, меняющего поведение продукта, и после любого изменения контракта или схемы данных.",
+    "tools": ["Read", "Grep", "Glob", "Bash"],
+    "model": "opus",
+  },
+} %}
+{% set pi_tool_names = {
+  "Read": ["read"],
+  "Grep": ["grep"],
+  "Glob": ["find", "ls"],
+  "Bash": ["bash"],
+  "Edit": ["edit"],
+  "Write": ["write"],
+} %}
+{% macro pi_tools(tools) %}{% set names = [] %}{% for tool in tools %}{% for name in pi_tool_names[tool] %}{% set _ = names.append(name) %}{% endfor %}{% endfor %}{{ names | join(", ") }}{% endmacro %}
