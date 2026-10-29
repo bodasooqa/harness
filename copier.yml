@@ -20,8 +20,37 @@ _envops:
 # Частичные файлы для include: тело агента одно на Claude Code и Pi. Загрузчик
 # Jinja у Copier ищет от корня репозитория, а не от `_subdirectory`, поэтому
 # include пишется с префиксом `template/_partials/`.
+#
+# Стартовые файлы (список `_skip_if_exists` ниже, один к одному) при обновлении
+# не рендерятся вовсе. `_skip_if_exists` бережёт их только при создании и пока
+# файл есть: удалённый проектом стартовый файл Copier на каждом обновлении
+# создаёт заново (`crates/app/` в проекте со своими крейтами).
 _exclude:
   - _partials
+  - "{% if _copier_operation == 'update' %}/README.md{% endif %}"
+  - "{% if _copier_operation == 'update' %}/CLAUDE.md{% endif %}"
+  - "{% if _copier_operation == 'update' %}/.gitignore{% endif %}"
+  - "{% if _copier_operation == 'update' %}openspec/config.yaml{% endif %}"
+  - "{% if _copier_operation == 'update' %}.harness/local/**{% endif %}"
+  - "{% if _copier_operation == 'update' %}/lefthook.yml{% endif %}"
+  - "{% if _copier_operation == 'update' %}.github/workflows/ci.yml{% endif %}"
+  - "{% if _copier_operation == 'update' %}/Cargo.toml{% endif %}"
+  - "{% if _copier_operation == 'update' %}crates/app/**{% endif %}"
+  - "{% if _copier_operation == 'update' %}/package.json{% endif %}"
+  - "{% if _copier_operation == 'update' %}/biome.json{% endif %}"
+  - "{% if _copier_operation == 'update' %}apps/web/**{% endif %}"
+  - "{% if _copier_operation == 'update' %}packages/uikit/**{% endif %}"
+  - "{% if _copier_operation == 'update' %}/src/**{% endif %}"
+  - "{% if _copier_operation == 'update' %}/index.html{% endif %}"
+  - "{% if _copier_operation == 'update' %}/vite.config.ts{% endif %}"
+  - "{% if _copier_operation == 'update' %}/tsconfig.json{% endif %}"
+  - "{% if _copier_operation == 'update' %}/components.json{% endif %}"
+  - "{% if _copier_operation == 'update' and spec_path %}{{ spec_path }}/**{% endif %}"
+  - "{% if _copier_operation == 'update' and revisions_path %}{{ revisions_path }}/**{% endif %}"
+  - "{% if _copier_operation == 'update' and decisions_path %}{{ decisions_path }}/**{% endif %}"
+  - "{% if _copier_operation == 'update' and lessons_path %}{{ lessons_path }}/**{% endif %}"
+  - "{% if _copier_operation == 'update' and open_questions_path %}{{ open_questions_path }}{% endif %}"
+  - "{% if _copier_operation == 'update' %}knowledge/README.md{% endif %}"
 
 # Только при создании проекта: OpenSpec кладёт свои команды и скиллы для Claude
 # Code и Pi. Это generated, в шаблоне их нет; существующий `openspec/config.yaml`
@@ -48,6 +77,11 @@ _tasks:
 # Файлы корня поэтому пишутся с `/` в начале: `README.md` без него делал
 # стартовыми и управляемые `.harness/hooks/README.md`, `.harness/lefthook.yml`,
 # `.harness/biome.json` — обновление их молча пропускало.
+#
+# Шаблоны с ответом обёрнуты в `{% if %}`. На шаге сравнения `copier update`
+# (Copier 9.19) рендерит этот список без ответов: `{{ spec_path }}/**` дал бы
+# `/**`. Тогда все правки проекта, и в управляемых файлах тоже, выпадали бы
+# из патча и молча терялись (настройки `.claude/settings.json`).
 _skip_if_exists:
   - /README.md
   - /CLAUDE.md
@@ -72,11 +106,11 @@ _skip_if_exists:
   - /tsconfig.json
   - /components.json
   # Документы новой формы
-  - "{{ spec_path }}/**"
-  - "{{ revisions_path }}/**"
-  - "{{ decisions_path }}/**"
-  - "{{ lessons_path }}/**"
-  - "{{ open_questions_path }}"
+  - "{% if spec_path %}{{ spec_path }}/**{% endif %}"
+  - "{% if revisions_path %}{{ revisions_path }}/**{% endif %}"
+  - "{% if decisions_path %}{{ decisions_path }}/**{% endif %}"
+  - "{% if lessons_path %}{{ lessons_path }}/**{% endif %}"
+  - "{% if open_questions_path %}{{ open_questions_path }}{% endif %}"
   - knowledge/README.md
 
 project_name:
