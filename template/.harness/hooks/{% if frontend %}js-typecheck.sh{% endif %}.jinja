@@ -17,6 +17,8 @@ set -uo pipefail
 here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
 # shellcheck source=lib/staleness.sh
 . "$here/lib/staleness.sh"
+# shellcheck source=lib/same-repo.sh
+. "$here/lib/same-repo.sh"
 
 input=$(cat)
 # Правка субагента не будит главную сессию: исполнитель идёт по TDD,
@@ -61,6 +63,8 @@ dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
 f="$(cd "$file_dir" && pwd -P)/${f##*/}"
 {% endif %}
 [ -f "$dir/tsconfig.json" ] || exit 0
+# tsc берётся из node_modules пакета: чужой клон не исполняем.
+same_repo "$dir" || exit 0
 
 mark=$(stale_marker)
 trap 'stale_drop "$mark"' EXIT

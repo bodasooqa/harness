@@ -216,18 +216,21 @@ describe("post-edit: tool_result edit/write", () => {
   test.if(has("rust-clippy.sh"))(
     "post-edit-async: код 2 будит модель сообщением",
     async () => {
-      const repo = newRepo();
-      mkdirSync(join(repo, "crates", "core", "src"), { recursive: true });
-      writeFileSync(join(repo, "Cargo.toml"), "[workspace]\n");
-      writeFileSync(join(repo, "crates", "core", "src", "lib.rs"), "fn main() {}\n");
-      const fake = join(repo, "fake-clippy");
+      // Крейт — внутри проекта: файл чужого репозитория clippy не проверяет.
+      const crate = join(inProject, "crates", "core", "src");
+      mkdirSync(crate, { recursive: true });
+      writeFileSync(join(crate, "lib.rs"), "fn main() {}\n");
+      const fake = join(base, "fake-clippy");
       writeFileSync(fake, "#!/usr/bin/env bash\necho 'error[E0061]: сломано'\nexit 1\n");
       chmodSync(fake, 0o755);
       process.env.HARNESS_CLIPPY = fake;
       process.env.HARNESS_CLIPPY_STATE = mkdtempSync(join(base, "clippy-state."));
       try {
-        const pi = fakePi({ cwd: repo });
-        await pi.emit("tool_result", edited("edit", "crates/core/src/lib.rs", { edits: [] }));
+        const pi = fakePi({ cwd: root });
+        await pi.emit(
+          "tool_result",
+          edited("edit", ".tmp-pi-test/crates/core/src/lib.rs", { edits: [] }),
+        );
         expect(await waitFor(() => pi.sent.length > 0, 20_000)).toBe(true);
         const [wake] = pi.sent;
         expect(String(wake?.message.content)).toContain("E0061");
