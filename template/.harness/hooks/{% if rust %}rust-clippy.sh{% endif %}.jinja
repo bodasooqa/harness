@@ -63,6 +63,8 @@ case "$f" in
   */*) file_dir=$PWD/${f%/*} ;;
   *) file_dir=$PWD ;;
 esac
+# git в каталоге файла — только когда он в дереве проекта (см. lib/same-repo.sh).
+same_repo "$file_dir" || exit 0
 crate_dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$crate_dir/Cargo.toml" ] || exit 0
 # git даёт физический путь (на macOS `/private/var/…` вместо `/var/…`); путь
