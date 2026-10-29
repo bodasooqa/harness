@@ -561,6 +561,12 @@ if has rust-clippy.sh; then
   { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
     && ok "clippy не запускается во вложенном клоне" \
     || bad "clippy не запускается во вложенном клоне" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
+  # Вложенный клон, чей core.worktree называет корнем дерево проекта.
+  git -C "$nested" config core.worktree "$clippydir"
+  out=$(clippy_foreign "$nested/crates/core/src/lib.rs" h); code=$?
+  { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
+    && ok "clippy не верит core.worktree вложенного клона" \
+    || bad "clippy не верит core.worktree вложенного клона" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
 fi
 
 if has js-typecheck.sh; then
