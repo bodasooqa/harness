@@ -41,6 +41,7 @@ _tasks:
 # агенты `.claude/agents/` и скиллы шаблона в `.claude/skills/`, прослойка Pi
 # `.pi/settings.json`, `.pi/extensions/harness.ts` и агенты `.pi/agents/`, скрипты
 # `knowledge/` и их тесты, `.github/workflows/harness.yml`,
+# `.github/workflows/harness-update.yml`, `.github/workflows/harness-automerge.yml`,
 # `rust-toolchain.toml`, `rustfmt.toml`, `turbo.json`, `tsconfig.base.json`).
 _skip_if_exists:
   - README.md
