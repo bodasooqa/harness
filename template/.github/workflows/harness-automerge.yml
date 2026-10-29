@@ -11,7 +11,9 @@
 #   - CI зелёный (красный — ничего не делает, PR остаётся открытым);
 #   - автор PR — владелец токена HARNESS_UPDATE_TOKEN, тот, кто его открыл;
 #   - нет меток harness:major и harness:conflict;
-#   - голова PR — тот коммит, на котором прошёл CI.
+#   - голова PR — тот коммит, на котором прошёл CI;
+#   - все коммиты PR — от обновления (автор и коммиттер с подписью
+#     harness-update.yml); есть посторонний — комментарий в PR, вливание руками.
 #
 # Подключение — .harness/local/README.md.
 name: harness-automerge
@@ -64,7 +66,8 @@ jobs:
           fi
           number=$(jq -r .number <<<"$pr")
 
-          me=$(gh api user --jq .login)
+          read -r me id < <(gh api user --jq '"\(.login) \(.id)"')
+          email="$id+$me@users.noreply.github.com"
           author=$(jq -r .author.login <<<"$pr")
           if [ "$author" != "$me" ]; then
             say "PR #$number открыл $author, а не владелец токена ($me) — не вливаю."
@@ -82,6 +85,22 @@ jobs:
           head=$(jq -r .headRefOid <<<"$pr")
           if [ "$head" != "$SHA" ]; then
             say "Голова PR #$number ($head) — не тот коммит, на котором прошёл CI ($SHA): жду CI нового."
+            exit 0
+          fi
+
+          # Каждый коммит PR — от обновления: автор и коммиттер с подписью
+          # harness-update.yml (логин владельца токена и его noreply-почта).
+          # Дописанный в ветку коммит — разбор конфликта или чужая правка —
+          # вливается только руками.
+          # shellcheck disable=SC2016 # $name и $email — переменные jq
+          foreign=$(gh api --paginate "repos/$REPO/pulls/$number/commits" |
+            jq -rs --arg name "$me" --arg email "$email" '[.[][]
+              | select(.commit.author.name != $name or .commit.author.email != $email
+                  or .commit.committer.name != $name or .commit.committer.email != $email)
+              | "\(.sha[0:7]) \(.commit.author.name) <\(.commit.author.email)>"] | join(", ")')
+          if [ -n "$foreign" ]; then
+            say "В PR #$number есть коммиты не от обновления: $foreign — не вливаю."
+            gh pr comment "$number" -R "$REPO" --body "Автовливание пропущено: в ветке есть коммиты не от обновления харнесса ($foreign). Проверь их и влей PR вручную."
             exit 0
           fi
 
