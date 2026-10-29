@@ -8,7 +8,8 @@
 # нет остатков Jinja, доменных слов и `_partials`; хуки и git-хуки — тесты хуков
 # `.harness/hooks/tests/run.sh`, прослойки Pi `pi.test.ts`, `knowledge/tests/`,
 # `lefthook validate`, actionlint (если установлен) и shellcheck по скриптам
-# `.harness/` и `knowledge/`.
+# `.harness/` и `knowledge/`; обновление харнесса — тесты `.harness/update/tests/`
+# и нет маркеров конфликта в сгенерированном проекте.
 #
 # Шестой прогон, monolith, — полная раскладка с формой документов monolith,
 # путями старой формы и модулем Linear: copier, harness-files и проверки хуков
@@ -87,6 +88,8 @@ layout_shape() {
   common="$common +.claude/settings.json +lefthook.yml +.harness/lefthook.yml"
   common="$common +.github/workflows/ci.yml +.github/workflows/harness.yml +knowledge/due.sh"
   common="$common +.pi/settings.json +.pi/extensions/harness.ts +.harness/hooks/tests/pi.test.ts"
+  common="$common +.github/workflows/harness-update.yml +.github/workflows/harness-automerge.yml"
+  common="$common +.harness/update/next-version.sh +.harness/update/conflict-markers.sh"
   case "$1" in
     full) echo "$common +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
     rust-workspace) echo "$common +crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json -.harness/hooks/js-fmt.sh" ;;
@@ -102,6 +105,16 @@ layout_shape() {
 run_knowledge_tests() {
   local t
   for t in knowledge/tests/*.sh; do
+    echo "== $t"
+    "./$t" || return 1
+  done
+}
+
+# Тесты обновления харнесса — так же, как их зовёт джоба harness в CI проекта.
+# shellcheck disable=SC2329
+run_update_tests() {
+  local t
+  for t in .harness/update/tests/*.sh; do
     echo "== $t"
     "./$t" || return 1
   done
@@ -316,6 +329,8 @@ for layout in $layouts; do
     step "hook tests" .harness/hooks/tests/run.sh
     step "pi tests" bun test ./.harness/hooks/tests/pi.test.ts
     step "knowledge" run_knowledge_tests
+    step "update tests" run_update_tests
+    step "markers" .harness/update/conflict-markers.sh
     step "lefthook" lefthook validate
     if command -v actionlint >/dev/null 2>&1; then
       step "actionlint" actionlint
