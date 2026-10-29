@@ -32,7 +32,7 @@
 | Что | Вид | Зачем |
 |---|---|---|
 | `HARNESS_UPDATE_TOKEN` | секрет, обязателен | fine-grained PAT владельца на этот репозиторий: Contents — read and write, Pull requests — read and write, Issues — read and write (метки `harness:major`, `harness:conflict`), Workflows — read and write, Metadata — read. Штатный `GITHUB_TOKEN` не годится: его PR не запускает CI, а пушить правки в `.github/workflows/` ему нельзя. Без секрета оба workflow падают с подсказкой. Автор PR обновления — владелец токена; PR другого автора автовливание не трогает |
-| `HARNESS_RUNNER` | переменная, по желанию | раннер обоих workflow: метка строкой (`self-hosted`) или массив меток в JSON (`["self-hosted", "ci"]`); по умолчанию `ubuntu-latest`. На своём раннере нужны `git`, `gh`, `jq` и `pipx` или `uv` — copier запускается через них, без установки в систему |
+| `HARNESS_RUNNER` | переменная, по желанию | раннер обоих workflow: метка строкой (`self-hosted`) или массив меток в JSON (`["self-hosted", "ci"]`); по умолчанию `ubuntu-latest`. На своём раннере нужны `git`, `jq` и `curl`; `gh` и `uv` (для copier), если их нет, workflow сам ставит закреплённой версией в каталог джоба — на Linux x86_64 и arm64 |
 | `HARNESS_TEMPLATE_URL` | переменная, по желанию | откуда брать теги шаблона; по умолчанию `https://github.com/bodasooqa/harness`. Обязан совпадать с `_src_path` в `.copier-answers.yml` (форма `gh:владелец/репозиторий` тоже годится), иначе обновление остановится с ошибкой |
 
 ## Хук проекта
