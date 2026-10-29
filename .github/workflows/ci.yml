@@ -1,6 +1,7 @@
 # CI самого шаблона: каждая раскладка генерируется `copier copy` и проверяется
 # `scripts/check-layouts.sh --only <раскладка>` — тем же скриптом, что гоняется
-# на машине владельца. Плюс линт скриптов и workflow репозитория.
+# на машине владельца. Плюс `scripts/check-update.sh` — обновление проекта с
+# правками, и линт скриптов и workflow репозитория.
 #
 # Инструменты — закреплёнными версиями, как на машине владельца: расхождение
 # версий даёт разные замечания линтеров, и зелёное локально краснеет в CI.
@@ -52,6 +53,21 @@ jobs:
         run: |
           actionlint --version
           actionlint .github/workflows/*.yml
+
+  # copier update на проекте с правками: свои строки в управляемых файлах и
+  # удалённые стартовые файлы переживают обновление.
+  update:
+    name: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: copier
+        run: pipx install "copier==$COPIER_VERSION"
+
+      - name: check-update.sh
+        run: scripts/check-update.sh
 
   layouts:
     name: ${{ matrix.layout }}
