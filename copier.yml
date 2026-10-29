@@ -43,29 +43,34 @@ _tasks:
 # `knowledge/` и их тесты, `.github/workflows/harness.yml`,
 # `.github/workflows/harness-update.yml`, `.github/workflows/harness-automerge.yml`,
 # `rust-toolchain.toml`, `rustfmt.toml`, `turbo.json`, `tsconfig.base.json`).
+#
+# Шаблоны — в синтаксисе .gitignore: имя без `/` совпадает на любой глубине.
+# Файлы корня поэтому пишутся с `/` в начале: `README.md` без него делал
+# стартовыми и управляемые `.harness/hooks/README.md`, `.harness/lefthook.yml`,
+# `.harness/biome.json` — обновление их молча пропускало.
 _skip_if_exists:
-  - README.md
-  - CLAUDE.md
-  - .gitignore
+  - /README.md
+  - /CLAUDE.md
+  - /.gitignore
   - openspec/config.yaml
   # Точки расширения обвязки: свои хуки проекта, свои git-хуки, свои джобы CI
   - .harness/local/**
-  - lefthook.yml
+  - /lefthook.yml
   - .github/workflows/ci.yml
   # Rust
-  - Cargo.toml
+  - /Cargo.toml
   - crates/app/**
   # Фронт
-  - package.json
-  - biome.json
+  - /package.json
+  - /biome.json
   - apps/web/**
   - packages/uikit/**
   # Один крейт или одно приложение в корне
-  - src/**
-  - index.html
-  - vite.config.ts
-  - tsconfig.json
-  - components.json
+  - /src/**
+  - /index.html
+  - /vite.config.ts
+  - /tsconfig.json
+  - /components.json
   # Документы новой формы
   - "{{ spec_path }}/**"
   - "{{ revisions_path }}/**"
