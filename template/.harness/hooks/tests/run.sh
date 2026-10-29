@@ -532,6 +532,35 @@ if has rust-clippy.sh; then
   { [ $code -eq 2 ] && [ -n "$out" ]; } \
     && ok "clippy идёт по соседнему дереву того же репозитория" \
     || bad "clippy идёт по соседнему дереву того же репозитория" "код 2 с текстом" "код $code: $out"
+
+  # Ответу git из чужого каталога верить нельзя: `core.worktree` в его конфиге
+  # называет корнем дерево проекта, а запуск — в чужом каталоге.
+  # shellcheck disable=SC2329 # зовётся через подстановку
+  clippy_foreign() {  # <файл> <имя состояния>
+    rm -f "$staledir/ran"
+    CLAUDE_PROJECT_DIR="$clippydir" HARNESS_CLIPPY="$stalefake" HARNESS_CLIPPY_STATE="$stalestate/state-$2" \
+      bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$1")" "$hooks/rust-clippy.sh"
+  }
+  if redirected=$(new_repo); then
+    mkdir -p "$redirected/crates/core/src"
+    printf '[workspace]\n' > "$redirected/Cargo.toml"
+    printf 'fn main() {}\n' > "$redirected/crates/core/src/lib.rs"
+    git -C "$redirected" config core.worktree "$clippydir"
+    out=$(clippy_foreign "$redirected/crates/core/src/lib.rs" f); code=$?
+    { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
+      && ok "clippy не верит core.worktree чужого клона" \
+      || bad "clippy не верит core.worktree чужого клона" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
+  fi
+  # Клон внутри дерева проекта — тоже чужой: его корень по git — он сам.
+  nested="$clippydir/vendor/other"
+  mkdir -p "$nested/crates/core/src"
+  git -C "$nested" init -q
+  printf '[workspace]\n' > "$nested/Cargo.toml"
+  printf 'fn main() {}\n' > "$nested/crates/core/src/lib.rs"
+  out=$(clippy_foreign "$nested/crates/core/src/lib.rs" g); code=$?
+  { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
+    && ok "clippy не запускается во вложенном клоне" \
+    || bad "clippy не запускается во вложенном клоне" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
 fi
 
 if has js-typecheck.sh; then
@@ -606,6 +635,24 @@ if has js-typecheck.sh; then
   { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$tsdir/ran" ]; } \
     && ok "tsc не запускается на файле чужого репозитория" \
     || bad "tsc не запускается на файле чужого репозитория" "молчание, код 0, без запуска" "код $code: $out$([ -e "$tsdir/ran" ] && echo ' (запущен)')"
+
+  # Игнорируемое в дереве проекта — не проект: распакованный в tmp/ пакет
+  # принёс бы свой tsc. Пакет и в корне — годится обеим раскладкам.
+  if ign=$(new_repo); then
+    printf 'tmp/\n' > "$ign/.gitignore"
+    pkgdir="$ign/tmp/pkg/packages/x"
+    mkdir -p "$pkgdir/src"
+    for d in "$ign" "$pkgdir"; do
+      printf '{"include":["src"]}\n' > "$d/tsconfig.json"
+    done
+    printf 'export const n = 1;\n' > "$pkgdir/src/index.ts"
+    rm -f "$tsdir/ran"
+    out=$(CLAUDE_PROJECT_DIR="$ign" HARNESS_TSC="$stalefakets" \
+      bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$pkgdir/src/index.ts")" "$hooks/js-typecheck.sh"); code=$?
+    { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$tsdir/ran" ]; } \
+      && ok "tsc не запускается в игнорируемом каталоге" \
+      || bad "tsc не запускается в игнорируемом каталоге" "молчание, код 0, без запуска" "код $code: $out$([ -e "$tsdir/ran" ] && echo ' (запущен)')"
+  fi
 fi
 
 echo
