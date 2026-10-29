@@ -49,8 +49,11 @@ afterAll(() => {
   rmSync(inProject, { recursive: true, force: true });
 });
 
+// Окружение — явно: Bun (1.3) отдаёт дочернему процессу без `env` окружение,
+// с которым стартовал сам, и `delete process.env` выше до git не доходит. Под
+// pre-push git с унаследованным GIT_DIR писал коммиты в настоящий репозиторий.
 function git(cwd: string, ...args: string[]) {
-  execFileSync("git", args, { cwd, stdio: "ignore" });
+  execFileSync("git", args, { cwd, stdio: "ignore", env: { ...process.env } });
 }
 
 /** Временный git-репозиторий с пустым коммитом на main. */

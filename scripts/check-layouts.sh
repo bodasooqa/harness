@@ -110,6 +110,24 @@ run_knowledge_tests() {
   done
 }
 
+# Тесты хуков — как их зовёт pre-push lefthook: с GIT_DIR и GIT_INDEX_FILE
+# в окружении. Здесь они указывают на пустой репозиторий-приманку. Тест,
+# который не очистил окружение для своего git, пишет в приманку, а не во
+# временный репозиторий. Под настоящим хуком такой тест писал бы в репозиторий
+# проекта.
+# shellcheck disable=SC2329
+under_git_hook() {
+  local bait refs
+  bait=$(mktemp -d "$work/bait.XXXXXX")
+  git init -q --bare "$bait"
+  GIT_DIR=$bait GIT_INDEX_FILE=$bait/index "$@" || return 1
+  refs=$(git --git-dir="$bait" for-each-ref)
+  if [[ -n "$refs" ]]; then
+    printf 'тесты писали в репозиторий из GIT_DIR:\n%s\n' "$refs"
+    return 1
+  fi
+}
+
 # Тесты обновления харнесса — так же, как их зовёт джоба harness в CI проекта.
 # shellcheck disable=SC2329
 run_update_tests() {
@@ -328,6 +346,8 @@ for layout in $layouts; do
     step "git init" git init -q -b main
     step "hook tests" .harness/hooks/tests/run.sh
     step "pi tests" bun test ./.harness/hooks/tests/pi.test.ts
+    step "hooks as hook" under_git_hook .harness/hooks/tests/run.sh
+    step "pi as hook" under_git_hook bun test ./.harness/hooks/tests/pi.test.ts
     step "knowledge" run_knowledge_tests
     step "update tests" run_update_tests
     step "markers" .harness/update/conflict-markers.sh
