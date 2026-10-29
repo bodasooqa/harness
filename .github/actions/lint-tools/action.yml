@@ -1,0 +1,30 @@
+# shellcheck и actionlint закреплённых версий — как на машине владельца:
+# у разных версий разные замечания, и зелёное локально краснеет в CI.
+name: lint-tools
+description: Ставит shellcheck и actionlint заданных версий в PATH
+
+inputs:
+  shellcheck-version:
+    description: Версия shellcheck без префикса v
+    required: true
+  actionlint-version:
+    description: Версия actionlint без префикса v
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: shellcheck и actionlint
+      shell: bash
+      env:
+        SHELLCHECK_VERSION: ${{ inputs.shellcheck-version }}
+        ACTIONLINT_VERSION: ${{ inputs.actionlint-version }}
+      run: |
+        set -euo pipefail
+        bin="$RUNNER_TEMP/lint-tools"
+        mkdir -p "$bin"
+        curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v$SHELLCHECK_VERSION.linux.x86_64.tar.xz" \
+          | tar -xJ -C "$bin" --strip-components=1 "shellcheck-v$SHELLCHECK_VERSION/shellcheck"
+        curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+          | tar -xz -C "$bin" actionlint
+        echo "$bin" >>"$GITHUB_PATH"

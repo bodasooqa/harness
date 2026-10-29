@@ -1,0 +1,129 @@
+# CI самого шаблона: каждая раскладка генерируется `copier copy` и проверяется
+# `scripts/check-layouts.sh --only <раскладка>` — тем же скриптом, что гоняется
+# на машине владельца. Плюс линт скриптов и workflow репозитория.
+#
+# Инструменты — закреплёнными версиями, как на машине владельца: расхождение
+# версий даёт разные замечания линтеров, и зелёное локально краснеет в CI.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Прогон PR устаревает, как только в ветку приходит следующий коммит. Прогон
+# main — у каждого коммита свой: по его зелёному CI release.yml ставит тег,
+# отменённый прогон оставил бы коммит без тега.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  COPIER_VERSION: 9.19.1
+  BUN_VERSION: 1.3.14
+  OPENSPEC_VERSION: 1.12.0
+  SHELLCHECK_VERSION: 0.11.0
+  ACTIONLINT_VERSION: 1.7.12
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/lint-tools
+        with:
+          shellcheck-version: ${{ env.SHELLCHECK_VERSION }}
+          actionlint-version: ${{ env.ACTIONLINT_VERSION }}
+
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck -x scripts/*.sh
+
+      # actionlint зовёт shellcheck на блоки run: — тот, что поставлен выше.
+      - name: actionlint
+        run: |
+          actionlint --version
+          actionlint .github/workflows/*.yml
+
+  layouts:
+    name: ${{ matrix.layout }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # Красная раскладка не должна прятать состояние остальных.
+      fail-fast: false
+      matrix:
+        layout: [full, rust-workspace, rust-crate, web-monorepo, web-app, monolith]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/lint-tools
+        with:
+          shellcheck-version: ${{ env.SHELLCHECK_VERSION }}
+          actionlint-version: ${{ env.ACTIONLINT_VERSION }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # openspec — для задачи шаблона `openspec init` при copier copy.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: copier и openspec
+        run: |
+          pipx install "copier==$COPIER_VERSION"
+          npm install --global "@fission-ai/openspec@$OPENSPEC_VERSION"
+
+      # Тулчейн проекта — из его rust-toolchain.toml (stable); здесь ставится
+      # тот же канал заранее, чтобы версия была в ключе кеша.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Версии
+        id: versions
+        run: |
+          copier --version
+          bun --version
+          openspec --version
+          rustc --version
+          shellcheck --version | sed -n 2p
+          actionlint --version | head -n 1
+          jq --version
+          # Диалект awk: на раннерах GitHub и на своих раннерах проектов он
+          # может различаться (gawk, mawk), а скрипты обвязки должны жить с обоими.
+          readlink -f "$(command -v awk)"
+          awk -W version 2>&1 | head -n 1
+          bash --version | head -n 1
+          echo "rustc=$(rustc --version | cut -d' ' -f2)" >>"$GITHUB_OUTPUT"
+
+      # Каталог сборки Rust вне временного каталога скрипта — чтобы его можно
+      # было сохранить в кеш; check-layouts.sh берёт CARGO_TARGET_DIR из
+      # окружения, если он задан.
+      - name: Каталог сборки
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cargo-target" >>"$GITHUB_ENV"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ${{ runner.temp }}/cargo-target
+            ~/.bun/install/cache
+          key: layout-${{ matrix.layout }}-rust${{ steps.versions.outputs.rustc }}-${{ hashFiles('template/**/Cargo.toml*', 'template/**/package.json*') }}
+          restore-keys: |
+            layout-${{ matrix.layout }}-rust${{ steps.versions.outputs.rustc }}-
+
+      - name: check-layouts.sh --only ${{ matrix.layout }}
+        run: scripts/check-layouts.sh --only "${{ matrix.layout }}"

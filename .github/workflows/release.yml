@@ -1,0 +1,106 @@
+# Автотег после вливания в main. Тег ставится только на коммит с зелёным CI:
+# workflow срабатывает на завершение CI (`workflow_run`) прогона push в main и
+# ничего не делает, если CI не зелёный.
+#
+# Вид повышения — по метке влитого PR этого коммита:
+#   release:minor          → minor;
+#   release:patch, без метки → patch;
+#   release:none           → без тега;
+#   release:major          → без тега, предупреждение в сводке: мажор ставится
+#                            вручную, с заметкой о миграции в CHANGELOG.md.
+# Первый тег — v0.1.0. Тег и GitHub Release с автоописанием создаются
+# `gh release create --generate-notes` от GITHUB_TOKEN.
+#
+# Идемпотентно: коммит, на котором уже есть тег, не помечается второй раз.
+# Коммит не впереди последнего тега (CI старого коммита закончился позже
+# нового) пропускается: его изменения уже в более новом теге.
+name: release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# Теги ставятся по одному: два параллельных прогона взяли бы одну версию.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  tag:
+    name: tag
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Тег и релиз
+        run: |
+          set -euo pipefail
+
+          say() { printf '%s\n' "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+
+          # Уже помечен — ничего не делать.
+          existing=$(gh api --paginate "repos/$REPO/tags" \
+            --jq ".[] | select(.commit.sha == \"$SHA\") | .name")
+          if [ -n "$existing" ]; then
+            say "Коммит \`$SHA\` уже помечен: $(echo "$existing" | tr '\n' ' ')— тег не нужен."
+            exit 0
+          fi
+
+          # Метка влитого PR этого коммита.
+          merged=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+            --jq '[.[] | select(.merged_at != null)][0] // {} | {number, labels: [.labels[]?.name]}')
+          pr=$(jq -r '.number // empty' <<<"$merged")
+          labels=$(jq -r '.labels[]' <<<"$merged")
+          has() { printf '%s\n' "$labels" | grep -qx "$1"; }
+
+          if has release:major; then
+            echo "::warning title=Мажорная версия::PR #$pr помечен release:major — автотег не ставится."
+            {
+              echo "### Мажорная версия — вручную"
+              echo
+              echo "PR #$pr помечен \`release:major\`. Автотег не ставится: мажор ставится вручную,"
+              echo "с заметкой о миграции в \`CHANGELOG.md\` (шаги, которые надо сделать в проектах)."
+            } >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if has release:none; then
+            say "PR #$pr помечен \`release:none\` — без тега."
+            exit 0
+          fi
+          bump="patch"
+          has release:minor && bump="minor"
+
+          # Последняя версия vX.Y.Z среди тегов.
+          last=$(gh api --paginate "repos/$REPO/tags" --jq '.[].name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          if [ -z "$last" ]; then
+            next=v0.1.0
+          else
+            status=$(gh api "repos/$REPO/compare/$last...$SHA" --jq .status)
+            if [ "$status" != ahead ]; then
+              say "Коммит \`$SHA\` не впереди $last (сравнение: $status) — без тега."
+              exit 0
+            fi
+            IFS=. read -r major minor patch <<<"${last#v}"
+            case "$bump" in
+              minor) next="v$major.$((minor + 1)).0" ;;
+              patch) next="v$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+
+          gh release create "$next" --repo "$REPO" --target "$SHA" \
+            --title "$next" --generate-notes
+          say "Поставлен $next ($bump${pr:+, PR #$pr}) на \`$SHA\`."
