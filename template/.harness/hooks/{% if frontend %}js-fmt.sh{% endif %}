@@ -9,11 +9,26 @@ case "$f" in
   *) exit 0 ;;
 esac
 case "$f" in
-  # Фикстура — внешний ответ байт в байт. Исключение в `biome.json` не спасает:
-  # оно от корня этого дерева, а файл может лежать в соседнем.
+  # Фикстура — внешний ответ байт в байт: охраняется по пути, а не исключением
+  # в `biome.json`, которое проект мог и не завести.
   */tests/fixtures/*) exit 0 ;;
 esac
 [ -f "$f" ] || exit 0
 
-bunx biome check --write --no-errors-on-unmatched "$f" >/dev/null 2>&1 || true
+# biome берёт biome.json и его исключения из каталога запуска. Файл соседнего
+# дерева форматируется из корня своего дерева, иначе исключения действуют
+# чужие и generated этого дерева будет переписан. Бинарь — того дерева, если
+# зависимости там стоят, иначе проектный.
+project=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}
+# Путь — физический и от корня дерева: git отдаёт корень без симлинков
+# (/private/var, а не /var), и с другим написанием biome считает файл чужим.
+dir=$(cd "$(dirname "$f")" && pwd -P) || exit 0
+tree=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || tree=$dir
+file=${dir#"$tree"}/$(basename "$f")
+file=${file#/}
+biome=$tree/node_modules/.bin/biome
+[ -x "$biome" ] || biome=$project/node_modules/.bin/biome
+[ -x "$biome" ] || exit 0
+
+(cd "$tree" && "$biome" check --write --no-errors-on-unmatched "$file") >/dev/null 2>&1 || true
 exit 0

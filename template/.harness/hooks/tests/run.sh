@@ -371,6 +371,22 @@ if has js-fmt.sh; then
   printf '%s' "$(file_ev "$jsdir/crates/client/tests/fixtures/oi.json")" | "$hooks/js-fmt.sh" >/dev/null 2>&1
   [ "$fix_before" = "$(cat "$jsdir/crates/client/tests/fixtures/oi.json")" ] \
     && ok "не трогает фикстуры" || bad "не трогает фикстуры" "файл без изменений" "$(cat "$jsdir/crates/client/tests/fixtures/oi.json")"
+  # Файл соседнего дерева: исключения biome.json — от корня его дерева, а не
+  # того, откуда запущен хук. Своего biome у соседа нет — берётся проектный.
+  if nb=$(new_repo); then
+    mkdir -p "$nb/gen"
+    printf '{"files":{"includes":["**","!gen/**"]}}\n' > "$nb/biome.json"
+    printf 'const  x  =   1;\n' > "$nb/gen/a.ts"
+    printf 'const  x  =   1;\n' > "$nb/b.ts"
+    (cd "$root" && printf '%s' "$(file_ev "$nb/gen/a.ts")" | "$hooks/js-fmt.sh" >/dev/null 2>&1)
+    grep -q '^const  x  =   1;$' "$nb/gen/a.ts" \
+      && ok "соседнее дерево: исключение его biome.json" || bad "соседнее дерево: исключение его biome.json" "файл без изменений" "$(cat "$nb/gen/a.ts")"
+    (cd "$root" && printf '%s' "$(file_ev "$nb/b.ts")" | "$hooks/js-fmt.sh" >/dev/null 2>&1)
+    grep -q '^const x = 1;$' "$nb/b.ts" \
+      && ok "соседнее дерево: форматирует" || bad "соседнее дерево: форматирует" "biome применён" "$(cat "$nb/b.ts")"
+  else
+    bad "соседнее дерево" "временный репозиторий" "не отделился"
+  fi
 fi
 
 if has rust-clippy.sh; then
