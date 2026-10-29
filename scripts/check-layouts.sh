@@ -4,11 +4,11 @@
 # Для каждой раскладки `copier copy` из текущего рабочего каталога репозитория
 # (с незакоммиченными правками) во временный каталог, затем в нём проверки
 # стека: Rust — fmt, clippy, тесты; фронт — install, typecheck, lint, тесты,
-# сборка; обвязка — шаг harness-files: набор агентов и скиллов, нет остатков
-# Jinja, доменных слов и каталога `_partials`; хуки и git-хуки — тесты хуков
-# `.harness/hooks/tests/run.sh`, тесты `knowledge/tests/`, `lefthook validate`,
-# actionlint (если установлен) и shellcheck по скриптам `.harness/` и
-# `knowledge/`.
+# сборка; обвязка — шаг harness-files: набор агентов Claude Code и Pi и скиллов,
+# нет остатков Jinja, доменных слов и `_partials`; хуки и git-хуки — тесты хуков
+# `.harness/hooks/tests/run.sh`, прослойки Pi `pi.test.ts`, `knowledge/tests/`,
+# `lefthook validate`, actionlint (если установлен) и shellcheck по скриптам
+# `.harness/` и `knowledge/`.
 #
 # Шестой прогон, monolith, — полная раскладка с формой документов monolith,
 # путями старой формы и модулем Linear: copier, harness-files и проверки хуков
@@ -86,6 +86,7 @@ layout_shape() {
   local common="+.harness/hooks/dispatch.sh +.harness/hooks/tests/run.sh +.harness/local/README.md"
   common="$common +.claude/settings.json +lefthook.yml +.harness/lefthook.yml"
   common="$common +.github/workflows/ci.yml +.github/workflows/harness.yml +knowledge/due.sh"
+  common="$common +.pi/settings.json +.pi/extensions/harness.ts +.harness/hooks/tests/pi.test.ts"
   case "$1" in
     full) echo "$common +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
     rust-workspace) echo "$common +crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json -.harness/hooks/js-fmt.sh" ;;
@@ -129,7 +130,7 @@ answer() {
 # generated OpenSpec), правила процесса, стартовые CLAUDE.md и конфиг OpenSpec.
 # shellcheck disable=SC2329
 harness_text_files() {
-  find .claude/agents .claude/skills -type f -name '*.md' -not -path '.claude/skills/openspec-*'
+  find .claude/agents .claude/skills .pi/agents -type f -name '*.md' -not -path '.claude/skills/openspec-*'
   printf '%s\n' CLAUDE.md .harness/process.md openspec/config.yaml
 }
 
@@ -152,11 +153,17 @@ check_harness_files() {
   [[ $(answer telegram) == true ]] && skills="$skills telegram-bot"
 
   expected=$(tr ' ' '\n' <<<"$agents" | sort | tr '\n' ' ')
-  found=$(find .claude/agents -name '*.md' -exec basename {} .md \; | sort | tr '\n' ' ')
-  if [[ "$found" != "$expected" ]]; then
-    echo "агенты: ждали «${expected}», есть «${found}»"
-    bad=1
-  fi
+  for path in .claude/agents .pi/agents; do
+    found=$(find "$path" -name '*.md' -exec basename {} .md \; | sort | tr '\n' ' ')
+    if [[ "$found" != "$expected" ]]; then
+      echo "агенты $path: ждали «${expected}», есть «${found}»"
+      bad=1
+    fi
+  done
+  # Агент Pi без модели молча берёт модель родителя: модель явная у каждого.
+  for file in .pi/agents/*.md; do
+    grep -qE '^model: [^ ]+/' "$file" || { echo "нет model: провайдер/модель в $file"; bad=1; }
+  done
   expected=$(tr ' ' '\n' <<<"$skills" | sort | tr '\n' ' ')
   found=$(find .claude/skills -mindepth 1 -maxdepth 1 -type d -not -name 'openspec-*' -exec basename {} \; | sort | tr '\n' ' ')
   if [[ "$found" != "$expected" ]]; then
@@ -193,6 +200,11 @@ check_harness_files() {
     --exclude-dir=dist --exclude-dir=.turbo \
     --exclude=.copier-answers.yml --exclude=bun.lock; then
     echo "доменные слова в проекте"
+    bad=1
+  fi
+  # В `.pi/` generated OpenSpec пропущен выше целиком, файлы шаблона — здесь.
+  if grep -rnE "$words" .pi/agents .pi/extensions .pi/settings.json; then
+    echo "доменные слова в .pi/"
     bad=1
   fi
 
@@ -302,6 +314,7 @@ for layout in $layouts; do
     # по .git, хуки — общий каталог.
     step "git init" git init -q -b main
     step "hook tests" .harness/hooks/tests/run.sh
+    step "pi tests" bun test ./.harness/hooks/tests/pi.test.ts
     step "knowledge" run_knowledge_tests
     step "lefthook" lefthook validate
     if command -v actionlint >/dev/null 2>&1; then

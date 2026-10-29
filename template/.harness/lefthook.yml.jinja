@@ -60,6 +60,14 @@ pre-push:
         - ".copier-answers.yml"
       run: ./.harness/hooks/tests/run.sh
 
+    # Прослойка Pi переводит события Pi в те же слоты: её правка и правка хуков
+    # будят её тесты.
+    - name: harness-pi
+      glob:
+        - ".pi/extensions/**"
+        - ".harness/hooks/**"
+      run: bun test ./.harness/hooks/tests/pi.test.ts
+
     - name: knowledge-tests
       glob: "knowledge/**"
       run: for t in knowledge/tests/*.sh; do "./$t" || exit 1; done

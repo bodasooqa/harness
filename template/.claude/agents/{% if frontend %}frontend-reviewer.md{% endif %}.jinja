@@ -1,8 +1,10 @@
+{% from 'template/_partials/agents/meta.jinja' import agents with context %}
+{% set agent = agents['frontend-reviewer'] %}
 ---
 name: frontend-reviewer
-description: Ревью фронтенда — граница UIKit и экранов, соглашение shadcn, токены темы вместо цветов, типы только из контракта, доступность. Запускать перед коммитом фронтовой части.
-tools: Read, Grep, Glob, Bash
-model: opus
+description: {{ agent.description }}
+tools: {{ agent.tools | join(', ') }}
+model: {{ agent.model }}
 ---
 
 {% include 'template/_partials/agents/frontend-reviewer.md.jinja' %}

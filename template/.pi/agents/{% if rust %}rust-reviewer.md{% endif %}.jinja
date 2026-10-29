@@ -1,0 +1,10 @@
+{% from 'template/_partials/agents/meta.jinja' import agents, pi_tools with context %}
+{% set agent = agents['rust-reviewer'] %}
+---
+description: {{ agent.description }}
+tools: {{ pi_tools(agent.tools) }}
+model: {{ pi_models[agent.model] }}
+prompt_mode: replace
+---
+
+{% include 'template/_partials/agents/rust-reviewer.md.jinja' %}

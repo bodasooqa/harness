@@ -64,6 +64,7 @@ jobs:
               - "!bun.lock"
 {% endif %}
               - "!.claude/**"
+              - "!.pi/**"
               - "!.harness/**"
               - "!knowledge/**"
               - "!openspec/**"
@@ -91,6 +92,7 @@ jobs:
             harness:
               - .harness/**
               - .claude/**
+              - .pi/**
               - knowledge/**
               - lefthook.yml
               - .copier-answers.yml
@@ -181,7 +183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Тесты гоняют lefthook на временных репозиториях{% if rust %}, зовут rustfmt{% endif %}{% if frontend %}, bunx biome и tsc{% endif %}.
+      # Тесты гоняют lefthook на временных репозиториях{% if rust %}, зовут rustfmt{% endif %}{% if frontend %}, bunx biome и tsc{% endif %}; прослойку Pi — bun test.
       - uses: oven-sh/setup-bun@v2
 {% if frontend %}
         with:
@@ -199,6 +201,10 @@ jobs:
 
       - name: Тесты хуков
         run: ./.harness/hooks/tests/run.sh
+
+      # Прослойка Pi: обработчики расширения с подставным API Pi поверх тех же хуков.
+      - name: Тесты прослойки Pi
+        run: bun test ./.harness/hooks/tests/pi.test.ts
 
       - name: Тесты knowledge/
         run: for t in knowledge/tests/*.sh; do "./$t" || exit 1; done

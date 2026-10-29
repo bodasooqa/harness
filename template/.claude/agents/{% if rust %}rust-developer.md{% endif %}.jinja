@@ -1,8 +1,10 @@
+{% from 'template/_partials/agents/meta.jinja' import agents with context %}
+{% set agent = agents['rust-developer'] %}
 ---
 name: rust-developer
-description: Исполнитель в Rust-части{% if monorepo %} (crates/){% endif %}. Получает сформулированную задачу с уже принятым решением и доводит её до зелёных проверок. Знает границы пакетов и правила кода проекта. Решения не принимает — спорное возвращает вопросом.
-tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
+description: {{ agent.description }}
+tools: {{ agent.tools | join(', ') }}
+model: {{ agent.model }}
 ---
 
 {% include 'template/_partials/agents/rust-developer.md.jinja' %}

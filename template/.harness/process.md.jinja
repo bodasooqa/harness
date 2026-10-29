@@ -15,7 +15,7 @@
 
 ## Рабочий процесс
 
-Работа идёт через OpenSpec: propose → apply → archive (в Claude Code — `/opsx:propose`, `/opsx:apply`, `/opsx:archive`). Артефакты — по-русски, имена капабилити и changes — kebab-case по-английски. Правила артефактов и контекст проекта — в `openspec/config.yaml`.
+Работа идёт через OpenSpec: propose → apply → archive (в Claude Code — `/opsx:propose`, `/opsx:apply`, `/opsx:archive`; в Pi — `/opsx-propose`, `/opsx-apply`, `/opsx-archive`). Артефакты — по-русски, имена капабилити и changes — kebab-case по-английски. Правила артефактов и контекст проекта — в `openspec/config.yaml`.
 
 Один этап — несколько changes. Имя change начинается с номера этапа: `stage3-<имя>`. Этап закрыт, когда все его changes заархивированы, выполнен критерий приёмки из раздела этапов ТЗ (скилл `stage-acceptance`) и в таблице этапов `{{ stages }}` у него стоит «закрыт». Change следующего этапа не начинается раньше — и не начинается до груминга открытых вопросов (скилл `stage-grooming`, список печатает `knowledge/due.sh`).
 
@@ -60,7 +60,7 @@
 
 ### Правка файлов
 
-Правь файлы инструментами правки агента (в Claude Code — Write и Edit), не оболочкой. На правку висит обвязка: форматирование, проверки по затронутому пакету, напоминание процедуры при касании контракта. Правка через `sed -i`, heredoc или перенаправление не запускает ничего из этого. Оболочка остаётся для команд.
+Правь файлы инструментами правки агента (в Claude Code — Write и Edit, в Pi — `write` и `edit`), не оболочкой. На правку висит обвязка: форматирование, проверки по затронутому пакету, напоминание процедуры при касании контракта. Правка через `sed -i`, heredoc или перенаправление не запускает ничего из этого. Оболочка остаётся для команд.
 
 ## Команды
 
@@ -149,9 +149,9 @@ bun run --filter '@{{ project_name }}/<пакет>' <script>    # одна за�
 ## Обвязка репозитория
 
 - **Скиллы:** `change-finish`, `contract-change`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Когда какой — в их описаниях. Свои скиллы проекта лежат рядом под своими именами.
-- **Субагенты:**{% if rust %} исполнитель `rust-developer`{% if monorepo %} (только `crates/`){% endif %}{% if frontend %} и{% endif %}{% endif %}{% if frontend %} исполнитель `frontend-developer`{% if monorepo %} (`apps/` и `packages/`){% endif %}{% endif %} — Sonnet; ревьюеры{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Исполнители скиллы не вызывают, а читают файлом: путь назван в их промпте.
+- **Субагенты:**{% if rust %} исполнитель `rust-developer`{% if monorepo %} (только `crates/`){% endif %}{% if frontend %} и{% endif %}{% endif %}{% if frontend %} исполнитель `frontend-developer`{% if monorepo %} (`apps/` и `packages/`){% endif %}{% endif %} — Sonnet; ревьюеры{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Исполнители скиллы не вызывают, а читают файлом: путь назван в их промпте. В Claude Code агенты лежат в `.claude/agents/`, в Pi — в `.pi/agents/` и запускаются расширением `pi-subagents`; промпт у них общий.
 - **Дополнения агентов:** `.harness/local/agents/<имя>.md` — домен, инварианты, проектные скиллы для агента `<имя>`; агент читает его до начала работы, и при расхождении дополнение сильнее общего промпта. Каталог `.harness/local/` — проектный; что в нём лежит — его README.
-- **Хуки** живут в `.harness/hooks/` и вызываются одним диспетчером на событие из настроек агента: на правку — форматирование и проверки по пакету, на команду — охрана общего каталога, на старте и выходе — доклад о дереве и хвостах. Проектные хуки — `.harness/local/hooks/<слот>/`, контракт в `.harness/hooks/README.md`.
+- **Хуки** живут в `.harness/hooks/` и вызываются одним диспетчером на событие из настроек агента (в Claude Code — `.claude/settings.json`, в Pi — расширение `.pi/extensions/harness.ts`): на правку — форматирование и проверки по пакету, на команду — охрана общего каталога, на старте и выходе — доклад о дереве и хвостах. Проектные хуки — `.harness/local/hooks/<слот>/`, контракт в `.harness/hooks/README.md`.
 - **Git-хуки (lefthook):** pre-commit — форматирование staged-файлов, секреты, перенос закрытых вопросов в архив{% if doc_form == 'catalog' %} и оглавления `knowledge/`{% endif %}; pre-push — только редкие проверки инвариантов. Полные проверки — в CI.
 - **OpenSpec:** propose/apply/archive, конфигурация в `openspec/config.yaml`, состояние — `openspec list`, `openspec status`.
 {% if linear %}

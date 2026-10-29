@@ -8,12 +8,14 @@
 
 | Что | Своё — сюда | Как подключается |
 |---|---|---|
-| Хуки агента | `.harness/local/hooks/<слот>/<имя>.sh` | диспетчер `.harness/hooks/dispatch.sh` запускает их после общих хуков слота, по алфавиту. Слоты и контракт — `.harness/hooks/README.md` |
-| Дополнения агентов | `.harness/local/agents/<имя>.md` | агент читает файл, если он есть |
+| Хуки агента | `.harness/local/hooks/<слот>/<имя>.sh` | диспетчер `.harness/hooks/dispatch.sh` запускает их после общих хуков слота, по алфавиту; зовут его и Claude Code, и прослойка Pi. Слоты и контракт — `.harness/hooks/README.md` |
+| Дополнения агентов | `.harness/local/agents/<имя>.md` | агент читает файл, если он есть, — и в `.claude/agents/`, и в `.pi/agents/` |
+| Расширения Pi | `.pi/extensions/<имя>.ts` | Pi подключает все расширения каталога; `harness.ts` в нём управляемый |
 | Git-хуки | `lefthook.yml` в корне | подключает общий `.harness/lefthook.yml` через `extends`; свои джобы — в нём же |
 | CI | `.github/workflows/ci.yml` | зовёт общий `.github/workflows/harness.yml`; свои джобы — рядом |
 | biome | `biome.json` в корне | `extends` на `.harness/biome.json` |
 | Разрешения Claude Code | `.claude/settings.json` | файл управляемый, но свои строки в `permissions.allow` и `permissions.deny` проект дописывает прямо в него: `copier update` сливает правки трёхсторонним слиянием и их сохраняет |
+| Настройки Pi | `.pi/settings.json` | так же: файл управляемый, свои ключи проект дописывает прямо в него, слияние их сохраняет |
 
 ## Хук проекта
 

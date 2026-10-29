@@ -38,7 +38,8 @@ _tasks:
 # Стартовые файлы: создаются один раз и дальше принадлежат проекту, обновление
 # шаблона их не трогает. Всё, что не перечислено, — управляемое: обновляется у
 # всех проектов (`.harness/` кроме `.harness/local/`, `.claude/settings.json`,
-# агенты `.claude/agents/` и скиллы шаблона в `.claude/skills/`, скрипты
+# агенты `.claude/agents/` и скиллы шаблона в `.claude/skills/`, прослойка Pi
+# `.pi/settings.json`, `.pi/extensions/harness.ts` и агенты `.pi/agents/`, скрипты
 # `knowledge/` и их тесты, `.github/workflows/harness.yml`,
 # `rust-toolchain.toml`, `rustfmt.toml`, `turbo.json`, `tsconfig.base.json`).
 _skip_if_exists:
@@ -130,6 +131,25 @@ telegram:
   default: false
   when: "{{ rust }}"
   help: Подключить скилл telegram-bot для Rust-исполнителя?
+
+# Модели агентов в Pi: класс модели агента Claude Code (`model:` в
+# `.claude/agents/`) → идентификатор модели Pi `провайдер/модель`
+# (`pi --list-models`). Словарь, а не зашитые строки: провайдер у проектов разный.
+# По умолчанию — модели Anthropic через OpenRouter.
+pi_models:
+  type: yaml
+  default:
+    opus: openrouter/anthropic/claude-opus-5.5
+    sonnet: openrouter/anthropic/claude-sonnet-5.5
+    haiku: openrouter/anthropic/claude-haiku-5.5
+  help: "Модели агентов в Pi: словарь opus/sonnet/haiku → модель Pi `провайдер/модель` (pi --list-models)"
+  validator: >-
+    {% if pi_models is not mapping
+       or pi_models.opus is not string or not pi_models.opus
+       or pi_models.sonnet is not string or not pi_models.sonnet
+       or pi_models.haiku is not string or not pi_models.haiku %}
+    Нужен словарь с ключами opus, sonnet, haiku и моделями Pi строками
+    {% endif %}
 
 doc_form:
   type: str
