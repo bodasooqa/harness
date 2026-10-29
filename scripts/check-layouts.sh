@@ -111,19 +111,26 @@ run_knowledge_tests() {
 }
 
 # Тесты хуков — как их зовёт pre-push lefthook: с GIT_DIR и GIT_INDEX_FILE
-# в окружении. Здесь они указывают на пустой репозиторий-приманку. Тест,
-# который не очистил окружение для своего git, пишет в приманку, а не во
-# временный репозиторий. Под настоящим хуком такой тест писал бы в репозиторий
-# проекта.
+# в окружении. Здесь они указывают на репозиторий-приманку — обычный, с рабочим
+# деревом, как у проекта. Тест, который не очистил окружение для своего git,
+# пишет в приманку, а не во временный репозиторий: заводит ссылки или меняет
+# конфиг. Так `git init --bare` теста пометил настоящий клон screener как bare.
+# Под настоящим хуком такой тест писал бы в репозиторий проекта.
 # shellcheck disable=SC2329
 under_git_hook() {
-  local bait refs
+  local bait config refs
   bait=$(mktemp -d "$work/bait.XXXXXX")
-  git init -q --bare "$bait"
-  GIT_DIR=$bait GIT_INDEX_FILE=$bait/index "$@" || return 1
-  refs=$(git --git-dir="$bait" for-each-ref)
+  git init -q "$bait"
+  config=$(git --git-dir="$bait/.git" config --local --list)
+  GIT_DIR=$bait/.git GIT_INDEX_FILE=$bait/.git/index "$@" || return 1
+  refs=$(git --git-dir="$bait/.git" for-each-ref)
   if [[ -n "$refs" ]]; then
     printf 'тесты писали в репозиторий из GIT_DIR:\n%s\n' "$refs"
+    return 1
+  fi
+  if [[ "$(git --git-dir="$bait/.git" config --local --list)" != "$config" ]]; then
+    printf 'тесты изменили конфиг репозитория из GIT_DIR:\n'
+    diff <(printf '%s\n' "$config") <(git --git-dir="$bait/.git" config --local --list)
     return 1
   fi
 }
