@@ -15,6 +15,22 @@ on:
         description: Раннер — метка строкой (`ubuntu-latest`) или массив меток в JSON (`["self-hosted", "ci"]`)
         type: string
         default: ubuntu-latest
+{% if rust %}
+      # Проекту, которому для сборки нужно своё окружение (база в services,
+      # переменные, свои шаги), общая джоба rust мешает: она идёт рядом с его
+      # собственной и падает без того окружения. Такой проект её выключает и
+      # пишет rust в своём ci.yml.
+      rust:
+        description: Общая джоба rust — fmt, clippy, test. false — проект проверяет Rust своей джобой
+        type: boolean
+        default: true
+{% endif %}
+{% if frontend %}
+      js:
+        description: Общая джоба js — typecheck, lint, test, build. false — проект проверяет JS своей джобой
+        type: boolean
+        default: true
+{% endif %}
 
 env:
   CARGO_TERM_COLOR: always
@@ -115,7 +131,7 @@ jobs:
   rust:
     name: rust
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: inputs.rust && needs.changes.outputs.rust == 'true'
     runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
     timeout-minutes: 40
     steps:
@@ -142,7 +158,7 @@ jobs:
   js:
     name: js
     needs: changes
-    if: needs.changes.outputs.js == 'true'
+    if: inputs.js && needs.changes.outputs.js == 'true'
     runs-on: {{ gh }} startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
     timeout-minutes: 15
     steps:
