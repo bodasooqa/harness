@@ -179,7 +179,7 @@ harness_text_files() {
 check_harness_files() {
   local agents skills expected found file path bad=0
   agents="spec-auditor"
-  skills="change-finish contract-change knowledge-note stage-acceptance stage-grooming"
+  skills="change-finish contract-change harness-upstream knowledge-note stage-acceptance stage-grooming"
   if [[ $(answer rust) == true ]]; then
     agents="$agents rust-developer rust-reviewer"
   fi

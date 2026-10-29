@@ -143,12 +143,12 @@ bun run --filter '@{{ project_name }}/<пакет>' <script>    # одна за�
 {% if frontend %}
 - Не верстай в приложении компонент, место которому в UIKit, и не тащи домен в UIKit.
 {% endif %}
-- Не правь управляемые файлы шаблона в проекте: своё — в точки расширения (ниже), общее — PR в harness.
+- Не правь управляемые файлы шаблона в проекте: своё — в точки расширения (ниже), общее — PR в harness (скилл `harness-upstream`).
 - Не пиши длинных пояснений в чате — код, тесты и краткий отчёт.
 
 ## Обвязка репозитория
 
-- **Скиллы:** `change-finish`, `contract-change`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Когда какой — в их описаниях. Свои скиллы проекта лежат рядом под своими именами.
+- **Скиллы:** `change-finish`, `contract-change`, `harness-upstream`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Когда какой — в их описаниях. Свои скиллы проекта лежат рядом под своими именами.
 - **Субагенты:**{% if rust %} исполнитель `rust-developer`{% if monorepo %} (только `crates/`){% endif %}{% if frontend %} и{% endif %}{% endif %}{% if frontend %} исполнитель `frontend-developer`{% if monorepo %} (`apps/` и `packages/`){% endif %}{% endif %} — Sonnet; ревьюеры{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Исполнители скиллы не вызывают, а читают файлом: путь назван в их промпте. В Claude Code агенты лежат в `.claude/agents/`, в Pi — в `.pi/agents/` и запускаются расширением `pi-subagents`; промпт у них общий.
 - **Дополнения агентов:** `.harness/local/agents/<имя>.md` — домен, инварианты, проектные скиллы для агента `<имя>`; агент читает его до начала работы, и при расхождении дополнение сильнее общего промпта. Каталог `.harness/local/` — проектный; что в нём лежит — его README.
 - **Хуки** живут в `.harness/hooks/` и вызываются одним диспетчером на событие из настроек агента (в Claude Code — `.claude/settings.json`, в Pi — расширение `.pi/extensions/harness.ts`): на правку — форматирование и проверки по пакету, на команду — охрана общего каталога, на старте и выходе — доклад о дереве и хвостах. Проектные хуки — `.harness/local/hooks/<слот>/`, контракт в `.harness/hooks/README.md`.
