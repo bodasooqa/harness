@@ -17,8 +17,9 @@ esac
 
 # biome берёт biome.json и его исключения из каталога запуска. Файл соседнего
 # дерева форматируется из корня своего дерева, иначе исключения действуют
-# чужие и generated этого дерева будет переписан. Бинарь — того дерева, если
-# зависимости там стоят, иначе проектный.
+# чужие и generated этого дерева будет переписан. Бинарь — только проектный:
+# файл может лежать в чужом клоне, и исполнять его node_modules нельзя.
+# Конфиг biome кода не исполняет, его чужое дерево дать может.
 project=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}
 # Путь — физический и от корня дерева: git отдаёт корень без симлинков
 # (/private/var, а не /var), и с другим написанием biome считает файл чужим.
@@ -26,8 +27,7 @@ dir=$(cd "$(dirname "$f")" && pwd -P) || exit 0
 tree=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || tree=$dir
 file=${dir#"$tree"}/$(basename "$f")
 file=${file#/}
-biome=$tree/node_modules/.bin/biome
-[ -x "$biome" ] || biome=$project/node_modules/.bin/biome
+biome=$project/node_modules/.bin/biome
 [ -x "$biome" ] || exit 0
 
 (cd "$tree" && "$biome" check --write --no-errors-on-unmatched "$file") >/dev/null 2>&1 || true

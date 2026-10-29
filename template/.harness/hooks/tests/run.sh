@@ -372,10 +372,13 @@ if has js-fmt.sh; then
   [ "$fix_before" = "$(cat "$jsdir/crates/client/tests/fixtures/oi.json")" ] \
     && ok "не трогает фикстуры" || bad "не трогает фикстуры" "файл без изменений" "$(cat "$jsdir/crates/client/tests/fixtures/oi.json")"
   # Файл соседнего дерева: исключения biome.json — от корня его дерева, а не
-  # того, откуда запущен хук. Своего biome у соседа нет — берётся проектный.
+  # того, откуда запущен хук. Бинарь — только проектный: правленый файл может
+  # лежать в чужом клоне, и его node_modules исполнять нельзя.
   if nb=$(new_repo); then
-    mkdir -p "$nb/gen"
+    mkdir -p "$nb/gen" "$nb/node_modules/.bin"
     printf '{"files":{"includes":["**","!gen/**"]}}\n' > "$nb/biome.json"
+    printf '#!/bin/sh\ntouch "%s/ran"\n' "$nb" > "$nb/node_modules/.bin/biome"
+    chmod +x "$nb/node_modules/.bin/biome"
     printf 'const  x  =   1;\n' > "$nb/gen/a.ts"
     printf 'const  x  =   1;\n' > "$nb/b.ts"
     (cd "$root" && printf '%s' "$(file_ev "$nb/gen/a.ts")" | "$hooks/js-fmt.sh" >/dev/null 2>&1)
@@ -384,6 +387,8 @@ if has js-fmt.sh; then
     (cd "$root" && printf '%s' "$(file_ev "$nb/b.ts")" | "$hooks/js-fmt.sh" >/dev/null 2>&1)
     grep -q '^const x = 1;$' "$nb/b.ts" \
       && ok "соседнее дерево: форматирует" || bad "соседнее дерево: форматирует" "biome применён" "$(cat "$nb/b.ts")"
+    [ ! -e "$nb/ran" ] \
+      && ok "соседнее дерево: его biome не исполняется" || bad "соседнее дерево: его biome не исполняется" "проектный бинарь" "запущен $nb/node_modules/.bin/biome"
   else
     bad "соседнее дерево" "временный репозиторий" "не отделился"
   fi
@@ -420,6 +425,7 @@ if has rust-clippy.sh; then
     > "$clippystate/other.txt"
 
   clippy_run() {
+    CLAUDE_PROJECT_DIR="$clippydir" \
     FAKE_CLIPPY_OUT="$clippystate/$1.txt" \
     HARNESS_CLIPPY="$fake" \
     HARNESS_CLIPPY_STATE="$clippystate/state" \
@@ -448,7 +454,7 @@ if has rust-clippy.sh; then
   # сигнал. Признак субагента — поле `agent_id` события.
   agent_ev() { jq -nc --arg f "$1" '{tool_name:"Edit",tool_input:{file_path:$f},agent_id:"a1",agent_type:"developer"}'; }
   rm -rf "$clippystate/state"
-  out=$(FAKE_CLIPPY_OUT="$clippystate/first.txt" HARNESS_CLIPPY="$fake" HARNESS_CLIPPY_STATE="$clippystate/state" \
+  out=$(CLAUDE_PROJECT_DIR="$clippydir" FAKE_CLIPPY_OUT="$clippystate/first.txt" HARNESS_CLIPPY="$fake" HARNESS_CLIPPY_STATE="$clippystate/state" \
     bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(agent_ev "$clippydir/crates/core/src/lib.rs")" "$hooks/rust-clippy.sh"); code=$?
   { [ $code -eq 0 ] && [ -z "$out" ]; } && ok "clippy молчит на правке субагента" || bad "clippy молчит на правке субагента" "молчание, код 0" "код $code: $out"
   out=$(clippy_run first); code=$?
@@ -474,6 +480,7 @@ if has rust-clippy.sh; then
   sleep 1
 
   stale_run() {
+    CLAUDE_PROJECT_DIR="$staledir" \
     FAKE_TOUCH=${1:-} \
     HARNESS_CLIPPY="$stalefake" \
     HARNESS_CLIPPY_STATE="$stalestate/state-$2" \
@@ -495,6 +502,36 @@ if has rust-clippy.sh; then
   { [ $code -eq 2 ] && [ -n "$out" ]; } \
     && ok "clippy будит, если тронут только сам правленый файл" \
     || bad "clippy будит, если тронут только сам правленый файл" "код 2 с текстом" "код $code: $out"
+
+  # Файл чужого клона: cargo там исполнил бы его build.rs и макросы.
+  rm -f "$staledir/ran"
+  printf '%s\n' '#!/usr/bin/env bash' "touch '$staledir/ran'" 'exit 1' > "$stalefake"
+  out=$(CLAUDE_PROJECT_DIR="$clippydir" HARNESS_CLIPPY="$stalefake" HARNESS_CLIPPY_STATE="$stalestate/state-d" \
+    bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$staledir/crates/core/src/lib.rs")" "$hooks/rust-clippy.sh"); code=$?
+  { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
+    && ok "clippy не запускается на файле чужого репозитория" \
+    || bad "clippy не запускается на файле чужого репозитория" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
+  # Подложный `.git`, указывающий на gitdir проекта, своим не делает: общий
+  # каталог git у него проектный, а в списке деревьев проекта его нет.
+  forged=$(new_tmp)
+  mkdir -p "$forged/crates/core/src"
+  printf '[workspace]\n' > "$forged/Cargo.toml"
+  printf 'fn main() {}\n' > "$forged/crates/core/src/lib.rs"
+  printf 'gitdir: %s/.git\n' "$clippydir" > "$forged/.git"
+  rm -f "$staledir/ran"
+  out=$(CLAUDE_PROJECT_DIR="$clippydir" HARNESS_CLIPPY="$stalefake" HARNESS_CLIPPY_STATE="$stalestate/state-e" \
+    bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$forged/crates/core/src/lib.rs")" "$hooks/rust-clippy.sh"); code=$?
+  { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$staledir/ran" ]; } \
+    && ok "clippy не запускается за подложным .git" \
+    || bad "clippy не запускается за подложным .git" "молчание, код 0, без запуска" "код $code: $out$([ -e "$staledir/ran" ] && echo ' (запущен)')"
+  # Соседнее дерево того же репозитория — своё.
+  git -C "$clippydir" add -A && git -C "$clippydir" commit -qm crate
+  git -C "$clippydir" worktree add -q "$clippydir.wt" 2>/dev/null
+  out=$(CLAUDE_PROJECT_DIR="$clippydir" FAKE_CLIPPY_OUT="$clippystate/first.txt" HARNESS_CLIPPY="$fake" HARNESS_CLIPPY_STATE="$clippystate/state-wt" \
+    bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$clippydir.wt/crates/core/src/lib.rs")" "$hooks/rust-clippy.sh"); code=$?
+  { [ $code -eq 2 ] && [ -n "$out" ]; } \
+    && ok "clippy идёт по соседнему дереву того же репозитория" \
+    || bad "clippy идёт по соседнему дереву того же репозитория" "код 2 с текстом" "код $code: $out"
 fi
 
 if has js-typecheck.sh; then
@@ -516,8 +553,9 @@ if has js-typecheck.sh; then
   done
   printf 'export const n: number = "строка";\n' > "$tsdir/packages/broken/src/index.ts"
   printf 'export const n: number = 1;\n' > "$tsdir/packages/clean/src/index.ts"
+  # Каждый пакет — свой репозиторий, и проект для хука — пакет файла.
   ts_run() {  # <файл> [событие]
-    HARNESS_TSC="$tsc_bin" bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "${2:-$(file_ev "$1")}" "$hooks/js-typecheck.sh"
+    CLAUDE_PROJECT_DIR="${1%/src/*}" HARNESS_TSC="$tsc_bin" bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "${2:-$(file_ev "$1")}" "$hooks/js-typecheck.sh"
   }
   if [ -n "$tsc_bin" ]; then
     out=$(ts_run "$tsdir/packages/broken/src/index.ts"); code=$?
@@ -543,7 +581,7 @@ if has js-typecheck.sh; then
   chmod +x "$stalefakets"
   sleep 1
   stale_ts_run() {
-    FAKE_TOUCH=${1:-} HARNESS_TSC="$stalefakets" \
+    CLAUDE_PROJECT_DIR="$stalets" FAKE_TOUCH=${1:-} HARNESS_TSC="$stalefakets" \
       bash -c 'printf "%s" "$1" | "$2" 2>&1' _ \
         "$(file_ev "$stalets/src/index.ts")" "$hooks/js-typecheck.sh"
   }
@@ -559,6 +597,15 @@ if has js-typecheck.sh; then
   { [ $code -eq 2 ] && [ -n "$out" ]; } \
     && ok "tsc будит, если тронут только сам правленый файл" \
     || bad "tsc будит, если тронут только сам правленый файл" "код 2 с текстом" "код $code: $out"
+
+  # Файл чужого клона: tsc из его node_modules не исполняется.
+  rm -f "$tsdir/ran"
+  printf '%s\n' '#!/usr/bin/env bash' "touch '$tsdir/ran'" 'exit 1' > "$stalefakets"
+  out=$(CLAUDE_PROJECT_DIR="$tsdir/packages/clean" HARNESS_TSC="$stalefakets" \
+    bash -c 'printf "%s" "$1" | "$2" 2>&1' _ "$(file_ev "$stalets/src/index.ts")" "$hooks/js-typecheck.sh"); code=$?
+  { [ $code -eq 0 ] && [ -z "$out" ] && [ ! -e "$tsdir/ran" ]; } \
+    && ok "tsc не запускается на файле чужого репозитория" \
+    || bad "tsc не запускается на файле чужого репозитория" "молчание, код 0, без запуска" "код $code: $out$([ -e "$tsdir/ran" ] && echo ' (запущен)')"
 fi
 
 echo

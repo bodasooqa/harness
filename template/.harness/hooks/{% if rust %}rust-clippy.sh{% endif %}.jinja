@@ -26,6 +26,8 @@ set -uo pipefail
 here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
 # shellcheck source=lib/staleness.sh
 . "$here/lib/staleness.sh"
+# shellcheck source=lib/same-repo.sh
+. "$here/lib/same-repo.sh"
 
 input=$(cat)
 # Правка субагента не будит главную сессию — см. `js-typecheck.sh`.
@@ -69,6 +71,9 @@ crate_dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
 f="$(cd "$file_dir" && pwd -P)/${f##*/}"
 pkg="{{ project_name }}"
 {% endif %}
+# cargo исполняет build.rs, макросы и тулчейн из rust-toolchain.toml: файл
+# чужого клона не повод запускать их.
+same_repo "${crate_dir:-.}" || exit 0
 
 # Состояние — своё на рабочее дерево: два дерева линтуют разные исходники,
 # и подпись одного не должна гасить пробуждение в другом.
