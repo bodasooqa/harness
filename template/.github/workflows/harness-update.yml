@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
-            echo "::error title=Нет секрета HARNESS_UPDATE_TOKEN::Заведи в Settings → Secrets and variables → Actions секрет HARNESS_UPDATE_TOKEN: fine-grained PAT на этот репозиторий с правами Contents RW, Pull requests RW, Workflows RW, Metadata R. Подробнее — .harness/local/README.md."
+            echo "::error title=Нет секрета HARNESS_UPDATE_TOKEN::Заведи в Settings → Secrets and variables → Actions секрет HARNESS_UPDATE_TOKEN: fine-grained PAT на этот репозиторий с правами Contents RW, Pull requests RW, Issues RW (метки PR), Workflows RW, Metadata R. Подробнее — .harness/local/README.md."
             exit 1
           fi
           read -r login id < <(gh api user --jq '"\(.login) \(.id)"')
