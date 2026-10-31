@@ -1,12 +1,12 @@
 # harness
 
-Общая обвязка проектов: стек, процесс и агентская обвязка для Claude Code и Pi в одном шаблоне [Copier](https://copier.readthedocs.io/). Проект создаётся из шаблона, а улучшения шаблона приходят во все проекты PR'ом.
+Общая обвязка проектов: стек, процесс и агентская обвязка для Claude Code и Pi в одном шаблоне [rootstock](https://github.com/bodasooqa/rootstock). Проект создаётся из шаблона, а улучшения шаблона приходят во все проекты PR'ом.
 
 Выросла из обвязки проекта screener за два месяца работы. Дизайн — [`docs/design.md`](docs/design.md), план — [`docs/plan.md`](docs/plan.md).
 
 ## Состояние
 
-План пройден целиком. `copier copy` создаёт проект любой из пяти раскладок с зелёными сборкой, typecheck, lint и тестами, с агентами, скиллами, хуками (диспетчер и точки расширения в `.harness/local/`), правилами процесса `.harness/process.md`, lefthook, CI и скриптами `knowledge/`; в Pi те же правила, скиллы, агенты и хуки приходят через `.pi/` (раздел «Claude Code и Pi»). CI шаблона гоняет все раскладки и ставит теги; новые версии приходят в проекты PR'ом (фаза 6, раздел «Обновления»). Screener переведён на шаблон и получает выпуски автоматически; улучшение из проекта несёт в шаблон скилл `harness-upstream`.
+План пройден целиком. `rootstock new` создаёт проект любой из пяти раскладок с зелёными сборкой, typecheck, lint и тестами, с агентами, скиллами, хуками (диспетчер и точки расширения в `.harness/local/`), правилами процесса `.harness/process.md`, lefthook, CI и скриптами `knowledge/`; в Pi те же правила, скиллы, агенты и хуки приходят через `.pi/` (раздел «Claude Code и Pi»). CI шаблона гоняет все раскладки и ставит теги; новые версии приходят в проекты PR'ом (фаза 6, раздел «Обновления»). Screener переведён на шаблон и получает выпуски автоматически; улучшение из проекта несёт в шаблон скилл `harness-upstream`.
 
 | Фаза | Что | Состояние |
 |---|---|---|
@@ -30,11 +30,13 @@
 ## Как будет работать
 
 ```sh
-uv tool install copier
-copier copy gh:bodasooqa/harness my-project
+cargo install rootstock   # или бинарник из выпуска: github.com/bodasooqa/rootstock/releases
+rootstock new gh:bodasooqa/harness my-project --git
 ```
 
-Вопросы шаблона (`copier.yml`):
+До v1.0.0 шаблон был в формате Copier; переход проектов — `CHANGELOG.md`, раздел v1.0.0.
+
+Вопросы шаблона (`rootstock.toml`):
 
 | Вопрос | Что | По умолчанию |
 |---|---|---|
@@ -90,7 +92,7 @@ copier copy gh:bodasooqa/harness my-project
 
 ## Обновления
 
-Обновления в проект приносит управляемый workflow `harness-update.yml`: раз в сутки он сверяет теги шаблона с версией проекта, делает `copier update` (тег в формате [rootstock](https://github.com/bodasooqa/rootstock) — `rootstock import-copier` и `rootstock update`), конфликты оставляет маркерами в файлах и открывает PR. `harness-automerge.yml` вливает PR после зелёного CI, если нет конфликта, мажорной версии и посторонних коммитов. Проекту нужен секрет `HARNESS_UPDATE_TOKEN`; подключение — `template/.harness/local/README.md`, раздел «Обновления харнесса».
+Обновления в проект приносит управляемый workflow `harness-update.yml`: раз в сутки он сверяет теги шаблона с версией проекта, делает `rootstock update`, конфликты оставляет маркерами в файлах и открывает PR. `harness-automerge.yml` вливает PR после зелёного CI, если нет конфликта, мажорной версии и посторонних коммитов. Проекту нужен секрет `HARNESS_UPDATE_TOKEN`; подключение — `template/.harness/local/README.md`, раздел «Обновления харнесса».
 
 ## Релизы
 

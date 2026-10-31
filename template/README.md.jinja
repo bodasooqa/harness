@@ -2,7 +2,7 @@
 
 Что делает проект — описать здесь.
 
-Создан из шаблона [harness](https://github.com/bodasooqa/harness); ответы на его вопросы — `.copier-answers.yml`.
+Создан из шаблона [harness](https://github.com/bodasooqa/harness); ответы на его вопросы и версия — `.rootstock.toml`.
 
 ## Где что лежит
 
@@ -70,8 +70,10 @@ bun run build
 
 ## Обновление обвязки
 
+Новые версии шаблона приходят PR'ом сами (`.github/workflows/harness-update.yml`, подключение — `.harness/local/README.md`). Вручную:
+
 ```sh
-copier update
+rootstock update
 ```
 
 Новая версия шаблона накатывается трёхсторонним слиянием: правки проекта сохраняются, конфликт виден в файле.

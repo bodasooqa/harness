@@ -1,4 +1,4 @@
-# CI самого шаблона: каждая раскладка генерируется `copier copy` и проверяется
+# CI самого шаблона: каждая раскладка генерируется `rootstock new` и проверяется
 # `scripts/check-layouts.sh --only <раскладка>` — тем же скриптом, что гоняется
 # на машине владельца. Плюс `scripts/check-update.sh` — обновление проекта с
 # правками, и линт скриптов и workflow репозитория.
@@ -24,7 +24,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  COPIER_VERSION: 9.19.1
   BUN_VERSION: 1.3.14
   OPENSPEC_VERSION: 1.12.0
   SHELLCHECK_VERSION: 0.11.0
@@ -54,7 +53,7 @@ jobs:
           actionlint --version
           actionlint .github/workflows/*.yml
 
-  # copier update на проекте с правками: свои строки в управляемых файлах и
+  # rootstock update на проекте с правками: свои строки в управляемых файлах и
   # удалённые стартовые файлы переживают обновление.
   update:
     name: update
@@ -63,8 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: copier
-        run: pipx install "copier==$COPIER_VERSION"
+      - uses: ./.github/actions/rootstock
 
       - name: check-update.sh
         run: scripts/check-update.sh
@@ -90,15 +88,15 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      # openspec — для задачи шаблона `openspec init` при copier copy.
+      # openspec — для хука шаблона `openspec init` при rootstock new.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
 
-      - name: copier и openspec
-        run: |
-          pipx install "copier==$COPIER_VERSION"
-          npm install --global "@fission-ai/openspec@$OPENSPEC_VERSION"
+      - uses: ./.github/actions/rootstock
+
+      - name: openspec
+        run: npm install --global "@fission-ai/openspec@$OPENSPEC_VERSION"
 
       # Тулчейн проекта — из его rust-toolchain.toml (stable); здесь ставится
       # тот же канал заранее, чтобы версия была в ключе кеша.
@@ -109,7 +107,7 @@ jobs:
       - name: Версии
         id: versions
         run: |
-          copier --version
+          rootstock --version
           bun --version
           openspec --version
           rustc --version

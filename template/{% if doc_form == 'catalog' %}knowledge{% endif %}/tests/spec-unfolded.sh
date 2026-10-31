@@ -16,12 +16,19 @@ fail() {
 mkdir -p "$tmp/knowledge" "$tmp/specs/main" "$tmp/specs/log"
 cp "$script" "$tmp/knowledge/spec-unfolded.sh"
 
-cat >"$tmp/.copier-answers.yml" <<'EOF'
-# Файл ведёт Copier
-_src_path: gh:bodasooqa/harness
-doc_form: catalog
-revisions_path: specs/log/
-spec_path: "specs/main"
+# Ключи с теми же именами вне `[answers]` не считаются.
+cat >"$tmp/.rootstock.toml" <<'EOF'
+schema = 1
+source = "gh:bodasooqa/harness"
+spec_path = "wrong"
+
+[answers]
+doc_form = "catalog"
+revisions_path = 'specs/log/'
+spec_path = "specs/main"
+
+[answers.pi_models]
+revisions_path = "wrong"
 EOF
 
 cat >"$tmp/specs/main/README.md" <<'EOF'
