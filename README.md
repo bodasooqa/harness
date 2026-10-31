@@ -90,7 +90,7 @@ copier copy gh:bodasooqa/harness my-project
 
 ## Обновления
 
-Обновления в проект приносит управляемый workflow `harness-update.yml`: раз в сутки он сверяет теги шаблона с версией проекта, делает `copier update`, конфликты оставляет маркерами в файлах и открывает PR. `harness-automerge.yml` вливает PR после зелёного CI, если нет конфликта, мажорной версии и посторонних коммитов. Проекту нужен секрет `HARNESS_UPDATE_TOKEN`; подключение — `template/.harness/local/README.md`, раздел «Обновления харнесса».
+Обновления в проект приносит управляемый workflow `harness-update.yml`: раз в сутки он сверяет теги шаблона с версией проекта, делает `copier update` (тег в формате [rootstock](https://github.com/bodasooqa/rootstock) — `rootstock import-copier` и `rootstock update`), конфликты оставляет маркерами в файлах и открывает PR. `harness-automerge.yml` вливает PR после зелёного CI, если нет конфликта, мажорной версии и посторонних коммитов. Проекту нужен секрет `HARNESS_UPDATE_TOKEN`; подключение — `template/.harness/local/README.md`, раздел «Обновления харнесса».
 
 ## Релизы
 
