@@ -1,0 +1,30 @@
+# rootstock закреплённой версии из его выпуска на GitHub, со сверкой суммы
+# архива, — тот же, что ставит проектам template/.github/workflows/harness-update.yml.
+# Сменил версию — смени её и сумму здесь и там (SHA256SUMS выпуска).
+name: rootstock
+description: Ставит rootstock закреплённой версии в PATH (Linux x86_64)
+
+runs:
+  using: composite
+  steps:
+    - name: rootstock
+      shell: bash
+      env:
+        ROOTSTOCK_VERSION: 0.1.0
+        ROOTSTOCK_SHA256: 575a7587822bbdc0f661d8fe6d02309757056386eb835a82b1012e6751bf088c
+      run: |
+        set -euo pipefail
+        name="rootstock-v${ROOTSTOCK_VERSION}-x86_64-unknown-linux-musl"
+        archive="$RUNNER_TEMP/$name.tar.gz"
+        curl -fsSL -o "$archive" \
+          "https://github.com/bodasooqa/rootstock/releases/download/v${ROOTSTOCK_VERSION}/${name}.tar.gz"
+        got=$(sha256sum "$archive" | cut -d' ' -f1)
+        if [ "$got" != "$ROOTSTOCK_SHA256" ]; then
+          echo "::error title=Сумма rootstock::Архив $name.tar.gz не совпал с закреплённой суммой: $got вместо $ROOTSTOCK_SHA256."
+          exit 1
+        fi
+        bin="$RUNNER_TEMP/rootstock-bin"
+        mkdir -p "$bin"
+        tar -xzf "$archive" -C "$bin" --strip-components=1 "$name/rootstock"
+        echo "$bin" >>"$GITHUB_PATH"
+        "$bin/rootstock" --version

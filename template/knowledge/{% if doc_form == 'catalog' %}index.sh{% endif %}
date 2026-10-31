@@ -16,11 +16,11 @@
 #   index.sh --stage   то же и ставит в индекс изменённые README — так зовёт
 #                      pre-commit: новая запись в индексе, а README обычно нет
 #
-# Каталоги — `decisions_path` и `lessons_path` из `.copier-answers.yml`.
+# Каталоги — `decisions_path` и `lessons_path` из `.rootstock.toml`.
 set -euo pipefail
 
 root=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
-answers="$root/.copier-answers.yml"
+answers="$root/.rootstock.toml"
 
 mode=${1:-}
 case "$mode" in
@@ -35,12 +35,14 @@ case "$mode" in
     ;;
 esac
 
-# Значение ключа верхнего уровня из файла ответов: `ключ: значение`, кавычки снимаются.
+# Значение ключа из таблицы `[answers]` записи шаблона: `ключ = "значение"`,
+# кавычки снимаются. Экранирование в строке не раскрывается: в путях его нет.
 answer() {
   local key=$1 value
   value=$(awk -v key="$key" -v q="'" '
-    index($0, key ":") == 1 {
-      v = substr($0, length(key) + 2)
+    /^[ \t]*\[/ { inside = ($0 ~ /^[ \t]*\[answers\][ \t]*$/); next }
+    inside && $0 ~ ("^" key "[ \t]*=") {
+      v = substr($0, index($0, "=") + 1)
       sub(/^[ \t]+/, "", v)
       sub(/[ \t]+$/, "", v)
       f = substr(v, 1, 1)

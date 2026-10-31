@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Проверка пяти раскладок шаблона.
 #
-# Для каждой раскладки `copier copy` из текущего рабочего каталога репозитория
-# (с незакоммиченными правками) во временный каталог, затем в нём проверки
+# Для каждой раскладки `rootstock new --version HEAD` из рабочего каталога
+# репозитория (с незакоммиченными правками) во временный каталог, затем проверки
 # стека: Rust — fmt, clippy, тесты; фронт — install, typecheck, lint, тесты,
 # сборка; обвязка — шаг harness-files: набор агентов Claude Code и Pi и скиллов,
 # нет остатков Jinja, доменных слов и `_partials`; хуки и git-хуки — тесты хуков
@@ -12,13 +12,13 @@
 # и нет маркеров конфликта в сгенерированном проекте.
 #
 # Шестой прогон, monolith, — полная раскладка с формой документов monolith,
-# путями старой формы и модулем Linear: copier, harness-files и проверки хуков
+# путями старой формы и модулем Linear: rootstock, harness-files и проверки хуков
 # (стек тот же, что у full, его не собираем; bun install — только ради biome и
 # tsc в тестах хуков), плюс проверка, что тексты ссылаются на файлы-журналы,
 # а не на каталоги.
 #
 # lefthook берётся `bunx lefthook@2.1.12` через обёртку в PATH: в раскладках
-# без фронта его в node_modules нет.
+# без фронта его в node_modules нет. rootstock — из PATH или переменной ROOTSTOCK.
 #
 # Использование:
 #   scripts/check-layouts.sh               все пять раскладок и monolith
@@ -158,10 +158,13 @@ run_shellcheck() {
   shellcheck -x -S warning "${files[@]}"
 }
 
-# Значение ключа из файла ответов проекта (`ключ: значение`).
+# Значение ключа из таблицы `[answers]` записи проекта (`ключ = "значение"`).
 # shellcheck disable=SC2329
 answer() {
-  sed -n "s/^$1: //p" .copier-answers.yml | tr -d "'\""
+  awk -v key="$1" '
+    /^[ \t]*\[/ { inside = ($0 ~ /^[ \t]*\[answers\][ \t]*$/); next }
+    inside && $0 ~ ("^" key "[ \t]*=") { v = substr($0, index($0, "=") + 1); gsub(/^[ \t\047"]+|[ \t\047"]+$/, "", v); print v; exit }
+  ' .rootstock.toml
 }
 
 # Файлы обвязки, которые рендерит шаблон: агенты, скиллы шаблона (без
@@ -228,7 +231,7 @@ check_harness_files() {
   fi
 
   # Доменные слова — по всему проекту, кроме зависимостей, сборки, generated
-  # OpenSpec и файла ответов (в нём путь к шаблону). В monolith пути и префикс
+  # OpenSpec и записи шаблона (в ней путь к шаблону). В monolith пути и префикс
   # задач берутся из ответов старой формы, поэтому там ищутся только слова домена.
   local words='плотност|Плотност|трейдер|Трейдер'
   [[ "$layout" == monolith ]] || words="$words|[Ss]creener|SCREENER|DEN-"
@@ -236,7 +239,7 @@ check_harness_files() {
     --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=target \
     --exclude-dir=.pi --exclude-dir=opsx --exclude-dir='openspec-*' \
     --exclude-dir=dist --exclude-dir=.turbo \
-    --exclude=.copier-answers.yml --exclude=bun.lock; then
+    --exclude=.rootstock.toml --exclude=bun.lock; then
     echo "доменные слова в проекте"
     bad=1
   fi
@@ -289,6 +292,7 @@ mkdir -p "$work/bin"
 printf '#!/bin/sh\nexec bunx lefthook@2.1.12 "$@"\n' >"$work/bin/lefthook"
 chmod +x "$work/bin/lefthook"
 export PATH="$work/bin:$PATH"
+rootstock=${ROOTSTOCK:-rootstock}
 
 summary=""
 failed=0
@@ -317,14 +321,14 @@ for layout in $layouts; do
   copied=0
 
   # shellcheck disable=SC2046 # ответы раскладки — отдельные слова намеренно
-  if ! copier copy --quiet --defaults --trust --vcs-ref=HEAD \
+  if ! "$rootstock" new --version HEAD --defaults --trust \
     --data project_name=demo $(layout_data "$layout") \
     "$repo" "$dst" >>"$log" 2>&1; then
-    printf '  %-14sFAIL\n' "copier"
+    printf '  %-14sFAIL\n' "rootstock"
     tail -n 30 "$log" | sed 's/^/    /'
     layout_ok=0
   else
-    printf '  %-14sok\n' "copier"
+    printf '  %-14sok\n' "rootstock"
     copied=1
     step "shape" check_shape
     step "harness-files" check_harness_files

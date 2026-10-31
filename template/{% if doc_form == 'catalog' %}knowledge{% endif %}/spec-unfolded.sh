@@ -11,12 +11,12 @@
 #                              `<!-- несведённые ревизии -->` и
 #                              `<!-- /несведённые ревизии -->` в README ТЗ
 #
-# Пути к ТЗ и журналу берутся из `.copier-answers.yml` в корне проекта
+# Пути к ТЗ и журналу берутся из `.rootstock.toml` в корне проекта
 # (`spec_path`, `revisions_path`), а не зашиты в скрипт.
 set -euo pipefail
 
 root=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
-answers="$root/.copier-answers.yml"
+answers="$root/.rootstock.toml"
 
 mode=${1:-}
 case "$mode" in
@@ -31,12 +31,14 @@ case "$mode" in
     ;;
 esac
 
-# Значение ключа верхнего уровня из файла ответов: `ключ: значение`, кавычки снимаются.
+# Значение ключа из таблицы `[answers]` записи шаблона: `ключ = "значение"`,
+# кавычки снимаются. Экранирование в строке не раскрывается: в путях его нет.
 answer() {
   local key=$1 value
   value=$(awk -v key="$key" -v q="'" '
-    index($0, key ":") == 1 {
-      v = substr($0, length(key) + 2)
+    /^[ \t]*\[/ { inside = ($0 ~ /^[ \t]*\[answers\][ \t]*$/); next }
+    inside && $0 ~ ("^" key "[ \t]*=") {
+      v = substr($0, index($0, "=") + 1)
       sub(/^[ \t]+/, "", v)
       sub(/[ \t]+$/, "", v)
       f = substr(v, 1, 1)

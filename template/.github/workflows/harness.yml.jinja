@@ -86,7 +86,7 @@ jobs:
               - "!openspec/**"
               - "!.mcp.json"
               - "!lefthook.yml"
-              - "!.copier-answers.yml"
+              - "!.rootstock.toml"
 {% endif %}
 
       - id: any
@@ -111,7 +111,7 @@ jobs:
               - .pi/**
               - knowledge/**
               - lefthook.yml
-              - .copier-answers.yml
+              - .rootstock.toml
               - "{{ open_questions_path }}"
               - "{{ stages_path }}"
 {% if doc_form == 'catalog' %}
@@ -190,7 +190,7 @@ jobs:
         run: bun run build
 {% endif %}
 
-  # Маркеры конфликта слияния. Конфликт обновления харнесса (copier update)
+  # Маркеры конфликта слияния. Конфликт обновления харнесса (rootstock update)
   # остаётся маркерами в файлах, и PR с ним обязан быть красным — иначе
   # harness-automerge.yml его вольёт. Идёт на любую правку, без фильтра:
   # маркер может оказаться в любом файле.

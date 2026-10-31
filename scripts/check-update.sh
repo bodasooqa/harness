@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Проверка `copier update`: правки проекта переживают обновление шаблона.
+# Проверка `rootstock update`: правки проекта переживают обновление шаблона.
 #
 # Шаблон — снимок рабочего каталога (с незакоммиченными правками) двумя
 # версиями во временном репозитории: v1.0.0 как есть, v1.0.1 с правкой
 # управляемого `harness.yml`. Проект создаётся из v1.0.0 полной раскладкой и
 # правится так, как правят настоящие проекты: свои строки в управляемом
 # `.claude/settings.json`, своя строка в стартовом документе, удалён стартовый
-# крейт, добавлен свой. После обновления до v1.0.1 всё это на месте, а правка
-# шаблона доехала.
+# крейт, добавлен свой. После обновления до v1.0.1 всё это на месте, правка
+# шаблона доехала, запись проекта согласована (`rootstock check`), а скрипты
+# `knowledge/` читают пути из неё.
 #
-# Плюс сверка: стартовые файлы `_skip_if_exists` и исключения обновления
-# в `_exclude` в copier.yml — один и тот же список.
+# rootstock — из PATH или переменной ROOTSTOCK.
 set -euo pipefail
 
 repo=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+rootstock=${ROOTSTOCK:-rootstock}
 
 export GIT_AUTHOR_NAME=check GIT_AUTHOR_EMAIL=check@example.invalid
 export GIT_COMMITTER_NAME=check GIT_COMMITTER_EMAIL=check@example.invalid
@@ -32,19 +33,6 @@ check() {
   fi
 }
 
-# Список стартовых файлов — из `_skip_if_exists`, исключения обновления — из
-# `_exclude` без обёртки `{% if _copier_operation == 'update' ... %}`.
-skip_list() {
-  awk '/^_skip_if_exists:/ { on = 1; next } on && /^[^ #]/ { exit } on && /^  - / { sub(/^  - /, ""); print }' "$repo/copier.yml" |
-    sed -E 's/^"\{% if [a-z_]+ %\}(.*)\{% endif %\}"$/\1/'
-}
-exclude_list() {
-  awk '/^_exclude:/ { on = 1; next } on && /^[^ #]/ { exit } on && /^  - / { sub(/^  - /, ""); print }' "$repo/copier.yml" |
-    sed -nE "s/^\"\{% if _copier_operation == 'update'( and [a-z_]+)? %\}(.*)\{% endif %\}\"$/\2/p"
-}
-check "стартовые файлы и исключения обновления совпадают" \
-  diff <(skip_list | sort) <(exclude_list | sort)
-
 # Шаблон: две версии.
 git -C "$repo" ls-files -z -co --exclude-standard |
   (cd "$repo" && xargs -0 tar -cf -) | (mkdir "$tmp/tpl" && cd "$tmp/tpl" && tar -xf -)
@@ -56,13 +44,11 @@ printf '# check-update: правка шаблона\n' >>"$tmp/tpl/template/.git
 git -C "$tmp/tpl" commit -qam v1.0.1
 git -C "$tmp/tpl" tag v1.0.1
 
-# Проект из v1.0.0.
-mkdir "$tmp/p"
-cd "$tmp/p"
-git init -q
-copier copy --quiet --trust --defaults --skip-tasks --vcs-ref v1.0.0 \
+# Проект из v1.0.0. Хук шаблона (`openspec init`) идёт, если openspec есть.
+"$rootstock" new --version v1.0.0 --defaults --trust --git \
   --data project_name=demo --data rust=true --data frontend=true \
-  "$tmp/tpl" . >/dev/null
+  "$tmp/tpl" "$tmp/p" >/dev/null
+cd "$tmp/p"
 git add -A
 git commit -qm init
 
@@ -76,8 +62,13 @@ printf 'pub fn f() {}\n' >crates/core/src/lib.rs
 git add -A
 git commit -qm edit
 
-copier update --quiet --trust --defaults --skip-tasks --vcs-ref v1.0.1 --conflict inline >/dev/null
+code=0
+"$rootstock" update --to v1.0.1 --defaults --trust >"$tmp/conflicts" || code=$?
 
+check "rootstock update без конфликтов (код 0)" test "$code" = 0
+check "конфликтов не напечатано" test ! -s "$tmp/conflicts"
+check "запись на v1.0.1" grep -q '^version = "v1.0.1"$' .rootstock.toml
+check "запись согласована (rootstock check)" "$rootstock" check
 check "правка шаблона доехала" grep -q '^# check-update: правка шаблона' .github/workflows/harness.yml
 check "своя строка в управляемом .claude/settings.json цела" \
   test "$(jq '.permissions.allow | index("Bash(cargo run -p demo *)") != null' .claude/settings.json)" = true
@@ -85,7 +76,7 @@ check "стартовый документ не тронут" \
   test "$(grep -c '^Строка проекта\.$' docs/spec/01-purpose.md)" = 1
 check "удалённый стартовый крейт не вернулся" test ! -e crates/app
 check "свой крейт цел" test -f crates/core/src/lib.rs
-check "нет отвергнутых кусков .rej" test -z "$(find . -name '*.rej' -not -path './.git/*')"
 check "нет маркеров конфликта" ./.harness/update/conflict-markers.sh
+check "knowledge/due.sh читает пути из записи" ./knowledge/due.sh --overdue
 
 exit "$fail"

@@ -29,7 +29,7 @@ setup() {
   rm -rf "$tmp/repo"
   mkdir -p "$tmp/repo/knowledge/decisions" "$tmp/repo/knowledge/lessons"
   cp "$script" "$tmp/repo/knowledge/"
-  printf 'decisions_path: knowledge/decisions\nlessons_path: knowledge/lessons\n' > "$tmp/repo/.copier-answers.yml"
+  printf '[answers]\ndecisions_path = "knowledge/decisions"\nlessons_path = "knowledge/lessons"\n' > "$tmp/repo/.rootstock.toml"
   printf "# Решения\n\nФормат.\n\n$toc" > "$tmp/repo/knowledge/decisions/README.md"
   printf "# Уроки\n\n$toc" > "$tmp/repo/knowledge/lessons/README.md"
 }

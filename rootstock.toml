@@ -1,0 +1,190 @@
+# Шаблон harness для rootstock (https://github.com/bodasooqa/rootstock).
+# Устройство — docs/design.md, раздел «Шаблон».
+schema = 1
+root = "template"
+# Рендерятся только файлы с суффиксом `.jinja`, остальные копируются как есть:
+# в TSX и CSS бывают `{{`, которые Jinja приняла бы за подстановку.
+suffix = ".jinja"
+
+[jinja]
+keep_trailing_newline = true
+lstrip_blocks = true
+trim_blocks = true
+
+# Частичные файлы для include: тело агента одно на Claude Code и Pi. include
+# ищет от корня репозитория, а не от `template/`, поэтому пишется с префиксом
+# `template/_partials/`.
+#
+# Стартовые файлы создаются один раз и дальше принадлежат проекту: обновление
+# их не трогает, а удалённый проектом стартовый файл не возвращается. Шаблоны
+# путей рендерятся с ответами.
+[files]
+exclude = ["_partials"]
+starter = [
+  "/README.md",
+  "/CLAUDE.md",
+  "/.gitignore",
+  "openspec/config.yaml",
+  # Точки расширения обвязки: свои хуки проекта, свои git-хуки, свои джобы CI
+  ".harness/local/**",
+  "/lefthook.yml",
+  ".github/workflows/ci.yml",
+  # Rust
+  "/Cargo.toml",
+  "crates/app/**",
+  # Фронт
+  "/package.json",
+  "/biome.json",
+  "apps/web/**",
+  "packages/uikit/**",
+  # Один крейт или одно приложение в корне
+  "/src/**",
+  "/index.html",
+  "/vite.config.ts",
+  "/tsconfig.json",
+  "/components.json",
+  # Документы новой формы
+  "{% if spec_path %}{{ spec_path }}/**{% endif %}",
+  "{% if revisions_path %}{{ revisions_path }}/**{% endif %}",
+  "{% if decisions_path %}{{ decisions_path }}/**{% endif %}",
+  "{% if lessons_path %}{{ lessons_path }}/**{% endif %}",
+  "{% if open_questions_path %}{{ open_questions_path }}{% endif %}",
+  "knowledge/README.md",
+]
+
+[[hooks]]
+when = ["new"]
+run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi --no-animation; else echo "harness: openspec не найден в PATH, выполните в проекте openspec init --tools claude,pi" >&2; fi'
+
+[[questions]]
+name = "project_name"
+type = "str"
+help = "Имя проекта в kebab-case (латиница, цифры, дефис). Из него — имена пакетов `<имя>-<крейт>` и `@<имя>/<пакет>`"
+validator = "{% if not (project_name | regex_search('^[a-z][a-z0-9-]*$')) %} Имя — kebab-case: строчная латинская буква, затем строчные буквы, цифры, дефис {% endif %}"
+
+[[questions]]
+name = "rust"
+type = "bool"
+default = true
+help = "Rust в проекте?"
+
+[[questions]]
+name = "frontend"
+type = "bool"
+default = true
+help = "Фронт (React SPA на Vite) в проекте?"
+validator = "{% if not rust and not frontend %} Нужен хотя бы Rust или фронт {% endif %}"
+
+# При Rust и фронте вместе вопрос не задаётся: это всегда монорепо. Вопрос с
+# ложным `when` берёт значение из `default`.
+[[questions]]
+name = "monorepo"
+type = "bool"
+default = true
+when = "not (rust and frontend)"
+help = "Монорепо (Cargo-воркспейс в crates/, фронт в apps/ и packages/)? Иначе — один крейт или одно приложение в корне"
+validator = "{% if rust and frontend and not monorepo %} Rust и фронт вместе — только монорепо {% endif %}"
+
+[[questions]]
+name = "linear"
+type = "bool"
+default = false
+help = "Подключить модуль Linear (задачи, номер задачи в заголовке PR)?"
+
+[[questions]]
+name = "tracker_prefix"
+type = "str"
+when = "linear"
+help = "Префикс задач в Linear, заглавными латинскими буквами (например, DEN)"
+validator = "{% if not (tracker_prefix | regex_search('^[A-Z]+$')) %} Префикс — только заглавные латинские буквы {% endif %}"
+
+[[questions]]
+name = "orca"
+type = "bool"
+default = true
+help = "Подключить модуль Orca (рабочее дерево на сессию через orca worktree)?"
+
+[[questions]]
+name = "telegram"
+type = "bool"
+default = false
+when = "rust"
+help = "Подключить скилл telegram-bot для Rust-исполнителя?"
+
+# Модели агентов в Pi: класс модели агента Claude Code (`model:` в
+# `.claude/agents/`) → идентификатор модели Pi `провайдер/модель`
+# (`pi --list-models`). Словарь, а не зашитые строки: провайдер у проектов разный.
+# По умолчанию — модели Anthropic через OpenRouter.
+[[questions]]
+name = "pi_models"
+type = "yaml"
+help = "Модели агентов в Pi: словарь opus/sonnet/haiku → модель Pi `провайдер/модель` (pi --list-models)"
+validator = """
+{% if pi_models is not mapping
+   or pi_models.opus is not string or not pi_models.opus
+   or pi_models.sonnet is not string or not pi_models.sonnet
+   or pi_models.haiku is not string or not pi_models.haiku %}
+Нужен словарь с ключами opus, sonnet, haiku и моделями Pi строками {% endif %}"""
+
+[questions.default]
+opus = "openrouter/anthropic/claude-opus-5.5"
+sonnet = "openrouter/anthropic/claude-sonnet-5.5"
+haiku = "openrouter/anthropic/claude-haiku-5.5"
+
+[[questions]]
+name = "doc_form"
+type = "choice"
+default = "catalog"
+help = "Форма документов"
+
+[[questions.choices]]
+label = "catalog — ТЗ каталогом, ревизии, решения и уроки по файлу (новый проект)"
+value = "catalog"
+
+[[questions.choices]]
+label = "monolith — ТЗ и журналы одним файлом (существующий проект)"
+value = "monolith"
+
+[[questions]]
+name = "spec_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}docs/spec{% endif %}"
+help = "Путь к ТЗ от корня проекта (каталог в форме catalog, файл в форме monolith)"
+validator = "{% if not spec_path %} Укажите путь {% endif %}"
+
+[[questions]]
+name = "revisions_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}docs/spec/revisions{% endif %}"
+help = "Путь к журналу ревизий ТЗ (каталог в форме catalog, файл в форме monolith)"
+validator = "{% if not revisions_path %} Укажите путь {% endif %}"
+
+[[questions]]
+name = "decisions_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}knowledge/decisions{% endif %}"
+help = "Путь к журналу решений (каталог в форме catalog, файл в форме monolith)"
+validator = "{% if not decisions_path %} Укажите путь {% endif %}"
+
+[[questions]]
+name = "lessons_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}knowledge/lessons{% endif %}"
+help = "Путь к урокам (каталог в форме catalog, файл в форме monolith)"
+validator = "{% if not lessons_path %} Укажите путь {% endif %}"
+
+[[questions]]
+name = "open_questions_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}knowledge/open-questions.md{% endif %}"
+help = "Путь к файлу открытых вопросов"
+validator = "{% if not open_questions_path %} Укажите путь {% endif %}"
+
+# Таблицу читает `knowledge/due.sh`: сроки открытых вопросов «к этапу N»
+# сверяются с состоянием этапов. В форме catalog таблица — в разделе этапов ТЗ.
+[[questions]]
+name = "stages_path"
+type = "str"
+default = "{% if doc_form == 'catalog' %}{{ spec_path }}/03-stages.md{% endif %}"
+help = "Путь к файлу с таблицей состояния этапов (`| N. Название | состояние |`, состояния «в работе», «закрыт»)"
+validator = "{% if not stages_path %} Укажите путь {% endif %}"
