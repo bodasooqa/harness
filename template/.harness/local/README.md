@@ -21,7 +21,7 @@
 
 Новые версии шаблона приходят PR'ом сами. Три управляемых файла:
 
-- `.github/workflows/harness-update.yml` — раз в сутки (и вручную, Actions → harness-update → Run workflow, с необязательной версией) сверяет теги шаблона с `_commit` в `.copier-answers.yml`. Есть новее — `copier update` до неё, конфликты маркерами в файлах, PR «Обновление харнесса до vX.Y.Z» из ветки `harness/update-vX.Y.Z`. Мажорная версия получает метку `harness:major`, конфликт — `harness:conflict`.
+- `.github/workflows/harness-update.yml` — раз в сутки (и вручную, Actions → harness-update → Run workflow, с необязательной версией) сверяет теги шаблона с `_commit` в `.copier-answers.yml`. Есть новее — обновление до неё, конфликты маркерами в файлах, PR «Обновление харнесса до vX.Y.Z» из ветки `harness/update-vX.Y.Z`. Мажорная версия получает метку `harness:major`, конфликт — `harness:conflict`. Инструмент выбирается по формату версии шаблона: версия с `copier.yml` обновляется `copier update`; с `rootstock.toml` — [rootstock](https://github.com/bodasooqa/rootstock): первым коммитом PR `rootstock import-copier` переводит проект с `.copier-answers.yml` на `.rootstock.toml` на прежней версии, вторым `rootstock update` обновляет. Логика — `.harness/update/update.sh`.
 - `.github/workflows/harness-automerge.yml` — по завершении CI (workflow `CI` из `ci.yml`; переименуешь его — автовливание перестанет срабатывать) вливает PR обновления squash'ем, если CI зелёный, меток `harness:major` и `harness:conflict` нет, голова PR — проверенный коммит, голову запушил владелец токена (по журналу пушей GitHub, а не по подписи коммита — его не подделать), а все коммиты PR сделаны самим обновлением. PR из форка и PR другого автора не трогает.
 - Джоба `markers` в `.github/workflows/harness.yml` — CI красный, пока в файлах есть маркеры конфликта.
 
@@ -32,7 +32,7 @@
 | Что | Вид | Зачем |
 |---|---|---|
 | `HARNESS_UPDATE_TOKEN` | секрет, обязателен | fine-grained PAT владельца на этот репозиторий: Contents — read and write, Pull requests — read and write, Issues — read and write (метки `harness:major`, `harness:conflict`), Workflows — read and write, Metadata — read. Штатный `GITHUB_TOKEN` не годится: его PR не запускает CI, а пушить правки в `.github/workflows/` ему нельзя. Без секрета оба workflow падают с подсказкой. Автор PR обновления — владелец токена; PR другого автора автовливание не трогает |
-| `HARNESS_RUNNER` | переменная, по желанию | раннер обоих workflow: метка строкой (`self-hosted`) или массив меток в JSON (`["self-hosted", "ci"]`); по умолчанию `ubuntu-latest`. На своём раннере нужны `git`, `jq` и `curl`; `gh` и `uv` (для copier), если их нет, workflow сам ставит закреплённой версией в каталог джоба — на Linux x86_64 и arm64 |
+| `HARNESS_RUNNER` | переменная, по желанию | раннер обоих workflow: метка строкой (`self-hosted`) или массив меток в JSON (`["self-hosted", "ci"]`); по умолчанию `ubuntu-latest`. На своём раннере нужны `git`, `jq` и `curl`; `gh` и `uv` (для copier), если их нет, workflow сам ставит закреплённой версией в каталог джоба — на Linux x86_64 и arm64. rootstock для версий шаблона в его формате ставится всегда сам, закреплённой версией со сверкой суммы — на Linux и macOS, x86_64 и arm64 |
 | `HARNESS_TEMPLATE_URL` | переменная, по желанию | откуда брать теги шаблона; по умолчанию `https://github.com/bodasooqa/harness`. Обязан совпадать с `_src_path` в `.copier-answers.yml` (форма `gh:владелец/репозиторий` тоже годится), иначе обновление остановится с ошибкой |
 
 ## Хук проекта
