@@ -31,15 +31,19 @@ pre-commit:
     # разъезжается с содержимым. stage_fixed возвращает в индекс только
     # staged-файлы, а архив и оглавления скрипты пишут сами, и в индексе их
     # обычно нет — `--stage` ставит их туда, иначе перенос делился бы на два
-    # коммита.
+    # коммита. В форме monolith `knowledge/index.sh` — проектный, его может не
+    # быть; есть — зовётся так же, после архива.
     - name: knowledge
       glob:
         - "{{ open_questions_path }}"
 {% if doc_form == 'catalog' %}
         - "{{ decisions_path }}/*.md"
         - "{{ lessons_path }}/*.md"
+{% else %}
+        - "{{ decisions_path }}"
+        - "{{ lessons_path }}"
 {% endif %}
-      run: ./knowledge/archive-questions.sh --stage{% if doc_form == 'catalog' %} && ./knowledge/index.sh --stage{% endif %}
+      run: ./knowledge/archive-questions.sh --stage && {% if doc_form == 'catalog' %}./knowledge/index.sh --stage{% else %}{ [ ! -e knowledge/index.sh ] || ./knowledge/index.sh --stage; }{% endif %}
 
       stage_fixed: true
 
