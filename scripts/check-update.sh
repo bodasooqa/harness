@@ -5,8 +5,8 @@
 # версиями во временном репозитории: v1.0.0 как есть, v1.0.1 с правкой
 # управляемого `harness.yml`. Проект создаётся из v1.0.0 полной раскладкой и
 # правится так, как правят настоящие проекты: свои строки в управляемом
-# `.claude/settings.json`, своя строка в стартовом документе, удалён стартовый
-# крейт, добавлен свой. После обновления до v1.0.1 всё это на месте, правка
+# `.claude/settings.json`, своя строка в стартовом документе, своё дополнение
+# скилла в `.harness/local/skills/`, удалён стартовый крейт, добавлен свой. После обновления до v1.0.1 всё это на месте, правка
 # шаблона доехала, запись проекта согласована (`rootstock check`), а скрипты
 # `knowledge/` читают пути из неё.
 #
@@ -56,6 +56,8 @@ git commit -qm init
 jq '.permissions.allow += ["Bash(cargo run -p demo *)"]' .claude/settings.json >settings.tmp
 mv settings.tmp .claude/settings.json
 printf '\nСтрока проекта.\n' >>docs/spec/01-purpose.md
+mkdir -p .harness/local/skills
+printf 'Дополнение проекта.\n' >.harness/local/skills/change-finish.md
 git rm -rq crates/app
 mkdir -p crates/core/src
 printf 'pub fn f() {}\n' >crates/core/src/lib.rs
@@ -74,6 +76,8 @@ check "своя строка в управляемом .claude/settings.json ц�
   test "$(jq '.permissions.allow | index("Bash(cargo run -p demo *)") != null' .claude/settings.json)" = true
 check "стартовый документ не тронут" \
   test "$(grep -c '^Строка проекта\.$' docs/spec/01-purpose.md)" = 1
+check "дополнение скилла не тронуто" \
+  test "$(cat .harness/local/skills/change-finish.md)" = 'Дополнение проекта.'
 check "удалённый стартовый крейт не вернулся" test ! -e crates/app
 check "свой крейт цел" test -f crates/core/src/lib.rs
 check "нет маркеров конфликта" ./.harness/update/conflict-markers.sh

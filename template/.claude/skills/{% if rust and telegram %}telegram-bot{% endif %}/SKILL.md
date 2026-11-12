@@ -5,6 +5,8 @@ description: Use when writing or changing a Telegram bot in Rust — the Bot API
 
 # Telegram-бот на Rust
 
+Сначала проверь `.harness/local/skills/telegram-bot.md`: если файл есть, прочитай его до начала работы. Это дополнение проекта — боты проекта, их конфиг и ограничения; при расхождении с текстом ниже верно дополнение.
+
 Приёмы, которые уже стоили ошибок. Каждый — правило и причина. Числа (таймауты, паузы, пределы очереди) живут в секции `[telegram]` конфига, а не в коде. Факты о Bot API сверены с https://core.telegram.org/bots/api и https://core.telegram.org/bots/faq; что не сверено, помечено **(не проверено)**.
 
 ## Клиент: свой, на `reqwest`
