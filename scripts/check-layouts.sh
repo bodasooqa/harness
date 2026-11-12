@@ -89,7 +89,7 @@ layout_shape() {
   common="$common +.github/workflows/ci.yml +.github/workflows/harness.yml +knowledge/due.sh"
   common="$common +.pi/settings.json +.pi/extensions/harness.ts +.harness/hooks/tests/pi.test.ts"
   common="$common +.github/workflows/harness-update.yml +.github/workflows/harness-automerge.yml"
-  common="$common +.harness/update/next-version.sh +.harness/update/conflict-markers.sh"
+  common="$common +.harness/update/next-version.sh +.harness/update/conflict-markers.sh +.gitattributes"
   case "$1" in
     full) echo "$common +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
     rust-workspace) echo "$common +crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json -.harness/hooks/js-fmt.sh" ;;

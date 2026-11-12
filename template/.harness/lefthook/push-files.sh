@@ -1,5 +1,8 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # pre-push: файлы, которые этот пуш отправляет, — для глобов джобов.
+#
+# POSIX sh, а не bash: lefthook зовёт его `sh ./…` (на Windows `files:`
+# исполняется без оболочки), а на Linux `sh` — dash.
 #
 # Свой список вместо встроенного у lefthook. Без upstream (первый пуш ветки,
 # заведённой с --no-track) lefthook берёт `git diff --name-only HEAD origin/main`:
@@ -10,7 +13,7 @@
 # Здесь база — то, что на origin уже есть у этой ветки (`@{push}`), а без неё —
 # общий предок с origin/main. Сравнение тремя точками: только то, что
 # появилось в ветке.
-set -uo pipefail
+set -u
 
 if base=$(git rev-parse --verify --quiet '@{push}'); then
   :

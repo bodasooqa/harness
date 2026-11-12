@@ -943,7 +943,7 @@ if [ -n "$lefthook_bin" ]; then
 
   # Контроль: без своего списка lefthook будит knowledge-tests чужим knowledge/b.md
   # из main. Если перестанет, тест выше ничего не доказывает.
-  grep -v '^  files: \./\.harness/lefthook/push-files\.sh$' "$root/.harness/lefthook.yml" > "$pp/.harness/lefthook.yml"
+  grep -v '^  files: .*push-files\.sh$' "$root/.harness/lefthook.yml" > "$pp/.harness/lefthook.yml"
   out=$(push_job)
   [[ $out != *"knowledge-tests (skip)"* ]] \
     && ok "контроль: встроенный список будит knowledge-tests чужим knowledge/" \

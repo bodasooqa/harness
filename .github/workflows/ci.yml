@@ -1,7 +1,8 @@
 # CI самого шаблона: каждая раскладка генерируется `rootstock new` и проверяется
 # `scripts/check-layouts.sh --only <раскладка>` — тем же скриптом, что гоняется
 # на машине владельца. Плюс `scripts/check-update.sh` — обновление проекта с
-# правками, и линт скриптов и workflow репозитория.
+# правками, `scripts/check-lefthook.sh` на Windows — git-хуки проекта в Git Bash,
+# и линт скриптов и workflow репозитория.
 #
 # Инструменты — закреплёнными версиями, как на машине владельца: расхождение
 # версий даёт разные замечания линтеров, и зелёное локально краснеет в CI.
@@ -28,6 +29,8 @@ env:
   OPENSPEC_VERSION: 1.12.0
   SHELLCHECK_VERSION: 0.11.0
   ACTIONLINT_VERSION: 1.7.12
+  # Та же версия, что в scripts/check-layouts.sh.
+  LEFTHOOK_VERSION: 2.1.12
 
 jobs:
   lint:
@@ -66,6 +69,37 @@ jobs:
 
       - name: check-update.sh
         run: scripts/check-update.sh
+
+  # Windows в Git Bash: git-хуки проекта (коммит и пуш через lefthook, pre-push
+  # без upstream и с ним), тесты knowledge/, окончания строк. Стек раскладок
+  # здесь не собирается — он одинаков на всех системах и долог на Windows.
+  windows:
+    name: windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/rootstock
+
+      # Без скриптов установки: postinstall lefthook ставит хуки в текущий
+      # репозиторий, а бинарь берётся из необязательной зависимости и так.
+      - name: lefthook
+        run: npm install --global --ignore-scripts "lefthook@$LEFTHOOK_VERSION"
+
+      - name: Версии
+        run: |
+          rootstock --version
+          lefthook version
+          git --version
+          bash --version | head -n 1
+          perl -e 'print "perl $^V\n"'
+
+      - name: check-lefthook.sh
+        run: scripts/check-lefthook.sh
 
   layouts:
     name: ${{ matrix.layout }}
