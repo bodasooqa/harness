@@ -212,6 +212,12 @@ check_harness_files() {
     bad=1
   fi
 
+  # Точка расширения скиллов: каждый скилл шаблона читает своё дополнение.
+  for path in $skills; do
+    grep -qF ".harness/local/skills/$path.md" ".claude/skills/$path/SKILL.md" ||
+      { echo "скилл $path не читает .harness/local/skills/$path.md"; bad=1; }
+  done
+
   local -a files=()
   while IFS= read -r file; do
     files+=("$file")
