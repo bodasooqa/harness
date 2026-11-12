@@ -31,6 +31,9 @@ env:
   ACTIONLINT_VERSION: 1.7.12
   # Та же версия, что в scripts/check-layouts.sh.
   LEFTHOOK_VERSION: 2.1.12
+  # Та же, что `@biomejs/biome` в package.json шаблона: конфиг корня наследует
+  # шаблонный, а ключи конфига меняются от версии к версии.
+  BIOME_VERSION: 2.5.12
 
 jobs:
   lint:
@@ -55,6 +58,15 @@ jobs:
         run: |
           actionlint --version
           actionlint .github/workflows/*.yml
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # JS/TS/JSON файлы template/ — в стиле сгенерированного проекта: biome.json
+      # корня наследует шаблонный `.harness/biome.json`.
+      - name: biome
+        run: bunx "@biomejs/biome@$BIOME_VERSION" check .
 
   # rootstock update на проекте с правками: свои строки в управляемых файлах и
   # удалённые стартовые файлы переживают обновление.
