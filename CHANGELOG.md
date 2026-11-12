@@ -9,6 +9,12 @@
 
 Новые записи — сверху.
 
+## Git-хуки на Windows (#26)
+
+- **pre-push на Windows работает без `LEFTHOOK=0`.** lefthook исполняет `files:` без оболочки, и `.sh` на Windows не запускался. Теперь `files: sh ./.harness/lefthook/push-files.sh`, сам скрипт — на POSIX sh. В `run:` нет двойных кавычек: на Windows lefthook оборачивает строку в них без экранирования.
+- **Стартовый `.gitattributes`** с `* text=auto eol=lf`: без него git на Windows с `core.autocrlf=true` выкладывает CRLF, и падают скрипты обвязки, biome и тесты. Проекту без `.gitattributes` он приходит обновлением; свой (как у screener) не трогается. Проект, где своего нет, но git уже выложил CRLF, после обновления перевыкладывает файлы: `git rm -r --cached -q . && git reset --hard`.
+- В CI шаблона — джоба `windows` (Git Bash): `scripts/check-lefthook.sh` гоняет коммит и пуш через lefthook, pre-push без upstream и с ним, тесты `knowledge/` и выкладку при `core.autocrlf=true`.
+
 ## Оглавления документов формы monolith
 
 В форме monolith общая джоба lefthook `knowledge` после архива закрытых вопросов зовёт проектный `knowledge/index.sh --stage`, если он есть; будит её теперь и правка журналов решений и уроков. Шаг CI «Оглавления собраны» в этой форме тоже зовёт скрипт (без аргумента) и краснеет, если дерево после него изменилось. Нет скрипта — оба шага пропускаются, форма catalog не меняется.

@@ -52,7 +52,14 @@ pre-push:
   # Список файлов пуша для глобов — свой: встроенный при первом пуше без
   # upstream сравнивает HEAD с origin/main двумя точками и берёт чужие правки
   # main.
-  files: ./.harness/lefthook/push-files.sh
+  #
+  # Windows: `files:` lefthook запускает без оболочки — режет строку по пробелам
+  # и исполняет первое слово, а `.sh` Windows сам не исполняет. Поэтому скрипт
+  # зовётся через `sh` (в Git for Windows он есть) и написан на POSIX sh: на
+  # Linux `sh` — dash. `run:` lefthook отдаёт `sh -c` везде, и `./….sh` там
+  # исполняется по shebang; но на Windows строка `run:` уходит в двойных
+  # кавычках без экранирования, поэтому двойных кавычек в `run:` нет.
+  files: sh ./.harness/lefthook/push-files.sh
   jobs:
     # Хук, который может тихо ничего не сделать, хуже отсутствующего: каждый
     # проверяется случаем на срабатывание и случаем на пропуск. Там же тесты
@@ -74,7 +81,7 @@ pre-push:
 
     - name: knowledge-tests
       glob: "knowledge/**"
-      run: for t in knowledge/tests/*.sh; do "./$t" || exit 1; done
+      run: for t in knowledge/tests/*.sh; do ./$t || exit 1; done
 
     # Просроченный вопрос — тот, чей этап закрыт, чей change заархивирован или
     # чей срок не назван этапом. Состояние меняется правкой таблицы этапов или
