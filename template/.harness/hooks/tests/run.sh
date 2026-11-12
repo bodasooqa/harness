@@ -885,6 +885,23 @@ else
   { [ "$out" = "$want" ] && [ -z "$rest" ]; } \
     && ok "закрытие и архив — один коммит" \
     || bad "закрытие и архив — один коммит" "$want, чистое дерево" "$out / $rest"
+
+  # Оглавления: джоба зовёт `knowledge/index.sh --stage` — общий в форме
+  # catalog, проектный в форме monolith. Подставной скрипт пишет свой аргумент
+  # в файл и ставит его в индекс сам, как обязан настоящий.
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" > knowledge/toc.md\n[ "${1:-}" != --stage ] || git add knowledge/toc.md\n' > "$kidir/knowledge/index.sh"
+  chmod +x "$kidir/knowledge/index.sh"
+  git -C "$kidir" add knowledge/index.sh
+  git -C "$kidir" commit -q --no-verify -m index
+  printf '\n---\n\n## Четвёртый вопрос\n\nСуть.\n' >> "$kidir/$questions"
+  git -C "$kidir" add "$questions"
+  git -C "$kidir" commit -q -m toc >/dev/null 2>&1
+  out=$(git -C "$kidir" show --name-only --format= HEAD | sort | tr '\n' ' ')
+  want=$(printf '%s\n%s\n' knowledge/toc.md "$questions" | sort | tr '\n' ' ')
+  toc=$(git -C "$kidir" show HEAD:knowledge/toc.md 2>/dev/null)
+  { [ "$out" = "$want" ] && [ "$toc" = --stage ]; } \
+    && ok "pre-commit зовёт knowledge/index.sh --stage, оглавление в том же коммите" \
+    || bad "pre-commit зовёт knowledge/index.sh --stage, оглавление в том же коммите" "$want, --stage" "$out / $toc"
 fi
 
 echo
@@ -926,7 +943,7 @@ if [ -n "$lefthook_bin" ]; then
 
   # Контроль: без своего списка lefthook будит knowledge-tests чужим knowledge/b.md
   # из main. Если перестанет, тест выше ничего не доказывает.
-  grep -v '^  files: \./\.harness/lefthook/push-files\.sh$' "$root/.harness/lefthook.yml" > "$pp/.harness/lefthook.yml"
+  grep -v '^  files: .*push-files\.sh$' "$root/.harness/lefthook.yml" > "$pp/.harness/lefthook.yml"
   out=$(push_job)
   [[ $out != *"knowledge-tests (skip)"* ]] \
     && ok "контроль: встроенный список будит knowledge-tests чужим knowledge/" \

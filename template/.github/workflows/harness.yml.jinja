@@ -241,17 +241,22 @@ jobs:
 
       - name: Тесты обновления харнесса
         run: for t in .harness/update/tests/*.sh; do "./$t" || exit 1; done
-{% if doc_form == 'catalog' %}
 
       # Оглавления knowledge/ — generated. Расхождение с содержимым обязано быть
       # красным прогоном. `git status --porcelain`, а не `git diff --exit-code`:
       # дифф слеп к добавленному и удалённому файлу.
+{% if doc_form == 'monolith' %}
+      # В форме monolith скрипт оглавлений проектный: нет его — нечего сверять.
+      # Документы старой формы лежат где угодно, поэтому сверяется всё дерево.
+{% endif %}
       - name: Оглавления собраны
         run: |
+{% if doc_form == 'monolith' %}
+          [ -e knowledge/index.sh ] || exit 0
+{% endif %}
           ./knowledge/index.sh
-          status=$(git status --porcelain -- knowledge/)
+          status=$(git status --porcelain{% if doc_form == 'catalog' %} -- knowledge/{% endif %})
           if [ -n "$status" ]; then
-            printf 'Оглавления knowledge/ разошлись с содержимым — прогони ./knowledge/index.sh и закоммить:\n%s\n' "$status" >&2
+            printf 'Оглавления разошлись с содержимым — прогони ./knowledge/index.sh и закоммить:\n%s\n' "$status" >&2
             exit 1
           fi
-{% endif %}

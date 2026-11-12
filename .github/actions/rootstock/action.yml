@@ -1,8 +1,9 @@
 # rootstock закреплённой версии из его выпуска на GitHub, со сверкой суммы
 # архива, — тот же, что ставит проектам template/.github/workflows/harness-update.yml.
-# Сменил версию — смени её и сумму здесь и там (SHA256SUMS выпуска).
+# Сменил версию — смени её и суммы здесь и там (SHA256SUMS выпуска; у проектов —
+# только Linux).
 name: rootstock
-description: Ставит rootstock закреплённой версии в PATH (Linux x86_64)
+description: Ставит rootstock закреплённой версии в PATH (Linux x86_64, Windows x86_64)
 
 runs:
   using: composite
@@ -11,20 +12,36 @@ runs:
       shell: bash
       env:
         ROOTSTOCK_VERSION: 0.1.0
-        ROOTSTOCK_SHA256: 575a7587822bbdc0f661d8fe6d02309757056386eb835a82b1012e6751bf088c
+        ROOTSTOCK_SHA256_LINUX: 575a7587822bbdc0f661d8fe6d02309757056386eb835a82b1012e6751bf088c
+        ROOTSTOCK_SHA256_WINDOWS: bab13aa0fd6ad7976b904eef6fb66570a08bb4ef07aafe2b2b748c582b3b8747
       run: |
         set -euo pipefail
-        name="rootstock-v${ROOTSTOCK_VERSION}-x86_64-unknown-linux-musl"
-        archive="$RUNNER_TEMP/$name.tar.gz"
+        if [ "$RUNNER_OS" = Windows ]; then
+          name="rootstock-v${ROOTSTOCK_VERSION}-x86_64-pc-windows-msvc"
+          ext=zip
+          want=$ROOTSTOCK_SHA256_WINDOWS
+        else
+          name="rootstock-v${ROOTSTOCK_VERSION}-x86_64-unknown-linux-musl"
+          ext=tar.gz
+          want=$ROOTSTOCK_SHA256_LINUX
+        fi
+        archive="$RUNNER_TEMP/$name.$ext"
         curl -fsSL -o "$archive" \
-          "https://github.com/bodasooqa/rootstock/releases/download/v${ROOTSTOCK_VERSION}/${name}.tar.gz"
-        got=$(sha256sum "$archive" | cut -d' ' -f1)
-        if [ "$got" != "$ROOTSTOCK_SHA256" ]; then
-          echo "::error title=Сумма rootstock::Архив $name.tar.gz не совпал с закреплённой суммой: $got вместо $ROOTSTOCK_SHA256."
+          "https://github.com/bodasooqa/rootstock/releases/download/v${ROOTSTOCK_VERSION}/${name}.${ext}"
+        # Со стандартного входа: путь с `\` (RUNNER_TEMP на Windows) sha256sum
+        # экранирует и ставит `\` перед суммой.
+        got=$(sha256sum <"$archive" | cut -d' ' -f1)
+        if [ "$got" != "$want" ]; then
+          echo "::error title=Сумма rootstock::Архив $name.$ext не совпал с закреплённой суммой: $got вместо $want."
           exit 1
         fi
         bin="$RUNNER_TEMP/rootstock-bin"
         mkdir -p "$bin"
-        tar -xzf "$archive" -C "$bin" --strip-components=1 "$name/rootstock"
+        if [ "$ext" = zip ]; then
+          # 7z есть на раннерах Windows; unzip в Git for Windows не гарантирован.
+          7z e -y -bso0 "-o$bin" "$archive" "$name/rootstock.exe"
+        else
+          tar -xzf "$archive" -C "$bin" --strip-components=1 "$name/rootstock"
+        fi
         echo "$bin" >>"$GITHUB_PATH"
         "$bin/rootstock" --version
