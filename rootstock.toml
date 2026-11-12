@@ -59,6 +59,16 @@ starter = [
 when = ["new"]
 run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi --no-animation; else echo "harness: openspec не найден в PATH, выполните в проекте openspec init --tools claude,pi" >&2; fi'
 
+# Git-хуки (lefthook). Ставятся, только если у проекта уже свой репозиторий
+# (`.git` в корне): иначе `lefthook install` нашёл бы объемлющий репозиторий и
+# поставил хуки ему. rootstock 0.1 делает `git init` (`--git`) после задач
+# шаблона, поэтому обычно задача только напоминает — громко, а не молча, как
+# было: без хуков не работают pre-commit и pre-push. Во фронт-проекте lefthook
+# приходит с `bun install` (`bunx lefthook install`).
+[[hooks]]
+when = ["new"]
+run = 'if [ -e .git ] && command -v lefthook >/dev/null 2>&1; then lefthook install || echo "harness: lefthook install не прошёл, выполните его в проекте" >&2; elif command -v lefthook >/dev/null 2>&1; then echo "harness: git-хуки не поставлены — репозитория ещё нет. После git init выполните в проекте lefthook install" >&2; else echo "harness: lefthook не найден в PATH, git-хуки не поставлены. Поставьте lefthook (во фронт-проекте он придёт с bun install) и после git init выполните в проекте lefthook install (или bunx lefthook install)" >&2; fi'
+
 [[questions]]
 name = "project_name"
 type = "str"
