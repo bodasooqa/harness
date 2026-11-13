@@ -37,7 +37,8 @@ type Slot =
   | "pre-bash"
   | "post-bash"
   | "post-edit"
-  | "post-edit-async";
+  | "post-edit-async"
+  | "subagent-stop";
 
 type Content = NonNullable<ToolResultEventResult["content"]>;
 
@@ -96,6 +97,7 @@ const timeouts: Record<Slot, number> = {
   "post-bash": 10_000,
   "post-edit": 60_000,
   "post-edit-async": 300_000,
+  "subagent-stop": 600_000,
 };
 
 /** На каких слотах простой текст хука — контекст модели (как у Claude Code). */
@@ -110,6 +112,12 @@ const claudeToolName: Record<string, string> = {
 
 /** Метка субагента `pi-subagents` в системном промпте ребёнка. */
 const activeAgentTag = /<active_agent name="([^"]+)"\s*\/>/;
+
+/**
+ * Исполнитель — агент `*-developer`. Тот же отбор, что у `matcher` слота `subagent-stop`
+ * в `.claude/settings.json`: проектный хук слота видит в обоих агентах одних исполнителей.
+ */
+const executorAgent = /-developer$/;
 
 /** Запуск диспетчера слота: событие на stdin, сбор вывода, таймаут. Нет диспетчера — молчание. */
 function runSlot(
@@ -264,6 +272,12 @@ export default function harness(pi: ExtensionAPI) {
   /** Фоновые прогоны `post-edit-async`: на выходе их убивают. */
   const background = new Set<ChildProcess>();
   let closed = false;
+  /**
+   * Запуск продолжается по отказу `subagent-stop` — как `stop_hook_active` у Claude Code:
+   * второй раз тот же запуск не держится. Сбрасывается новым запуском (`before_agent_start`;
+   * продолжение по отказу его не зовёт).
+   */
+  let stopHookActive = false;
 
   const base = (ctx: ExtensionContext, event: string, prompt?: string) => {
     const payload: Record<string, unknown> = {
@@ -354,6 +368,7 @@ export default function harness(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", (event) => {
+    stopHookActive = false;
     const options = event.systemPromptOptions;
     const known = (path: string) =>
       options.contextFiles.some((file) => file.path === path) || event.systemPrompt.includes(path);
@@ -378,6 +393,33 @@ export default function harness(pi: ExtensionAPI) {
     const content = pending.join("\n\n");
     pending = [];
     return { message: { customType: "harness-hook", content, display: true } };
+  });
+
+  /**
+   * `subagent-stop` — как `SubagentStop` у Claude Code. Ребёнок `pi-subagents` — сессия того
+   * же процесса с этим же расширением, и `agent_before_settle` в ней — последняя точка перед
+   * тем, как запуск ребёнка закончится и ответ уйдёт родителю. Отказ слота — сообщение
+   * модели ребёнка и одно продолжение запуска. В главной сессии слот не зовётся: `Stop`
+   * шаблон не проводит и в Claude Code.
+   */
+  pi.on("agent_before_settle", async (event, ctx) => {
+    if (event.outcome !== "completed") return undefined;
+    const agent = activeAgent(systemPrompt(ctx));
+    if (!agent || !executorAgent.test(agent)) return undefined;
+    const payload = { ...base(ctx, "SubagentStop"), stop_hook_active: stopHookActive };
+    const verdict = interpret("subagent-stop", await runSlot("subagent-stop", payload, ctx.cwd));
+    report(ctx, verdict);
+    // У Claude Code и отказ, и контекст на этом событии продолжают работу агента.
+    const content = verdict.block ?? verdict.context;
+    if (!content) return undefined;
+    stopHookActive = true;
+    return {
+      entries: [
+        ...event.entries,
+        { type: "custom_message" as const, customType: "harness-hook", content, display: true },
+      ],
+      continue: true,
+    };
   });
 
   pi.on("tool_call", async (event, ctx) => {

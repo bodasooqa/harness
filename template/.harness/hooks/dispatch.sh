@@ -32,8 +32,10 @@ case "$slot" in
   post-bash) event=PostToolUse common="bash-edit" ;;
   post-edit) event=PostToolUse common="rust-fmt js-fmt" ;;
   post-edit-async) event=PostToolUse common="rust-clippy js-typecheck" ;;
+  subagent-stop) event=SubagentStop common="agent-checks" ;;
+  pre-handback) event=PreToolUse common="agent-checks" ;;
   *)
-    printf 'dispatch.sh: неизвестный слот «%s». Слоты: session-start, session-end, prompt, pre-bash, post-bash, post-edit, post-edit-async.\n' "$slot" >&2
+    printf 'dispatch.sh: неизвестный слот «%s». Слоты: session-start, session-end, prompt, pre-bash, post-bash, post-edit, post-edit-async, subagent-stop, pre-handback.\n' "$slot" >&2
     exit 1
     ;;
 esac

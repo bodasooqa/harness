@@ -686,6 +686,148 @@ if has js-typecheck.sh; then
 fi
 
 echo
+echo "agent-checks.sh — исполнитель не завершается с красными проверками"
+# Проект годится всем раскладкам: Cargo.toml и tsconfig.json в корне (один крейт,
+# одно приложение), крейт в crates/ и пакет в packages/ (монорепо). Настоящие
+# clippy и tsc не нужны: проверяется, что и когда хук запускает и что отвечает.
+# rustfmt — настоящий: он быстрый и есть везде, где есть модуль rust.
+ac=$(new_repo) || exit 1
+acbin=$(new_tmp)
+mkdir -p "$ac/crates/core/src" "$ac/packages/web/src"
+printf '[workspace]\n' > "$ac/Cargo.toml"
+printf 'pub fn a() {}\n' > "$ac/crates/core/src/lib.rs"
+printf '{}\n' > "$ac/tsconfig.json"
+printf '{}\n' > "$ac/packages/web/tsconfig.json"
+printf 'export const n = 1;\n' > "$ac/packages/web/src/index.ts"
+git -C "$ac" add -A && git -C "$ac" commit -qm base
+# Подставные проверки пишут вызов в журнал; красные — по переменной окружения.
+# `many` — длинный вывод: причина отказа обязана быть сжатой.
+printf '%s\n' '#!/usr/bin/env bash' 'printf "clippy %s\n" "$*" >> "$FAKE_LOG"' \
+  'case "${FAKE_CLIPPY_RED:-}" in' \
+  '  "") exit 0 ;;' \
+  '  many) for i in $(seq 1 500); do printf "error[E0308]: mismatched types %s\n" "$i"; done; exit 1 ;;' \
+  '  *) printf "error[E0308]: mismatched types\n"; exit 1 ;;' \
+  'esac' > "$acbin/clippy"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "tsc %s\n" "$PWD" >> "$FAKE_LOG"' \
+  '[ -n "${FAKE_TSC_RED:-}" ] || exit 0' \
+  'printf "src/index.ts(1,14): error TS2322: сломано\n"; exit 1' > "$acbin/tsc"
+chmod +x "$acbin/clippy" "$acbin/tsc"
+
+ac_run() {  # <событие> — stdout хука; окружение FAKE_* — от вызывающего
+  (cd "$ac" && printf '%s' "$1" | CLAUDE_PROJECT_DIR="$ac" HARNESS_CLIPPY="$acbin/clippy" \
+    HARNESS_TSC="$acbin/tsc" FAKE_LOG="$acbin/log" "$hooks/agent-checks.sh" 2>/dev/null)
+}
+stop_ev() {  # <тип агента> [stop_hook_active] [agent_id]
+  jq -nc --arg t "$1" --argjson a "${2:-false}" --arg id "${3:-ag1}" --arg c "$ac" \
+    '{hook_event_name:"SubagentStop",agent_id:$id,agent_type:$t,stop_hook_active:$a,cwd:$c}'
+}
+handback_ev() {  # <agent_id>
+  jq -nc --arg id "$1" --arg c "$ac" \
+    '{hook_event_name:"PreToolUse",tool_name:"SubagentHandback",tool_input:{message:"отчёт"},agent_id:$id,agent_type:"rust-developer",cwd:$c}'
+}
+ac_ran() { [ -s "$acbin/log" ]; }
+
+rm -f "$acbin/log"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(stop_ev rust-developer)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "исполнитель без изменений — молчит и не проверяет" \
+  || bad "исполнитель без изменений — молчит и не проверяет" "молчание, без запуска" "$out $(cat "$acbin/log" 2>/dev/null)"
+
+# Изменения рабочего дерева: правка отслеживаемого файла и новый файл.
+printf 'pub fn a() {}\npub fn b() {}\n' > "$ac/crates/core/src/lib.rs"
+printf 'export const n = 2;\n' > "$ac/packages/web/src/index.ts"
+printf 'export const m = 1;\n' > "$ac/packages/web/src/new.ts"
+
+rm -f "$acbin/log"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(stop_ev rust-reviewer)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "не исполнитель — молчит" || bad "не исполнитель — молчит" "молчание, без запуска" "$out"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(jq -nc --arg c "$ac" '{hook_event_name:"SubagentStop",agent_id:"x",agent_type:"",stop_hook_active:false,cwd:$c}')")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "внутренний агент без типа — молчит" || bad "внутренний агент без типа — молчит" "молчание, без запуска" "$out"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(stop_ev rust-developer true)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "stop_hook_active — второй раз не держит" || bad "stop_hook_active — второй раз не держит" "молчание, без запуска" "$out"
+out=$(ac_run "$(stop_ev frontend-developer)")
+{ [ -z "$out" ] && ac_ran; } \
+  && ok "исполнитель, проверки зелёные — молчит" || bad "исполнитель, проверки зелёные — молчит" "молчание после запуска" "$out / журнал: $(cat "$acbin/log" 2>/dev/null)"
+
+if has lib/rust-crate.sh; then
+  rm -f "$acbin/log"
+  out=$(FAKE_CLIPPY_RED=1 ac_run "$(stop_ev rust-developer)")
+  { [ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] \
+    && printf '%s' "$out" | jq -r '.reason' | grep -q 'E0308'; } \
+    && ok "красный clippy — block с выводом" || bad "красный clippy — block с выводом" "decision block, E0308 в причине" "$out"
+  [ "$(grep -c '^clippy -p ' "$acbin/log")" -eq 1 ] \
+    && ok "clippy один раз по затронутому крейту" \
+    || bad "clippy один раз по затронутому крейту" "один clippy -p …" "$(cat "$acbin/log" 2>/dev/null)"
+  out=$(FAKE_CLIPPY_RED=many ac_run "$(stop_ev rust-developer)")
+  lines=$(printf '%s' "$out" | jq -r '.reason' 2>/dev/null | wc -l | tr -d ' ')
+  { [ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] && [ "$lines" -le 100 ]; } \
+    && ok "длинный вывод сжат в причине" || bad "длинный вывод сжат в причине" "не больше 100 строк" "$lines строк"
+  # Плохо отформатированный новый файл: rustfmt --check краснеет без clippy.
+  printf 'fn  x ( )  {}\n' > "$ac/crates/core/src/bad.rs"
+  out=$(ac_run "$(stop_ev rust-developer)")
+  { [ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] \
+    && printf '%s' "$out" | jq -r '.reason' | grep -q 'rustfmt'; } \
+    && ok "красный rustfmt — block" || bad "красный rustfmt — block" "decision block, rustfmt в причине" "$out"
+  rm -f "$ac/crates/core/src/bad.rs"
+fi
+
+if has lib/js-package.sh; then
+  rm -f "$acbin/log"
+  out=$(FAKE_TSC_RED=1 ac_run "$(stop_ev frontend-developer)")
+  { [ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] \
+    && printf '%s' "$out" | jq -r '.reason' | grep -q 'TS2322'; } \
+    && ok "красный tsc — block с выводом" || bad "красный tsc — block с выводом" "decision block, TS2322 в причине" "$out"
+  [ "$(grep -c '^tsc' "$acbin/log")" -eq 1 ] \
+    && ok "tsc один раз на пакет, хоть файлов два" || bad "tsc один раз на пакет, хоть файлов два" "один запуск" "$(cat "$acbin/log")"
+fi
+
+# Исполнитель в auto mode отдаёт отчёт инструментом SubagentHandback ДО
+# остановки: держать нужно его, иначе красный отчёт уже ушёл. Отказ — один раз,
+# затем отчёт проходит, и остановка того же агента проверки не повторяет.
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(handback_ev h1)")
+[ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision' 2>/dev/null)" = deny ] \
+  && ok "SubagentHandback с красным — отказ" || bad "SubagentHandback с красным — отказ" "permissionDecision deny" "$out"
+rm -f "$acbin/log"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(handback_ev h1)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "второй SubagentHandback проходит" || bad "второй SubagentHandback проходит" "молчание, без запуска" "$out"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(stop_ev rust-developer false h1)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "остановка после отказа отчёта — без повтора" || bad "остановка после отказа отчёта — без повтора" "молчание, без запуска" "$out"
+out=$(ac_run "$(handback_ev h2)")
+rm -f "$acbin/log"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(stop_ev rust-developer false h2)")
+{ [ -z "$out" ] && ! ac_ran; } \
+  && ok "остановка после зелёного отчёта — без повтора" || bad "остановка после зелёного отчёта — без повтора" "молчание, без запуска" "$out"
+
+# Исполнитель отдельной сессией `claude --agent`: Stop без agent_id, тип агента — в agent_type.
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(jq -nc --arg c "$ac" '{hook_event_name:"Stop",agent_type:"rust-developer",stop_hook_active:false,cwd:$c}')")
+[ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] \
+  && ok "Stop сессии-исполнителя — block" || bad "Stop сессии-исполнителя — block" "decision block" "$out"
+out=$(FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 ac_run "$(jq -nc --arg c "$ac" '{hook_event_name:"Stop",stop_hook_active:false,cwd:$c}')")
+[ -z "$out" ] && ok "Stop главной сессии — молчит" || bad "Stop главной сессии — молчит" "молчание" "$out"
+
+# Настоящая проводка: диспетчер пропускает отказ слота наружу как есть.
+out=$(cd "$ac" && printf '%s' "$(stop_ev rust-developer false ag9)" | CLAUDE_PROJECT_DIR="$ac" \
+  HARNESS_CLIPPY="$acbin/clippy" HARNESS_TSC="$acbin/tsc" FAKE_LOG="$acbin/log" FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 \
+  "$hooks/dispatch.sh" subagent-stop 2>/dev/null)
+[ "$(printf '%s' "$out" | jq -r '.decision' 2>/dev/null)" = block ] \
+  && ok "диспетчер subagent-stop отдаёт block" || bad "диспетчер subagent-stop отдаёт block" "decision block" "$out"
+out=$(cd "$ac" && printf '%s' "$(handback_ev h9)" | CLAUDE_PROJECT_DIR="$ac" \
+  HARNESS_CLIPPY="$acbin/clippy" HARNESS_TSC="$acbin/tsc" FAKE_LOG="$acbin/log" FAKE_CLIPPY_RED=1 FAKE_TSC_RED=1 \
+  "$hooks/dispatch.sh" pre-handback 2>/dev/null)
+[ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision' 2>/dev/null)" = deny ] \
+  && ok "диспетчер pre-handback отдаёт отказ" || bad "диспетчер pre-handback отдаёт отказ" "permissionDecision deny" "$out"
+
+# Вне репозитория — молчание.
+out=$(cd "$plain" && jq -nc --arg c "$plain" '{hook_event_name:"SubagentStop",agent_id:"a",agent_type:"rust-developer",stop_hook_active:false,cwd:$c}' \
+  | "$hooks/agent-checks.sh" 2>/dev/null)
+[ -z "$out" ] && ok "вне репозитория — молчит" || bad "вне репозитория — молчит" "молчание" "$out"
+
+echo
 echo "dispatch.sh"
 # Синтетическая обвязка: настоящий диспетчер, поддельные общие хуки слота,
 # свои хуки проекта. Каждый хук пишет своё имя в журнал — так виден порядок.

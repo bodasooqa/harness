@@ -247,6 +247,80 @@ describe("post-edit: tool_result edit/write", () => {
   );
 });
 
+describe("subagent-stop: agent_before_settle ребёнка-исполнителя", () => {
+  const settle = (entries: unknown[] = []) => ({
+    type: "agent_before_settle",
+    entries,
+    continue: false,
+    outcome: "completed",
+  });
+  const tag = (name: string) => `<active_agent name="${name}"/>`;
+
+  /** Изменения в дереве проекта и красные подставные clippy и tsc на время теста. */
+  async function withRedChecks(run: () => Promise<void>) {
+    // Внутри проекта: хук проверяет только свой репозиторий. Годится всем раскладкам:
+    // крейт в crates/, пакет в packages/ — монорепо; корень проекта — один крейт или
+    // одно приложение.
+    const crate = join(inProject, "crates", "core", "src");
+    const pkg = join(inProject, "packages", "web");
+    mkdirSync(crate, { recursive: true });
+    mkdirSync(join(pkg, "src"), { recursive: true });
+    writeFileSync(join(crate, "lib.rs"), "pub fn a() {}\n");
+    writeFileSync(join(pkg, "tsconfig.json"), "{}\n");
+    writeFileSync(join(pkg, "src", "index.ts"), "export const n = 1;\n");
+    const fake = join(base, "fake-red-check");
+    writeFileSync(fake, "#!/usr/bin/env bash\necho 'error: сломано'\nexit 1\n");
+    chmodSync(fake, 0o755);
+    process.env.HARNESS_CLIPPY = fake;
+    process.env.HARNESS_TSC = fake;
+    try {
+      await run();
+    } finally {
+      process.env.HARNESS_CLIPPY = "true";
+      process.env.HARNESS_TSC = "true";
+      rmSync(inProject, { recursive: true, force: true });
+    }
+  }
+
+  type Settled = { entries: Array<{ type: string; content: string }>; continue: boolean };
+
+  test("исполнитель с красными проверками — одно продолжение с выводом", async () => {
+    await withRedChecks(async () => {
+      const pi = fakePi({ cwd: root, systemPrompt: tag("rust-developer") });
+      const prior = { type: "custom", customType: "other" };
+      const first = (await pi.emit("agent_before_settle", settle([prior]))) as Settled;
+      expect(first.continue).toBe(true);
+      expect(first.entries[0]).toEqual(prior);
+      const [, note] = first.entries;
+      expect(note?.type).toBe("custom_message");
+      expect(note?.content).toContain("сломано");
+      // Продолжение по отказу — как stop_hook_active у Claude Code: второй раз не держит.
+      expect(await pi.emit("agent_before_settle", settle())).toBeUndefined();
+      // Новый запуск ребёнка — снова под проверкой.
+      await pi.emit("before_agent_start", agentStart([], tag("rust-developer")));
+      const again = (await pi.emit("agent_before_settle", settle())) as Settled;
+      expect(again.continue).toBe(true);
+    });
+  }, 30_000);
+
+  test("не исполнитель и главная сессия — без проверки", async () => {
+    await withRedChecks(async () => {
+      for (const systemPrompt of [tag("rust-reviewer"), ""]) {
+        const pi = fakePi({ cwd: root, systemPrompt });
+        expect(await pi.emit("agent_before_settle", settle())).toBeUndefined();
+      }
+    });
+  }, 30_000);
+
+  test("прерванный запуск не держится", async () => {
+    await withRedChecks(async () => {
+      const pi = fakePi({ cwd: root, systemPrompt: tag("frontend-developer") });
+      const aborted = { ...settle(), outcome: "aborted" };
+      expect(await pi.emit("agent_before_settle", aborted)).toBeUndefined();
+    });
+  }, 30_000);
+});
+
 /**
  * Копия прослойки в синтетическом проекте с заданными файлами: корень прослойка берёт от
  * своего пути, так набор файлов инструкций проверяется, не трогая настоящий проект.
