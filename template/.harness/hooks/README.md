@@ -15,8 +15,22 @@
 | `post-bash` | `PostToolUse`, `Bash` | `bash-edit` — напоминание, что файл правился командой оболочки |
 | `post-edit` | `PostToolUse`, `Write\|Edit`, синхронный | `rust-fmt` (модуль rust), `js-fmt` (модуль frontend) |
 | `post-edit-async` | `PostToolUse`, `Write\|Edit`, `async` + `asyncRewake` | `rust-clippy` (модуль rust), `js-typecheck` (модуль frontend) |
+| `subagent-stop` | `SubagentStop`, агенты `*-developer` | `agent-checks` — исполнитель не завершается, пока по затронутым пакетам красные rustfmt, clippy (модуль rust) и tsc (модуль frontend) |
+| `pre-handback` | `PreToolUse`, `SubagentHandback` | `agent-checks` — то же для отчёта исполнителя в auto mode |
 
 Модульный хук, которого в проекте нет, пропускается. После общих хуков слота идут `.harness/local/hooks/<слот>/*.sh` по алфавиту (сортировка байтовая, `LC_ALL=C`).
+
+### Проверки исполнителя
+
+Асинхронные проверки правку субагента не будят: исполнитель идёт по TDD, и красное между его правками — рабочий ход. Проверка стоит на выходе — `agent-checks.sh`:
+
+- **Кто.** Исполнитель — агент с именем `*-developer` (`rust-developer`, `frontend-developer` и проектные исполнители того же вида). Ревьюеры, встроенные агенты и главная сессия не проверяются. В Claude Code отбор делает и `matcher` слота `subagent-stop`: внутренние агенты Claude Code (подсказки ввода, `/btw`) тоже шлют `SubagentStop`, и без отбора диспетчер работал бы на каждом ходу.
+- **Что.** Файлы, изменённые в рабочем дереве относительно HEAD, и неотслеживаемые, сведённые к крейтам и пакетам: `rustfmt --check` по изменённым `.rs`, clippy по крейту, `tsc --noEmit` по пакету — те же команды и тот же разбор пути, что у `rust-clippy` и `js-typecheck` (`lib/rust-crate.sh`, `lib/js-package.sh`). Ничего не изменено — хук молчит.
+- **Ответ.** Красное — отказ с причиной: что делать и сжатый вывод проверок (до 30 строк на проверку, до 90 на причину). На `SubagentStop` — `decision: "block"`: агент продолжает работу с причиной следующей инструкцией. На `SubagentHandback` — `permissionDecision: "deny"`: отчёт не уходит, агент получает причину.
+- **Один раз.** `stop_hook_active` во входе `SubagentStop` — агент уже продолжает по отказу, и хук молчит. Отчёту `SubagentHandback` отказывают один раз на агента: метка в каталоге git дерева, `harness/agent-checks/<agent_id>`. Claude Code просит агента повторить отказанный отчёт до трёх раз, а потом завершает его без отчёта — поэтому второй отчёт проходит. Остановка агента, чей отчёт уже проверен, проверки не повторяет.
+- **Зачем `pre-handback`.** В auto mode субагент сдаёт отчёт инструментом `SubagentHandback` до остановки (Claude Code 2.1.271+), и `SubagentStop` наступает, когда отчёт уже у главной сессии. Держать надо отчёт. Без auto mode отчёт — последнее сообщение агента, и держит `subagent-stop`.
+
+`Stop` (конец хода главной сессии) шаблон не проводит: правки главной сессии проверяет `post-edit-async` с пробуждением, перед PR — полный прогон, а проверка на каждом ходу стоила бы времени. Исполнитель отдельной сессией, а не субагентом, получает `Stop`, а не `SubagentStop`. Надёжный признак такой сессии в Claude Code — `agent_type` во входе, если сессия запущена с `claude --agent <исполнитель>`; оркестратор, который запускает исполнителя обычной сессией, такого признака не даёт. Проекту, запускающему исполнителей через `--agent`, хватит строки в `.claude/settings.json` или `.claude/settings.local.json`: событие `Stop` → `dispatch.sh subagent-stop` — хук отберёт исполнителя по `agent_type` сам.
 
 ## Контракт хука
 
@@ -25,14 +39,16 @@
 - `tool_input.command` — команда (`pre-bash`, `post-bash`);
 - `tool_input.file_path`, `tool_response.filePath` — записанный файл (`post-edit`, `post-edit-async`);
 - `prompt` — текст сообщения (`prompt`);
-- `agent_id` — есть только в событиях субагента.
+- `agent_id` — есть только в событиях субагента;
+- `agent_type` — имя агента: субагента или сессии, запущенной с `--agent`;
+- `hook_event_name`, `stop_hook_active`, `tool_name`, `cwd` — какое событие, продолжает ли агент уже по отказу остановки, какой инструмент, каталог агента (`subagent-stop`, `pre-handback`).
 
 Рабочий каталог — каталог сессии. Корень проекта — `$CLAUDE_PROJECT_DIR`, если задан, иначе `git rev-parse --show-toplevel`.
 
 **Выход.**
 
 - Код 0 и пустой stdout — хуку нечего сказать.
-- Код 0 и JSON в stdout — ответ агенту в форме Claude Code: `hookSpecificOutput.additionalContext` (контекст модели) или отказ — `hookSpecificOutput.permissionDecision: "deny"` с причиной в `permissionDecisionReason`, `decision: "block"`, `continue: false`.
+- Код 0 и JSON в stdout — ответ агенту в форме Claude Code: `hookSpecificOutput.additionalContext` (контекст модели) или отказ — `hookSpecificOutput.permissionDecision: "deny"` с причиной в `permissionDecisionReason`, `decision: "block"` с причиной в `reason` (на `subagent-stop` — агент не завершается и получает причину следующей инструкцией), `continue: false`.
 - Код 0 и простой текст в stdout — контекст модели на `session-start` и `prompt`; на остальных слотах агент показывает его только в подробном журнале.
 - Код 2 — блок (`pre-bash`) или пробуждение модели (`post-edit-async`); текст для модели — в stderr.
 - Прочий код — ошибка хука, а не отказ: stderr уходит человеку, работа продолжается.
@@ -67,9 +83,12 @@
 | `tool_call`, `bash` | `pre-bash` | отказ блокирует вызов, причина уходит модели |
 | `tool_result`, `bash` | `post-bash` | контекст дописывается к результату команды |
 | `tool_result`, `edit`/`write` | `post-edit`, затем `post-edit-async` | `post-edit` — до того, как модель увидит результат; `post-edit-async` — в фоне |
+| `agent_before_settle` ребёнка-исполнителя | `subagent-stop` | отказ или контекст — сообщение модели ребёнка и одно продолжение запуска (`continue: true`) |
 
 Расхождения с Claude Code:
 
+- **`subagent-stop`.** Аналог `SubagentStop` — `agent_before_settle` в сессии ребёнка `pi-subagents` (Pi 0.87+): последняя точка, где расширение может продолжить запуск, прежде чем ответ уйдёт родителю. Зовётся только у исполнителя (`*-developer`, как `matcher` в Claude Code) и только у завершённого, а не прерванного запуска. `stop_hook_active` прослойка ведёт сама: истина после продолжения по отказу, сброс — новым запуском ребёнка.
+- **`pre-handback`.** В Pi слота нет: инструмента `SubagentHandback` у `pi-subagents` нет, ответ ребёнка — его последнее сообщение, и держит его `subagent-stop`.
 - **`post-edit-async`.** Прогон идёт в фоне, результат правки модель получает сразу. Код 2 будит модель сообщением (`sendMessage` с `triggerTurn`): в простое начинается новый ход, посреди работы текст приходит перед следующим запросом к модели. Контекст без кода 2 ждёт следующего хода. В режиме `pi -p` Pi выходит после последнего ответа и фоновый прогон не дожидается; на выходе сессии фоновые прогоны убиваются.
 - **Субагенты.** Ребёнок `pi-subagents` — сессия того же процесса с тем же расширением. Прослойка узнаёт его по метке `<active_agent name="…"/>` в системном промпте и кладёт в событие `agent_id` и `agent_type` — хуки молчат по нему так же, как в Claude Code. `session-start`, `session-end` и `prompt` у ребёнка не зовутся: у субагента Claude Code этих событий нет.
 - **Правила процесса.** Главный файл правил проекта — `AGENTS.md`; `CLAUDE.md` рядом с ним — импорты `@AGENTS.md` и `@.harness/process.md` для Claude Code. Pi импорт не раскрывает и из каталога грузит один файл (`AGENTS.md` раньше `CLAUDE.md`). Прослойка добавляет в context files сессии `.harness/process.md` следом за главным файлом, а главный — если Pi его не взял. `CLAUDE.md` при `AGENTS.md` не добавляется, пока в нём только импорты; со своими правилами (проект ещё не перешёл, а `AGENTS.md` — заготовка от обновления шаблона) он идёт следом за `AGENTS.md`. Без `AGENTS.md` главный файл — `CLAUDE.md`, как до перехода.
@@ -77,9 +96,9 @@
 
 ## Переменные
 
-- `HARNESS_CLIPPY` — команда вместо `cargo clippy` (тесты).
+- `HARNESS_CLIPPY` — команда вместо `cargo clippy` (тесты); общая у `rust-clippy` и `agent-checks`.
 - `HARNESS_CLIPPY_STATE` — каталог состояния `rust-clippy` (замок и подпись ошибки) вместо временного.
-- `HARNESS_TSC` — команда вместо `bunx tsc` (тесты).
+- `HARNESS_TSC` — команда вместо `bunx tsc` (тесты); общая у `js-typecheck` и `agent-checks`.
 
 ## Тесты
 

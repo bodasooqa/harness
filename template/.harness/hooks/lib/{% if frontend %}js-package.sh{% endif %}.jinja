@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034  # переменные-выходы читает подключивший файл
+# Пакет файла и проверка типов по пакету — общие для `js-typecheck.sh`
+# (правка главной сессии) и `agent-checks.sh` (конец работы исполнителя).
+# Модуль frontend.
+#
+# Требует `lib/same-repo.sh`, подключённого раньше.
+
+# js_package <файл> — пакет с `tsconfig.json`, которому принадлежит файл.
+# Ставит переменные:
+#   pkg_dir  — каталог пакета: область устаревания вердикта и каталог запуска tsc;
+#   pkg_file — путь файла в том же виде, что `pkg_dir`.
+# Код 1 — файл не пакета или не своего репозитория. Расширение не смотрит:
+# какой файл достоин проверки, решает вызывающий.
+js_package() {
+  local f=$1
+{% if monorepo %}
+  # apps/<name>/… или packages/<name>/… — разбор средствами оболочки:
+  # BSD sed не поддерживает \| в basic regex, на нём этот разбор молча давал пустоту.
+  local area prefix rest name
+  case "$f" in
+    */apps/*|apps/*) area=apps ;;
+    */packages/*|packages/*) area=packages ;;
+    *) return 1 ;;
+  esac
+
+  prefix=${f%%"$area"/*}
+  rest=${f#*"$area"/}
+  name=${rest%%/*}
+  [ -n "$name" ] || return 1
+  pkg_dir="${prefix}${area}/${name}"
+  pkg_file=$f
+{% else %}
+  # Одно приложение в корне: пакет — корень проекта, которому принадлежит файл.
+  local file_dir
+  case "$f" in
+    */node_modules/* | node_modules/* | */dist/* | dist/*) return 1 ;;
+  esac
+  case "$f" in
+    /*) file_dir=${f%/*} ;;
+    */*) file_dir=$PWD/${f%/*} ;;
+    *) file_dir=$PWD ;;
+  esac
+  # git в каталоге файла — только когда он в дереве проекта (см. lib/same-repo.sh).
+  same_repo "$file_dir" || return 1
+  pkg_dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || return 1
+  # git даёт физический путь (на macOS `/private/var/…` вместо `/var/…`); путь
+  # файла приводится к тому же виду, иначе проверка устаревания не узнает
+  # в нём себя.
+  pkg_file="$(cd "$file_dir" && pwd -P)/${f##*/}"
+{% endif %}
+  [ -f "$pkg_dir/tsconfig.json" ] || return 1
+  # tsc берётся из node_modules пакета: чужой клон не исполняем.
+  same_repo "$pkg_dir"
+}
+
+# js_tsc <каталог> — `tsc --noEmit` в пакете, вывод в stdout, код — код tsc.
+# Команда подменяема через `HARNESS_TSC` (тесты).
+js_tsc() {
+  # Разбиение `HARNESS_TSC` на слова намеренно: по умолчанию это `bunx tsc`.
+  # shellcheck disable=SC2086
+  (cd "$1" && ${HARNESS_TSC:-bunx tsc} --noEmit 2>&1)
+}

@@ -85,6 +85,7 @@ rootstock new gh:bodasooqa/harness my-project --git
 Расхождения:
 
 - **Асинхронная проверка после правки** (`post-edit-async`: clippy, tsc) идёт в фоне и будит модель сообщением, как `asyncRewake` в Claude Code. В `pi -p` Pi выходит после ответа и фоновый прогон не дожидается.
+- **Проверки исполнителя на выходе** (`subagent-stop`): в Claude Code — `SubagentStop` и отчёт `SubagentHandback`, в Pi — `agent_before_settle` ребёнка `pi-subagents`. Слота `pre-handback` в Pi нет: нет и инструмента отчёта.
 - **`AGENTS.md` и `CLAUDE.md`.** Pi грузит из каталога один файл, `AGENTS.md` раньше `CLAUDE.md`, и импорт `@файл` не раскрывает. `CLAUDE.md` из одних импортов ему не нужен; `CLAUDE.md` со своими правилами (проект ещё не перешёл на `AGENTS.md`) расширение возвращает в контекст следом за `AGENTS.md`.
 - **Разрешения** (`permissions` в `.claude/settings.json`) есть только у Claude Code; в Pi охрана — хуки `pre-bash`.
 
