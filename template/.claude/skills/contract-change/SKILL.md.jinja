@@ -1,6 +1,6 @@
 ---
 name: contract-change
-description: Use when changing anything listed in the "Источники правды" table of the project's CLAUDE.md — a contract between packages or processes, a database schema, a serialized format, config defaults, or anything generated from them. The spec-first, regenerate-then-verify-consumers procedure.
+description: Use when changing anything listed in the "Источники правды" table of the project's AGENTS.md — a contract between packages or processes, a database schema, a serialized format, config defaults, or anything generated from them. The spec-first, regenerate-then-verify-consumers procedure.
 ---
 
 # Изменение контракта
@@ -11,7 +11,7 @@ description: Use when changing anything listed in the "Источники пра
 
 ## Какие контракты есть в проекте
 
-Список — таблица «Источники правды» корневого `CLAUDE.md`: что, где, кто и чем меняет. Скилл своего списка не держит. Строки нет, а файл явно контракт (от него зависят другой пакет, клиент, база или записанные данные) — сначала спроси, не заводить ли строку, и только потом правь.
+Список — таблица «Источники правды» корневого `AGENTS.md`: что, где, кто и чем меняет. Скилл своего списка не держит. Строки нет, а файл явно контракт (от него зависят другой пакет, клиент, база или записанные данные) — сначала спроси, не заводить ли строку, и только потом правь.
 
 По строке таблицы перед правкой выясни три вещи: кто потребители, чем регенерируется производное, чем проверяются потребители. Не записано — выясни по коду и допиши в таблицу той же правкой.
 

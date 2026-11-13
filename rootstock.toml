@@ -22,6 +22,9 @@ trim_blocks = true
 exclude = ["_partials"]
 starter = [
   "/README.md",
+  # Правила проекта для всех агентов — в AGENTS.md; CLAUDE.md только импортирует
+  # его и правила процесса для Claude Code.
+  "/AGENTS.md",
   "/CLAUDE.md",
   "/.gitignore",
   # Свой у проекта, где он уже был (screener): стартовый не перетирает его на

@@ -1,7 +1,7 @@
 {% set stages = stages_path %}
 # Правила процесса
 
-Общие правила работы из шаблона [harness](https://github.com/bodasooqa/harness). Файл управляемый: обновляется `rootstock update`, руками не правится. Своё проект пишет в корневой `CLAUDE.md` (домен, стек, границы пакетов, источники правды, определения) и в `.harness/local/`.
+Общие правила работы из шаблона [harness](https://github.com/bodasooqa/harness). Файл управляемый: обновляется `rootstock update`, руками не правится. Своё проект пишет в корневой `AGENTS.md` (домен, стек, границы пакетов, источники правды, определения) и в `.harness/local/`. `AGENTS.md` читают все агенты; `CLAUDE.md` рядом только подключает его и этот файл для Claude Code.
 
 ## Три места документации
 
@@ -29,7 +29,7 @@
 - `writing-plans` и `executing-plans` не используются: план живёт в `openspec/changes/<name>/tasks.md`, второго плана не заводим.
 - Запись в `knowledge/` — скилл `knowledge-note`.
 
-**Обвязка живёт вне OpenSpec.** Скиллы, субагенты, хуки, lefthook, CI, `knowledge/` и `CLAUDE.md` не проходят через OpenSpec: ТЗ про обвязку молчит, и proposal на неё невозможен по правилам самого процесса. Обвязка правится напрямую, в своём рабочем дереве{% if linear %}, под своей задачей Linear{% endif %}; решения записываются в {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}.
+**Обвязка живёт вне OpenSpec.** Скиллы, субагенты, хуки, lefthook, CI, `knowledge/`, `AGENTS.md` и `CLAUDE.md` не проходят через OpenSpec: ТЗ про обвязку молчит, и proposal на неё невозможен по правилам самого процесса. Обвязка правится напрямую, в своём рабочем дереве{% if linear %}, под своей задачей Linear{% endif %}; решения записываются в {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}.
 
 ### Своё дерево на сессию
 
@@ -56,7 +56,7 @@
 - `.claude/commands/opsx/**`, `.claude/skills/openspec-*/**`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/**` — `openspec update`;
 - блоки между метками `<!-- … -->` в документах `knowledge/`{% if doc_form == 'catalog' %} и в `{{ spec_path }}/README.md`{% endif %} — скрипты `knowledge/`;
 - `.rootstock.toml` и управляемые файлы шаблона — `rootstock update`;
-- проектные generated — по таблице «Источники правды» корневого `CLAUDE.md`.
+- проектные generated — по таблице «Источники правды» корневого `AGENTS.md`.
 
 ### Правка файлов
 
@@ -101,7 +101,7 @@ bun run --filter '@{{ project_name }}/<пакет>' <script>    # одна за�
 {% endif %}
 ```
 
-Проектные команды (база, запуск сервисов, генерация) — в корневом `CLAUDE.md`.
+Проектные команды (база, запуск сервисов, генерация) — в корневом `AGENTS.md`.
 
 ## Порядок работы
 

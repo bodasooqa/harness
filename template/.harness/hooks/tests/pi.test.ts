@@ -17,11 +17,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import harness from "../../../.pi/extensions/harness.ts";
 
 const unset = (name: string) => {
@@ -87,8 +88,10 @@ interface ContextFile {
   content: string;
 }
 
+type Extension = typeof harness;
+
 /** Подставной Pi: собирает обработчики и отправленные сообщения. */
-function fakePi(options: { cwd: string; systemPrompt?: string }) {
+function fakePi(options: { cwd: string; systemPrompt?: string; extension?: Extension }) {
   const handlers = new Map<string, Handler[]>();
   const sent: Sent[] = [];
   const api = {
@@ -109,7 +112,7 @@ function fakePi(options: { cwd: string; systemPrompt?: string }) {
     },
     getSystemPrompt: () => options.systemPrompt ?? "",
   };
-  harness(api as unknown as Parameters<typeof harness>[0]);
+  (options.extension ?? harness)(api as unknown as Parameters<Extension>[0]);
   const emit = async (name: string, event: unknown) => {
     let result: unknown;
     for (const handler of handlers.get(name) ?? []) result = await handler(event, ctx);
@@ -244,11 +247,33 @@ describe("post-edit: tool_result edit/write", () => {
   );
 });
 
+/**
+ * Копия прослойки в синтетическом проекте с заданными файлами: корень прослойка берёт от
+ * своего пути, так набор файлов инструкций проверяется, не трогая настоящий проект.
+ */
+async function isolatedHarness(files: Record<string, string>) {
+  // Путь без ссылок (на macOS временный каталог — ссылка в /private): корень прослойки
+  // считается от пути модуля, и пути в ожиданиях должны совпасть с ним.
+  const dir = realpathSync(mkdtempSync(join(base, "project.")));
+  const copy = join(dir, ".pi", "extensions", "harness.ts");
+  mkdirSync(dirname(copy), { recursive: true });
+  writeFileSync(copy, readFileSync(join(root, ".pi", "extensions", "harness.ts"), "utf8"));
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), content);
+  }
+  const module = (await import(copy)) as { default: Extension };
+  return { dir, extension: module.default };
+}
+
 describe("session-start и правила процесса: before_agent_start", () => {
-  const instructions = join(root, "CLAUDE.md");
+  // Главный файл проекта — AGENTS.md; у проекта, ещё не перешедшего на него, — CLAUDE.md.
+  const instructions = existsSync(join(root, "AGENTS.md"))
+    ? join(root, "AGENTS.md")
+    : join(root, "CLAUDE.md");
   const processRules = join(root, ".harness", "process.md");
 
-  test("контекст session-start приходит сообщением, process.md — после CLAUDE.md", async () => {
+  test("контекст session-start приходит сообщением, process.md — после главного файла", async () => {
     const pi = fakePi({ cwd: newRepo() });
     await pi.emit("session_start", { type: "session_start", reason: "startup" });
     const files: ContextFile[] = [{ path: instructions, content: "правила проекта" }];
@@ -256,20 +281,75 @@ describe("session-start и правила процесса: before_agent_start",
       message: { content: string };
     };
     expect(result.message.content).toContain("ОБЩЕМ каталоге");
-    expect(files.map((file) => file.path)).toEqual([instructions, processRules]);
-    expect(files[1]?.content).toBe(readFileSync(processRules, "utf8"));
+    // Между ними может стоять CLAUDE.md со своими правилами: проект ещё не перешёл на
+    // AGENTS.md, а заготовку создало обновление. Набор по видам проекта — тесты ниже.
+    const paths = files.map((file) => file.path);
+    expect(paths[0]).toBe(instructions);
+    expect(paths.at(-1)).toBe(processRules);
+    expect(files.at(-1)?.content).toBe(readFileSync(processRules, "utf8"));
 
-    // Второй ход: контекст уже доставлен, process.md не дублируется.
+    // Второй ход: контекст уже доставлен, ничего не дублируется.
     expect(await pi.emit("before_agent_start", agentStart(files))).toBeUndefined();
-    expect(files.map((file) => file.path)).toEqual([instructions, processRules]);
+    expect(files.map((file) => file.path)).toEqual(paths);
   });
 
-  test("AGENTS.md затенил CLAUDE.md — оба возвращаются", async () => {
-    const pi = fakePi({ cwd: newRepo() });
-    const agents = join(root, "AGENTS.md");
-    const files: ContextFile[] = [{ path: agents, content: "чужие правила" }];
+  test("AGENTS.md и CLAUDE.md из импортов — доливается process.md, CLAUDE.md нет", async () => {
+    const { dir, extension } = await isolatedHarness({
+      "AGENTS.md": "# правила проекта\n",
+      "CLAUDE.md": "@AGENTS.md\n@.harness/process.md\n",
+      ".harness/process.md": "# правила процесса\n",
+    });
+    const agents = join(dir, "AGENTS.md");
+    const rules = join(dir, ".harness", "process.md");
+    const pi = fakePi({ cwd: dir, extension });
+
+    // Pi взял из каталога AGENTS.md, CLAUDE.md рядом с ним не грузит.
+    const files: ContextFile[] = [{ path: agents, content: "# правила проекта\n" }];
     await pi.emit("before_agent_start", agentStart(files));
-    expect(files.map((file) => file.path)).toEqual([agents, instructions, processRules]);
+    expect(files.map((file) => file.path)).toEqual([agents, rules]);
+    expect(files[1]?.content).toBe("# правила процесса\n");
+
+    // Pi не взял ничего — прослойка доводит AGENTS.md, а не CLAUDE.md.
+    const bare: ContextFile[] = [];
+    await pi.emit("before_agent_start", agentStart(bare));
+    expect(bare.map((file) => file.path)).toEqual([agents, rules]);
+    expect(bare[0]?.content).toBe("# правила проекта\n");
+  });
+
+  test("AGENTS.md-заготовка и CLAUDE.md со своими правилами — доливаются оба", async () => {
+    // Обновление шаблона создаёт стартовый AGENTS.md и в проекте, который ещё держит
+    // правила в CLAUDE.md: Pi берёт заготовку, и правила проекта не должны потеряться.
+    const { dir, extension } = await isolatedHarness({
+      "AGENTS.md": "# заготовка\n",
+      "CLAUDE.md": "# правила проекта\n\n@.harness/process.md\n",
+      ".harness/process.md": "# правила процесса\n",
+    });
+    const agents = join(dir, "AGENTS.md");
+    const claude = join(dir, "CLAUDE.md");
+    const rules = join(dir, ".harness", "process.md");
+    const pi = fakePi({ cwd: dir, extension });
+
+    const files: ContextFile[] = [{ path: agents, content: "# заготовка\n" }];
+    await pi.emit("before_agent_start", agentStart(files));
+    expect(files.map((file) => file.path)).toEqual([agents, claude, rules]);
+  });
+
+  test("только CLAUDE.md (проект до AGENTS.md) — он и process.md, как раньше", async () => {
+    const { dir, extension } = await isolatedHarness({
+      "CLAUDE.md": "# правила проекта\n\n@.harness/process.md\n",
+      ".harness/process.md": "# правила процесса\n",
+    });
+    const claude = join(dir, "CLAUDE.md");
+    const rules = join(dir, ".harness", "process.md");
+    const pi = fakePi({ cwd: dir, extension });
+
+    const files: ContextFile[] = [{ path: claude, content: "# правила проекта\n" }];
+    await pi.emit("before_agent_start", agentStart(files));
+    expect(files.map((file) => file.path)).toEqual([claude, rules]);
+
+    const bare: ContextFile[] = [];
+    await pi.emit("before_agent_start", agentStart(bare));
+    expect(bare.map((file) => file.path)).toEqual([claude, rules]);
   });
 
   test("субагент pi-subagents: session-start молчит, контекст не забирает", async () => {
