@@ -7,9 +7,13 @@
  * Имена инструментов отдаются в форме Claude (`bash` → `Bash`), чтобы хуки не знали
  * про агента. Слоты и контракт ответа — `.harness/hooks/README.md`.
  *
- * Сверх хуков прослойка доводит до модели общие правила процесса: Pi не понимает импорт
- * `@.harness/process.md` из `CLAUDE.md` и берёт файл как есть, поэтому `.harness/process.md`
- * добавляется в context files сессии рядом с `CLAUDE.md`.
+ * Сверх хуков прослойка доводит до модели общие правила процесса. Главный файл правил
+ * проекта — `AGENTS.md`; `CLAUDE.md` рядом с ним — импорты для Claude Code (`@AGENTS.md`,
+ * `@.harness/process.md`). Pi импорт `@файл` не понимает и грузит из каталога один файл,
+ * `AGENTS.md` раньше `CLAUDE.md`, поэтому прослойка добавляет в context files сессии
+ * `.harness/process.md` следом за главным файлом, а главный — если Pi его не взял. У проекта,
+ * ещё не перешедшего на `AGENTS.md`, главный файл — `CLAUDE.md`, как раньше; `CLAUDE.md`
+ * со своими правилами рядом с `AGENTS.md` тоже доводится (`projectInstructions`).
  *
  * Зависимостей npm нет: только встроенные модули и типы Pi.
  */
@@ -57,7 +61,31 @@ interface Verdict {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const dispatcher = join(root, ".harness", "hooks", "dispatch.sh");
 const processRules = join(root, ".harness", "process.md");
-const projectInstructions = join(root, "CLAUDE.md");
+const agentsInstructions = join(root, "AGENTS.md");
+const claudeInstructions = join(root, "CLAUDE.md");
+
+/** В тексте только импорты `@файл` и HTML-комментарии — своих правил нет. */
+function importsOnly(text: string): boolean {
+  return text
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split("\n")
+    .every((line) => line.trim() === "" || line.trim().startsWith("@"));
+}
+
+/**
+ * Файлы правил проекта по порядку, первый — главный: `AGENTS.md`, а без него — `CLAUDE.md`.
+ * При `AGENTS.md` файл `CLAUDE.md` — импорты для Claude Code, и в Pi он не нужен. Но если
+ * в нём свои правила, он идёт следом: обновление шаблона создаёт стартовый `AGENTS.md`
+ * заготовкой и в проекте, который ещё держит правила в `CLAUDE.md`. Смотрится на каждом
+ * ходе: проект, перешедший на `AGENTS.md` посреди сессии, не держит старый выбор.
+ */
+function projectInstructions(): string[] {
+  if (!existsSync(agentsInstructions)) return [claudeInstructions];
+  if (existsSync(claudeInstructions) && !importsOnly(readFileSync(claudeInstructions, "utf8"))) {
+    return [agentsInstructions, claudeInstructions];
+  }
+  return [agentsInstructions];
+}
 
 /** Таймауты слотов — те же, что в `.claude/settings.json`. */
 const timeouts: Record<Slot, number> = {
@@ -331,14 +359,18 @@ export default function harness(pi: ExtensionAPI) {
       options.contextFiles.some((file) => file.path === path) || event.systemPrompt.includes(path);
     // Pi грузит из каталога один context file (AGENTS.md раньше CLAUDE.md) и не понимает
     // импорт `@файл`. Правила проекта и общие правила процесса доводятся до модели здесь.
+    const instructions = projectInstructions();
     const extra: Array<{ path: string; content: string }> = [];
-    for (const path of [projectInstructions, processRules]) {
+    for (const path of [...instructions, processRules]) {
       if (!known(path) && existsSync(path)) {
         extra.push({ path, content: readFileSync(path, "utf8") });
       }
     }
     if (extra.length > 0) {
-      const at = options.contextFiles.findIndex((file) => file.path === projectInstructions);
+      // Следом за последним файлом правил проекта, который Pi уже взял.
+      const at = Math.max(
+        ...instructions.map((path) => options.contextFiles.findIndex((file) => file.path === path)),
+      );
       options.contextFiles.splice(at === -1 ? options.contextFiles.length : at + 1, 0, ...extra);
     }
     // Ребёнок `pi-subagents` не забирает контекст главной сессии.

@@ -90,13 +90,15 @@ layout_shape() {
   common="$common +.pi/settings.json +.pi/extensions/harness.ts +.harness/hooks/tests/pi.test.ts"
   common="$common +.github/workflows/harness-update.yml +.github/workflows/harness-automerge.yml"
   common="$common +.harness/update/next-version.sh +.harness/update/conflict-markers.sh +.gitattributes"
+  common="$common +AGENTS.md +CLAUDE.md"
+  local packages="+apps/web/AGENTS.md +apps/web/CLAUDE.md +packages/uikit/AGENTS.md +packages/uikit/CLAUDE.md"
   case "$1" in
-    full) echo "$common +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
+    full) echo "$common $packages +crates/app/Cargo.toml +apps/web/package.json +packages/uikit/package.json +turbo.json -src +.harness/biome.json +.harness/hooks/rust-clippy.sh +.harness/hooks/js-typecheck.sh +knowledge/index.sh" ;;
     rust-workspace) echo "$common +crates/app/Cargo.toml -package.json -src -apps -.harness/biome.json -.harness/hooks/js-fmt.sh" ;;
     rust-crate) echo "$common +src/main.rs -crates -package.json -.harness/biome.json -.harness/hooks/js-typecheck.sh" ;;
-    web-monorepo) echo "$common +apps/web/package.json +packages/uikit/package.json -Cargo.toml -src +.harness/biome.json -.harness/hooks/rust-fmt.sh" ;;
+    web-monorepo) echo "$common $packages +apps/web/package.json +packages/uikit/package.json -Cargo.toml -src +.harness/biome.json -.harness/hooks/rust-fmt.sh" ;;
     web-app) echo "$common +src/main.tsx +src/components/ui/.gitkeep +components.json -apps -packages -turbo.json -Cargo.toml -.harness/hooks/rust-clippy.sh" ;;
-    monolith) echo "$common +crates/app/Cargo.toml +apps/web/package.json -docs/spec -knowledge/decisions -knowledge/spec-unfolded.sh -knowledge/index.sh" ;;
+    monolith) echo "$common $packages +crates/app/Cargo.toml +apps/web/package.json -docs/spec -knowledge/decisions -knowledge/spec-unfolded.sh -knowledge/index.sh" ;;
   esac
 }
 
@@ -168,11 +170,12 @@ answer() {
 }
 
 # Файлы обвязки, которые рендерит шаблон: агенты, скиллы шаблона (без
-# generated OpenSpec), правила процесса, стартовые CLAUDE.md и конфиг OpenSpec.
+# generated OpenSpec), правила процесса, стартовые AGENTS.md и CLAUDE.md и конфиг
+# OpenSpec.
 # shellcheck disable=SC2329
 harness_text_files() {
   find .claude/agents .claude/skills .pi/agents -type f -name '*.md' -not -path '.claude/skills/openspec-*'
-  printf '%s\n' CLAUDE.md .harness/process.md openspec/config.yaml
+  printf '%s\n' AGENTS.md CLAUDE.md .harness/process.md openspec/config.yaml
 }
 
 # Обвязка раскладки: набор агентов и скиллов по ответам, нет остатков Jinja,
@@ -217,6 +220,13 @@ check_harness_files() {
     grep -qF ".harness/local/skills/$path.md" ".claude/skills/$path/SKILL.md" ||
       { echo "скилл $path не читает .harness/local/skills/$path.md"; bad=1; }
   done
+
+  # Правила проекта — в AGENTS.md, CLAUDE.md только подключает их и правила
+  # процесса для Claude Code: импорт `@файл` — строкой целиком.
+  for path in @AGENTS.md @.harness/process.md; do
+    grep -qxF "$path" CLAUDE.md || { echo "CLAUDE.md не импортирует ${path#@}"; bad=1; }
+  done
+  grep -qF '.harness/process.md' AGENTS.md || { echo "AGENTS.md не называет .harness/process.md"; bad=1; }
 
   local -a files=()
   while IFS= read -r file; do

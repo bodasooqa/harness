@@ -70,7 +70,7 @@ rootstock new gh:bodasooqa/harness my-project --git
 
 | Что | Claude Code | Pi |
 |---|---|---|
-| Правила проекта и процесса | `CLAUDE.md` с импортом `@.harness/process.md` | Pi берёт `CLAUDE.md` сам, но импорт не раскрывает; `.harness/process.md` добавляет в контекст расширение `.pi/extensions/harness.ts` |
+| Правила проекта и процесса | правила проекта — `AGENTS.md`; `CLAUDE.md` только импортирует `@AGENTS.md` и `@.harness/process.md` | Pi берёт `AGENTS.md` сам; `.harness/process.md` добавляет в контекст расширение `.pi/extensions/harness.ts`. Другие агенты, читающие `AGENTS.md` (Codex), получают те же правила, а `.harness/process.md` читают по указанию из него |
 | Скиллы | `.claude/skills/` | те же: путь `../.claude/skills` в `.pi/settings.json`, без копий |
 | Агенты | `.claude/agents/` | `.pi/agents/` для `pi-subagents`; тело промпта общее, модели — из ответа `pi_models` |
 | Хуки | `.claude/settings.json` → `.harness/hooks/dispatch.sh` | `.pi/extensions/harness.ts` → тот же диспетчер с тем же входом |
@@ -85,7 +85,7 @@ rootstock new gh:bodasooqa/harness my-project --git
 Расхождения:
 
 - **Асинхронная проверка после правки** (`post-edit-async`: clippy, tsc) идёт в фоне и будит модель сообщением, как `asyncRewake` в Claude Code. В `pi -p` Pi выходит после ответа и фоновый прогон не дожидается.
-- **`AGENTS.md`.** Pi грузит из каталога один файл, `AGENTS.md` раньше `CLAUDE.md`. Если в корне появится `AGENTS.md`, расширение вернёт в контекст и `CLAUDE.md`.
+- **`AGENTS.md` и `CLAUDE.md`.** Pi грузит из каталога один файл, `AGENTS.md` раньше `CLAUDE.md`, и импорт `@файл` не раскрывает. `CLAUDE.md` из одних импортов ему не нужен; `CLAUDE.md` со своими правилами (проект ещё не перешёл на `AGENTS.md`) расширение возвращает в контекст следом за `AGENTS.md`.
 - **Разрешения** (`permissions` в `.claude/settings.json`) есть только у Claude Code; в Pi охрана — хуки `pre-bash`.
 
 Подробности проводки — `template/.harness/hooks/README.md`, раздел «Прослойка Pi».
