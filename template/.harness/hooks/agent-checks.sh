@@ -1,36 +1,39 @@
 #!/usr/bin/env bash
-# Слоты subagent-stop (SubagentStop) и pre-handback (PreToolUse/SubagentHandback):
-# исполнитель не сдаёт работу, пока по затронутым им пакетам красные быстрые
-# проверки — rustfmt и clippy по крейту (модуль rust), tsc по пакету (модуль
-# frontend).
+# Slots subagent-stop (SubagentStop) and pre-handback (PreToolUse/SubagentHandback):
+# the executor doesn't hand in its work while the fast checks for the packages it
+# touched are red — rustfmt and clippy per crate (module rust), tsc per package
+# (module frontend).
 #
-# Зачем. Правки субагента асинхронные проверки не будят (`rust-clippy.sh`,
-# `js-typecheck.sh`): исполнитель идёт по TDD, и красное между его правками —
-# рабочий ход. Но отчёт с красным fmt, clippy или tsc ловил только полный
-# прогон главной сессии, и исполнителя приходилось перезапускать. Здесь
-# проверка стоит на выходе: красное — остановка удерживается один раз,
-# с выводом ошибок в причине.
+# Why. Subagent edits don't wake the asynchronous checks (`rust-clippy.sh`,
+# `js-typecheck.sh`): the executor follows TDD, and red between its edits is a
+# working move. But a report with red fmt, clippy or tsc was caught only by the
+# main session's full run, and the executor had to be restarted. Here the check
+# stands at the exit: on red the stop is held once, with the errors in the
+# reason.
 #
-# Исполнитель — агент с именем `*-developer` (`rust-developer`,
-# `frontend-developer` и проектные исполнители того же вида): соглашение
-# об именах агентов шаблона, второго списка, который отстал бы от агентов, нет.
-# Ревьюеры, встроенные агенты и главная сессия хуку не интересны.
+# An executor is an agent named `*-developer` (`rust-developer`,
+# `frontend-developer` and project executors of the same kind): a naming
+# convention of the template's agents; there is no second list that would fall
+# behind the agents. Reviewers, built-in agents and the main session are of no
+# interest to the hook.
 #
-# Что проверяется: файлы, изменённые в рабочем дереве относительно HEAD,
-# и неотслеживаемые (без игнорируемых), сведённые к крейтам и пакетам. Ничего
-# не изменено — хук молчит. Изменения главной сессии до запуска исполнителя
-# тоже попадают в набор: git не знает, чья правка.
+# What is checked: files changed in the worktree relative to HEAD, and untracked
+# ones (without ignored ones), reduced to crates and packages. Nothing changed —
+# the hook is silent. The main session's changes before the executor started
+# also get into the set: git doesn't know whose edit it is.
 #
-# Один раз, не в цикл:
-#   - SubagentStop с `stop_hook_active` — агент уже продолжает работу по отказу
-#     этого же хука; не исправил — пусть вернёт вопрос в отчёте, а не крутится.
-#   - SubagentHandback (auto mode Claude Code): отчёт уходит этим инструментом
-#     ДО остановки, и держать надо его, а не остановку — иначе красный отчёт
-#     уже у главной сессии. Отказ — один раз на агента; дальше отчёт проходит,
-#     а остановка того же агента проверку не повторяет. Метка — в каталоге git
-#     дерева (`harness/agent-checks/<agent_id>`), как состояние `rust-clippy.sh`.
+# Once, not in a loop:
+#   - SubagentStop with `stop_hook_active` — the agent is already continuing
+#     because of this same hook's denial; if it didn't fix it, let it return a
+#     question in the report instead of spinning.
+#   - SubagentHandback (Claude Code auto mode): the report goes out via this tool
+#     BEFORE the stop, and it is the report that must be held, not the stop —
+#     otherwise the red report is already with the main session. The denial is
+#     once per agent; after that the report passes, and the same agent's stop
+#     doesn't repeat the check. The marker is in the worktree's git dir
+#     (`harness/agent-checks/<agent_id>`), like the `rust-clippy.sh` state.
 #
-# Подмена для тестов — та же, что у асинхронных хуков: `HARNESS_CLIPPY`,
+# Test substitutes — the same as for the asynchronous hooks: `HARNESS_CLIPPY`,
 # `HARNESS_TSC`.
 set -uo pipefail
 
@@ -39,7 +42,7 @@ here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
 . "$here/lib/same-repo.sh"
 have_rust=0
 have_js=0
-# Выходы `rust_crate` и `js_package`: библиотеки есть не в каждой раскладке.
+# Outputs of `rust_crate` and `js_package`: the libraries don't exist in every layout.
 crate_pkg=""
 crate_dir=""
 pkg_dir=""
@@ -54,8 +57,8 @@ if [ -f "$here/lib/js-package.sh" ]; then
   have_js=1
 fi
 
-# Сколько строк вывода одной проверки и всей причины уходит агенту: ему нужна
-# первая ошибка и её место, а не простыня в контекст.
+# How many output lines of one check and of the whole reason go to the agent: it
+# needs the first error and its location, not a wall of text in its context.
 per_check_lines=30
 reason_lines=90
 
@@ -68,8 +71,8 @@ case "$(field '.agent_type // empty')" in
 esac
 event=$(field '.hook_event_name // empty')
 case "$event" in
-  # Stop — исполнитель отдельной сессией `claude --agent <исполнитель>`: шаблон
-  # его не проводит, проект может (README рядом, «Проверки исполнителя»).
+  # Stop — the executor as a separate session `claude --agent <executor>`: the
+  # template doesn't wire it, a project may (README next door, "Executor checks").
   SubagentStop | Stop) [ "$(field '.stop_hook_active // false')" = true ] && exit 0 ;;
   PreToolUse) [ "$(field '.tool_name // empty')" = SubagentHandback ] || exit 0 ;;
   *) exit 0 ;;
@@ -78,29 +81,29 @@ esac
 cwd=$(field '.cwd // empty')
 [ -n "$cwd" ] || cwd=$PWD
 top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || exit 0
-# Проверки исполняют код дерева (build.rs, node_modules) — только своего.
+# The checks execute the worktree's code (build.rs, node_modules) — only our own.
 same_repo "$top" || exit 0
 cd "$top" || exit 0
 
-# Метка отчёта агента: `blocked` — отчёт уже держали, `checked` — проверен
-# зелёным. Имя — agent_id без символов, которым не место в имени файла.
+# The agent's report marker: `blocked` — the report was already held, `checked` —
+# checked green. The name is agent_id without characters that don't belong in a file name.
 id=$(field '.agent_id // empty' | LC_ALL=C tr -c 'A-Za-z0-9_.-' '_')
 state=$(git rev-parse --path-format=absolute --git-path harness/agent-checks 2>/dev/null)
 mark=""
 [ -n "$id" ] && [ -n "$state" ] && mark="$state/$id"
-# Отказ отчёту без метки повторялся бы на каждой попытке, и после третьей
-# Claude Code завершает агента вовсе без отчёта. Лучше пропустить.
+# Denying the report without a marker would repeat on every attempt, and after the
+# third one Claude Code ends the agent with no report at all. Better to let it pass.
 [ "$event" = PreToolUse ] && [ -z "$mark" ] && exit 0
 
 if [ -n "$mark" ] && [ -f "$mark" ]; then
-  # Отчёт этого агента уже проверен (или уже держался): остановка следом
-  # не гоняет проверки второй раз, и метка уходит — продолженный потом агент
-  # проверяется заново.
+  # This agent's report was already checked (or already held): the stop that
+  # follows doesn't run the checks a second time, and the marker goes away — an
+  # agent continued later is checked anew.
   [ "$event" = SubagentStop ] && rm -f "$mark"
   exit 0
 fi
 
-remember() {  # <blocked|checked> — только для отчёта: у остановки своя защита
+remember() {  # <blocked|checked> — only for the report: the stop has its own protection
   [ "$event" = PreToolUse ] && [ -n "$mark" ] || return 0
   mkdir -p "$state" 2>/dev/null && printf '%s\n' "$1" > "$mark"
 }
@@ -111,7 +114,7 @@ changed=$({
 } | LC_ALL=C sort -u)
 [ -n "$changed" ] || exit 0
 
-# Крейты и пакеты — по строке «пакет<TAB>каталог» и «каталог», без повторов.
+# Crates and packages — one line each, "package<TAB>dir" and "dir", without repeats.
 crates=""
 packages=""
 rs_files=()
@@ -136,7 +139,7 @@ $changed
 EOF
 
 report=""
-add_report() {  # <заголовок> <вывод>
+add_report() {  # <heading> <output>
   local body
   body=$(printf '%s\n' "$2" | head -n "$per_check_lines")
   [ "$(printf '%s\n' "$2" | wc -l)" -gt "$per_check_lines" ] && body="$body"$'\n'"…"
@@ -144,17 +147,17 @@ add_report() {  # <заголовок> <вывод>
 }
 
 if [ "${#rs_files[@]}" -gt 0 ]; then
-  out=$(rust_fmt_check "${rs_files[@]}") || add_report "rustfmt --check: файлы отформатированы не так (cargo fmt)" "$out"
+  out=$(rust_fmt_check "${rs_files[@]}") || add_report "rustfmt --check: files are not formatted (cargo fmt)" "$out"
 fi
 while IFS=$'\t' read -r pkg dir; do
   [ -n "$pkg" ] || continue
-  out=$(rust_clippy "$pkg" "$dir") || add_report "clippy: $pkg не проходит -D warnings" "$out"
+  out=$(rust_clippy "$pkg" "$dir") || add_report "clippy: $pkg fails -D warnings" "$out"
 done <<EOF
 $(printf '%s' "$crates" | LC_ALL=C sort -u)
 EOF
 while IFS= read -r dir; do
   [ -n "$dir" ] || continue
-  out=$(js_tsc "$dir") || add_report "tsc: ${dir#"$top"/} не проходит проверку типов" "$out"
+  out=$(js_tsc "$dir") || add_report "tsc: ${dir#"$top"/} fails type checking" "$out"
 done <<EOF
 $(printf '%s' "$packages" | LC_ALL=C sort -u)
 EOF
@@ -166,7 +169,7 @@ fi
 remember blocked
 
 reason=$(printf '%s\n\n%s' \
-  "Работа не сдана: по затронутым пакетам красные быстрые проверки. Исправь их в пределах задачи и проверь снова. Если исправление — решение вне задачи, верни вопрос и перечисли красное в отчёте: второй раз этот хук не остановит." \
+  "Work not handed in: the fast checks for the touched packages are red. Fix them within the task and check again. If the fix is a decision outside the task, return a question and list what is red in the report: this hook won't stop you a second time." \
   "$report" | head -n "$reason_lines")
 
 if [ "$event" = PreToolUse ]; then

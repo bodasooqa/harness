@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034  # переменные-выходы читает подключивший файл
-# Пакет файла и проверка типов по пакету — общие для `js-typecheck.sh`
-# (правка главной сессии) и `agent-checks.sh` (конец работы исполнителя).
-# Модуль frontend.
+# shellcheck disable=SC2034  # the output variables are read by the sourcing file
+# The file's package and the per-package type check — shared by `js-typecheck.sh`
+# (main session edits) and `agent-checks.sh` (end of the executor's work).
+# Module frontend.
 #
-# Требует `lib/same-repo.sh`, подключённого раньше.
+# Requires `lib/same-repo.sh` to be sourced first.
 
-# js_package <файл> — пакет с `tsconfig.json`, которому принадлежит файл.
-# Ставит переменные:
-#   pkg_dir  — каталог пакета: область устаревания вердикта и каталог запуска tsc;
-#   pkg_file — путь файла в том же виде, что `pkg_dir`.
-# Код 1 — файл не пакета или не своего репозитория. Расширение не смотрит:
-# какой файл достоин проверки, решает вызывающий.
+# js_package <file> — the package with `tsconfig.json` the file belongs to.
+# Sets variables:
+#   pkg_dir  — the package directory: the verdict staleness area and tsc's run directory;
+#   pkg_file — the file path in the same form as `pkg_dir`.
+# Exit 1 — the file is not in a package or not in our repository. Doesn't look
+# at the extension: the caller decides which file deserves a check.
 js_package() {
   local f=$1
 {% if monorepo %}
-  # apps/<name>/… или packages/<name>/… — разбор средствами оболочки:
-  # BSD sed не поддерживает \| в basic regex, на нём этот разбор молча давал пустоту.
+  # apps/<name>/… or packages/<name>/… — parsed with shell means:
+  # BSD sed doesn't support \| in basic regex, and with it this parse silently gave nothing.
   local area prefix rest name
   case "$f" in
     */apps/*|apps/*) area=apps ;;
@@ -31,7 +31,7 @@ js_package() {
   pkg_dir="${prefix}${area}/${name}"
   pkg_file=$f
 {% else %}
-  # Одно приложение в корне: пакет — корень проекта, которому принадлежит файл.
+  # A single app at the root: the package is the root of the project the file belongs to.
   local file_dir
   case "$f" in
     */node_modules/* | node_modules/* | */dist/* | dist/*) return 1 ;;
@@ -41,23 +41,23 @@ js_package() {
     */*) file_dir=$PWD/${f%/*} ;;
     *) file_dir=$PWD ;;
   esac
-  # git в каталоге файла — только когда он в дереве проекта (см. lib/same-repo.sh).
+  # git in the file's directory — only when it is in a project worktree (see lib/same-repo.sh).
   same_repo "$file_dir" || return 1
   pkg_dir=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || return 1
-  # git даёт физический путь (на macOS `/private/var/…` вместо `/var/…`); путь
-  # файла приводится к тому же виду, иначе проверка устаревания не узнает
-  # в нём себя.
+  # git gives the physical path (on macOS `/private/var/…` instead of `/var/…`); the
+  # file path is brought to the same form, otherwise the staleness check wouldn't
+  # recognise it.
   pkg_file="$(cd "$file_dir" && pwd -P)/${f##*/}"
 {% endif %}
   [ -f "$pkg_dir/tsconfig.json" ] || return 1
-  # tsc берётся из node_modules пакета: чужой клон не исполняем.
+  # tsc comes from the package's node_modules: we don't execute a foreign clone.
   same_repo "$pkg_dir"
 }
 
-# js_tsc <каталог> — `tsc --noEmit` в пакете, вывод в stdout, код — код tsc.
-# Команда подменяема через `HARNESS_TSC` (тесты).
+# js_tsc <dir> — `tsc --noEmit` in the package, output to stdout, exit code is tsc's.
+# The command can be substituted via `HARNESS_TSC` (tests).
 js_tsc() {
-  # Разбиение `HARNESS_TSC` на слова намеренно: по умолчанию это `bunx tsc`.
+  # Word splitting of `HARNESS_TSC` is intentional: by default it is `bunx tsc`.
   # shellcheck disable=SC2086
   (cd "$1" && ${HARNESS_TSC:-bunx tsc} --noEmit 2>&1)
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Слот post-edit (PostToolUse/Write|Edit), модуль frontend: форматирует и чинит
-# только что записанный JS/TS/CSS файл.
+# Slot post-edit (PostToolUse/Write|Edit), module frontend: formats and fixes
+# the JS/TS/CSS file that was just written.
 set -uo pipefail
 
 f=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty' 2>/dev/null) || exit 0
@@ -9,20 +9,22 @@ case "$f" in
   *) exit 0 ;;
 esac
 case "$f" in
-  # Фикстура — внешний ответ байт в байт: охраняется по пути, а не исключением
-  # в `biome.json`, которое проект мог и не завести.
+  # A fixture is an external response byte for byte: guarded by path, not by an
+  # exclusion in `biome.json`, which the project may not have set up.
   */tests/fixtures/*) exit 0 ;;
 esac
 [ -f "$f" ] || exit 0
 
-# biome берёт biome.json и его исключения из каталога запуска. Файл соседнего
-# дерева форматируется из корня своего дерева, иначе исключения действуют
-# чужие и generated этого дерева будет переписан. Бинарь — только проектный:
-# файл может лежать в чужом клоне, и исполнять его node_modules нельзя.
-# Конфиг biome кода не исполняет, его чужое дерево дать может.
+# biome takes biome.json and its exclusions from the directory it runs in. A file
+# of a neighbouring worktree is formatted from the root of its own worktree,
+# otherwise the wrong exclusions apply and that worktree's generated files get
+# rewritten. The binary is the project's only: the file may live in a foreign
+# clone, and its node_modules must not be executed. The biome config executes
+# no code, so a foreign worktree may supply it.
 project=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}
-# Путь — физический и от корня дерева: git отдаёт корень без симлинков
-# (/private/var, а не /var), и с другим написанием biome считает файл чужим.
+# The path is physical and relative to the worktree root: git returns the root
+# without symlinks (/private/var, not /var), and with another spelling biome
+# considers the file foreign.
 dir=$(cd "$(dirname "$f")" && pwd -P) || exit 0
 tree=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || tree=$dir
 file=${dir#"$tree"}/$(basename "$f")

@@ -1,51 +1,55 @@
 {% set stages = stages_path %}
-# Правила процесса
+# Process rules
 
-Общие правила работы из шаблона [harness](https://github.com/bodasooqa/harness). Файл управляемый: обновляется `rootstock update`, руками не правится. Своё проект пишет в корневой `AGENTS.md` (домен, стек, границы пакетов, источники правды, определения) и в `.harness/local/`. `AGENTS.md` читают все агенты; `CLAUDE.md` рядом только подключает его и этот файл для Claude Code.
+Shared working rules from the [harness](https://github.com/bodasooqa/harness) template. This file is managed: it is updated by `rootstock update` and is not edited by hand. The project writes its own rules in the root `AGENTS.md` (domain, stack, package boundaries, sources of truth, definitions) and in `.harness/local/`. `AGENTS.md` is read by all agents; `CLAUDE.md` next to it only includes it and this file for Claude Code.
 
-## Три места документации
+## Language
 
-ТЗ (`{{ spec_path }}`, журнал ревизий — `{{ revisions_path }}`) — требования и домен. `openspec/specs/` — реализованное поведение по капабилити, производное от ТЗ. `knowledge/` — решения с причинами, уроки, особенности внешних API, открытые вопросы. Не смешивать; правило «куда класть» — `knowledge/README.md` и скилл `knowledge-note`.
+All artifacts, code comments, doc comments, error messages, commit messages, PR texts, and the knowledge journal are written in English. Agents talk to the owner in {{ chat_language }}.
+
+## Three places for documentation
+
+The spec (`{{ spec_path }}`, revisions journal — `{{ revisions_path }}`) — requirements and the domain. `openspec/specs/` — implemented behavior by capability, derived from the spec. `knowledge/` — decisions with reasons, lessons, quirks of external APIs, open questions. Don't mix them; the "where to put it" rule — `knowledge/README.md` and the `knowledge-note` skill.
 
 {% include 'template/_partials/snippets/spec-reading.md.jinja' %}
 
-При вопросе о поведении — читать раздел, а не вспоминать.
+When in doubt about behavior — read the section, don't recall it.
 
-Корневой `README.md` — не четвёртое место, а витрина: что система делает, на каком этапе, как запустить, где что лежит. Он обязан быть актуальным и правится в том же коммите, что и описываемое: добавился или исчез пакет — карта репозитория; изменилась команда запуска или ключ конфигурации — быстрый старт.
+The root `README.md` is not a fourth place but a showcase: what the system does, which stage it is at, how to run it, where things live. It must stay current and is edited in the same commit as what it describes: a package added or removed — the repository map; a run command or config key changed — the quick start.
 
-## Рабочий процесс
+## Workflow
 
-Работа идёт через OpenSpec: propose → apply → archive (в Claude Code — `/opsx:propose`, `/opsx:apply`, `/opsx:archive`; в Pi — `/opsx-propose`, `/opsx-apply`, `/opsx-archive`). Артефакты — по-русски, имена капабилити и changes — kebab-case по-английски. Правила артефактов и контекст проекта — в `openspec/config.yaml`.
+Work goes through OpenSpec: propose → apply → archive (in Claude Code — `/opsx:propose`, `/opsx:apply`, `/opsx:archive`; in Pi — `/opsx-propose`, `/opsx-apply`, `/opsx-archive`). Capability and change names are kebab-case in English. Artifact rules and project context — in `openspec/config.yaml`.
 
-Один этап — несколько changes. Имя change начинается с номера этапа: `stage3-<имя>`. Этап закрыт, когда все его changes заархивированы, выполнен критерий приёмки из раздела этапов ТЗ (скилл `stage-acceptance`) и в таблице этапов `{{ stages }}` у него стоит «закрыт». Change следующего этапа не начинается раньше — и не начинается до груминга открытых вопросов (скилл `stage-grooming`, список печатает `knowledge/due.sh`).
+One stage — several changes. A change name starts with the stage number: `stage3-<name>`. A stage is closed when all its changes are archived, the acceptance criterion from the spec's stages section is met (the `stage-acceptance` skill), and the stage table `{{ stages }}` shows it as `closed`. A change of the next stage does not start before that — and does not start before grooming of open questions (the `stage-grooming` skill, the list is printed by `knowledge/due.sh`).
 
-Требования, которого нет в ТЗ, в proposal быть не может. Не хватает — останови работу и спроси.
+A requirement that is not in the spec cannot be in a proposal. If something is missing — stop and ask.
 
-Разделение с superpowers: **OpenSpec владеет тем, что записано, superpowers — тем, как работаем.**
+The split with superpowers: **OpenSpec owns what is written down, superpowers owns how we work.**
 
-- До propose — `brainstorming`, чтобы proposal не был выдуман. Его терминальный шаг («вызови `writing-plans`») здесь читается как «перейди к propose»; для обвязки — как «изложи план в чате и запиши решение в {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}».
-- На багах — `systematic-debugging`. TDD — правило исполнителей, записанное в их промптах.
-- От готового кода до PR и уборка после слияния — скилл `change-finish`: полный прогон проверок, ревьюеры, архивация, PR. Он и есть проверка перед завершением; `verification-before-completion`, `requesting-code-review`, `finishing-a-development-branch` отдельно не зовутся.
-- `writing-plans` и `executing-plans` не используются: план живёт в `openspec/changes/<name>/tasks.md`, второго плана не заводим.
-- Запись в `knowledge/` — скилл `knowledge-note`.
+- Before propose — `brainstorming`, so the proposal is not made up. Its terminal step ("invoke `writing-plans`") reads here as "move on to propose"; for the harness — as "lay out the plan in chat and record the decision in {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}".
+- On bugs — `systematic-debugging`. TDD is an executor rule, written in their prompts.
+- From finished code to PR and cleanup after merge — the `change-finish` skill: full check run, reviewers, archiving, PR. It is the pre-completion check; `verification-before-completion`, `requesting-code-review`, `finishing-a-development-branch` are not invoked separately.
+- `writing-plans` and `executing-plans` are not used: the plan lives in `openspec/changes/<name>/tasks.md`, we don't keep a second plan.
+- Writing to `knowledge/` — the `knowledge-note` skill.
 
-**Обвязка живёт вне OpenSpec.** Скиллы, субагенты, хуки, lefthook, CI, `knowledge/`, `AGENTS.md` и `CLAUDE.md` не проходят через OpenSpec: ТЗ про обвязку молчит, и proposal на неё невозможен по правилам самого процесса. Обвязка правится напрямую, в своём рабочем дереве{% if linear %}, под своей задачей Linear{% endif %}; решения записываются в {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}.
+**The harness lives outside OpenSpec.** Skills, subagents, hooks, lefthook, CI, `knowledge/`, `AGENTS.md` and `CLAUDE.md` do not go through OpenSpec: the spec says nothing about the harness, and a proposal for it is impossible under the process's own rules. The harness is edited directly, in its own worktree{% if linear %}, under its own Linear issue{% endif %}; decisions are recorded in {% if doc_form == 'catalog' %}`{{ decisions_path }}/`{% else %}`{{ decisions_path }}`{% endif %}.
 
-### Своё дерево на сессию
+### A worktree per session
 
-Сессия, которая правит файлы, работает в отдельном git worktree, а не в общем каталоге: индекс и рабочее дерево общие на каталог, и коммит одной сессии уносит файлы другой. Одно дерево на change или на PR обвязки.
+A session that edits files works in a separate git worktree, not in the shared directory: the index and the working tree are shared per directory, and one session's commit carries away another's files. One worktree per change or per harness PR.
 
 {% if orca %}
-Деревья заводит Orca. Главная сессия — куратор в основном каталоге и файлов там не правит; батч правок уходит в дочернее дерево с исполнителем под надзором: `orca worktree create` → `orca orchestration worker-start` → `check` → приёмка → `orca worktree rm`. Одна задача или батч правок — одно дерево, дочернее к основному каталогу: `orca worktree create --parent-worktree path:<основной каталог>`{% if linear %} с `--linear-issue <задача>`{% endif %}, без `--no-parent`. Так в Orca видно, чья это работа и к какой задаче. Команды и ловушки — скиллы `orca-cli` и `orchestration` (их ставит сама Orca). Дерево без запущенного исполнителя не оставляется, а пустой терминал, который `orca worktree create` открывает сам, закрывается после запуска исполнителя. Каталог, из которого стартовала сессия, не сносится: от него резолвятся хуки.
+Worktrees are created by Orca. The main session is a curator in the main directory and edits no files there; a batch of edits goes to a child worktree with a supervised executor: `orca worktree create` → `orca orchestration worker-start` → `check` → acceptance → `orca worktree rm`. One task or batch of edits — one worktree, a child of the main directory: `orca worktree create --parent-worktree path:<main directory>`{% if linear %} with `--linear-issue <issue>`{% endif %}, without `--no-parent`. That way Orca shows whose work it is and which task it belongs to. Commands and pitfalls — the `orca-cli` and `orchestration` skills (Orca installs them itself). A worktree is not left without a running executor, and the empty terminal that `orca worktree create` opens by itself is closed after the executor starts. The directory the session started from is not removed: hooks resolve from it.
 {% else %}
-Дерево заводится `git worktree add ../<проект>-<ветка> -b <ветка>` и убирается `git worktree remove` после слияния (скилл `change-finish`). Каталог, из которого стартовала сессия, не сносится: от него резолвятся хуки.
+A worktree is created with `git worktree add ../<project>-<branch> -b <branch>` and removed with `git worktree remove` after merge (the `change-finish` skill). The directory the session started from is not removed: hooks resolve from it.
 {% endif %}
 
-Работа в один поток без других сессий допускает общий каталог, но перед коммитом всё равно `git status` и файлы поимённо. Хук начала сессии докладывает, где сессия работает и какие деревья заняты; в общем каталоге валовая постановка в индекс (`git add -A`, `git add .`, `git commit -a`) отклоняется хуком.
+Single-threaded work without other sessions may use the shared directory, but before a commit still run `git status` and stage files by name. The session start hook reports where the session works and which worktrees are taken; in the shared directory bulk staging (`git add -A`, `git add .`, `git commit -a`) is rejected by a hook.
 
-### Generated не править руками
+### Don't edit generated files by hand
 
-Только соответствующей командой:
+Only with the corresponding command:
 
 {% if rust %}
 - `target/**`, `Cargo.lock` — cargo;
@@ -54,17 +58,17 @@
 - `node_modules/**`, `bun.lock` — bun;
 {% endif %}
 - `.claude/commands/opsx/**`, `.claude/skills/openspec-*/**`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/**` — `openspec update`;
-- блоки между метками `<!-- … -->` в документах `knowledge/`{% if doc_form == 'catalog' %} и в `{{ spec_path }}/README.md`{% endif %} — скрипты `knowledge/`;
-- `.rootstock.toml` и управляемые файлы шаблона — `rootstock update`;
-- проектные generated — по таблице «Источники правды» корневого `AGENTS.md`.
+- blocks between `<!-- … -->` markers in `knowledge/` documents{% if doc_form == 'catalog' %} and in `{{ spec_path }}/README.md`{% endif %} — the `knowledge/` scripts;
+- `.rootstock.toml` and managed template files — `rootstock update`;
+- project generated files — per the "Sources of truth" table in the root `AGENTS.md`.
 
-### Правка файлов
+### Editing files
 
-Правь файлы инструментами правки агента (в Claude Code — Write и Edit, в Pi — `write` и `edit`), не оболочкой. На правку висит обвязка: форматирование, проверки по затронутому пакету, напоминание процедуры при касании контракта. Правка через `sed -i`, heredoc или перенаправление не запускает ничего из этого. Оболочка остаётся для команд.
+Edit files with the agent's edit tools (in Claude Code — Write and Edit, in Pi — `write` and `edit`), not with the shell. The harness hangs on edits: formatting, checks for the touched package, a procedure reminder when a contract is touched. An edit via `sed -i`, a heredoc or a redirect triggers none of this. The shell is for commands.
 
-## Команды
+## Commands
 
-Пакетные менеджеры — {% if rust %}`cargo` для Rust{% endif %}{% if rust and frontend %} и {% endif %}{% if frontend %}`bun` для JS{% endif %}. Без обёрток и Makefile.{% if frontend and monorepo %} Задачи JS оркестрирует `turbo`{% if rust %}; cargo в turbo не заворачивается — у него свой граф и свой кэш{% endif %}.{% endif %}
+Package managers — {% if rust %}`cargo` for Rust{% endif %}{% if rust and frontend %} and {% endif %}{% if frontend %}`bun` for JS{% endif %}. No wrappers or Makefile.{% if frontend and monorepo %} JS tasks are orchestrated by `turbo`{% if rust %}; cargo is not wrapped in turbo — it has its own graph and its own cache{% endif %}.{% endif %}
 
 
 ```
@@ -74,7 +78,7 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all --check
-cargo run -p {{ project_name }}-<крейт>
+cargo run -p {{ project_name }}-<crate>
 {% elif rust %}
 # Rust
 cargo check
@@ -87,7 +91,7 @@ cargo run
 
 {% endif %}
 {% if frontend %}
-# Фронтенд
+# Frontend
 bun install
 bun run typecheck
 bun run build
@@ -96,73 +100,73 @@ bun run lint                 # biome check .
 bun run lint:fix             # biome check --write .
 bun run dev
 {% if monorepo %}
-bun run --filter '@{{ project_name }}/<пакет>' <script>    # одна задача в одном пакете
+bun run --filter '@{{ project_name }}/<package>' <script>    # one task in one package
 {% endif %}
 {% endif %}
 ```
 
-Проектные команды (база, запуск сервисов, генерация) — в корневом `AGENTS.md`.
+Project commands (database, running services, generation) — in the root `AGENTS.md`.
 
-## Порядок работы
+## Order of work
 
-Реализуй строго по этапам из раздела этапов ТЗ. Не начинай следующий этап, пока текущий не проходит критерий приёмки. После каждого этапа — краткий отчёт: что сделано, что отклонилось от ТЗ и почему, что не удалось проверить без живых данных.
+Implement strictly stage by stage from the spec's stages section. Don't start the next stage until the current one passes its acceptance criterion. After each stage — a short report: what was done, what deviated from the spec and why, what could not be checked without live data.
 
-## Коммиты
+## Commits
 
-- Коммит на завершённый шаг, а не на каждый файл. Префикс — пакет или область (`<пакет>:`, `chore:`, `docs:`); список префиксов — проектный.
+- A commit per completed step, not per file. The prefix is a package or area (`<package>:`, `chore:`, `docs:`); the list of prefixes is project-specific.
 {% if linear %}
-- Заголовок PR начинается с номера задачи `{{ tracker_prefix }}-N` (скилл `linear-triage`).
+- A PR title starts with the issue number `{{ tracker_prefix }}-N` (the `linear-triage` skill).
 {% else %}
-- Заголовок PR называет change или задачу обвязки.
+- A PR title names the change or the harness task.
 {% endif %}
-- Коммит завершённого этапа несёт краткий отчёт в теле.
-- Проверки: на каждую правку — хуки агента; перед PR — полный прогон в главной сессии (`change-finish`); после — зелёный CI. Pre-push тяжёлого не гоняет.
-- `.env`, секреты и локальные конфиги не коммитятся никогда. Строки подключения и токены живут в окружении или локальном конфиге, но не в дефолтах.
+- The commit of a completed stage carries a short report in its body.
+- Checks: on every edit — agent hooks; before a PR — a full run in the main session (`change-finish`); after — green CI. Pre-push runs nothing heavy.
+- `.env`, secrets and local configs are never committed. Connection strings and tokens live in the environment or a local config, but not in defaults.
 
-## Правила кода
+## Code rules
 
-- **Идентификаторы — английские слова.** Имена функций, переменных, полей, типов, тестов и констант пишутся по-английски, без транслита. Комментарии, doc-комментарии, сообщения ошибок и текст журнала остаются русскими.
-- Все пороги, зоны, окна и таймауты — только через конфиг с дефолтами из ТЗ. Никаких магических чисел в коде.
-- Все таймстемпы — UTC.
+- **Identifiers are English words.** Names of functions, variables, fields, types, tests and constants are written in English, without transliteration.
+- All thresholds, zones, windows and timeouts — only via config with defaults from the spec. No magic numbers in code.
+- All timestamps are UTC.
 {% if rust %}
-- Rust stable, edition 2024.{% if monorepo %} Версии зависимостей закреплены в `[workspace.dependencies]` корневого `Cargo.toml`; крейт подключает зависимость как `dep = { workspace = true }` и не пишет версию у себя.{% endif %}
+- Rust stable, edition 2024.{% if monorepo %} Dependency versions are pinned in `[workspace.dependencies]` of the root `Cargo.toml`; a crate adds a dependency as `dep = { workspace = true }` and does not write a version of its own.{% endif %}
 
-- В Rust: `tracing` для логов, `println!` запрещён везде; `unwrap()`, `expect()`, `unsafe` вне тестов запрещены; блокирующие вызовы в async-контексте запрещены.
+- In Rust: `tracing` for logs, `println!` is forbidden everywhere; `unwrap()`, `expect()`, `unsafe` outside tests are forbidden; blocking calls in an async context are forbidden.
 {% endif %}
 {% if frontend %}
-- Во фронтенде: `any` и `console.log` запрещены; цвет — только токенами темы; экран собирается из компонентов UIKit, недостающий заводится в UIKit (скилл `uikit-component`).
+- In the frontend: `any` and `console.log` are forbidden; color — only via theme tokens; a screen is assembled from UIKit components, a missing one is added to UIKit (the `uikit-component` skill).
 {% endif %}
 
-## Чего не делать
+## What not to do
 
-- Не придумывай требований, метрик и полей таблиц — если чего-то не хватает, опиши в отчёте и спроси.
-- Не вводи ORM.
+- Don't invent requirements, metrics or table fields — if something is missing, describe it in the report and ask.
+- Don't introduce an ORM.
 {% if rust %}
-- Не используй `unsafe`, `unwrap()` вне тестов, блокирующие вызовы в async-контексте.
+- Don't use `unsafe`, `unwrap()` outside tests, or blocking calls in an async context.
 {% endif %}
 {% if frontend %}
-- Не верстай в приложении компонент, место которому в UIKit, и не тащи домен в UIKit.
+- Don't lay out in the app a component that belongs in UIKit, and don't drag the domain into UIKit.
 {% endif %}
-- Не правь управляемые файлы шаблона в проекте: своё — в точки расширения (ниже), общее — PR в harness (скилл `harness-upstream`).
-- Не пиши длинных пояснений в чате — код, тесты и краткий отчёт.
+- Don't edit managed template files in the project: your own — into extension points (below), shared — a PR to harness (the `harness-upstream` skill).
+- Don't write long explanations in chat — code, tests and a short report.
 
-## Обвязка репозитория
+## Repository harness
 
-- **Скиллы:** `change-finish`, `contract-change`, `harness-upstream`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Когда какой — в их описаниях. Свои скиллы проекта лежат рядом под своими именами.
-- **Субагенты:**{% if rust %} исполнитель `rust-developer`{% if monorepo %} (только `crates/`){% endif %}{% if frontend %} и{% endif %}{% endif %}{% if frontend %} исполнитель `frontend-developer`{% if monorepo %} (`apps/` и `packages/`){% endif %}{% endif %} — Sonnet; ревьюеры{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Исполнители скиллы не вызывают, а читают файлом: путь назван в их промпте. В Claude Code агенты лежат в `.claude/agents/`, в Pi — в `.pi/agents/` и запускаются расширением `pi-subagents`; промпт у них общий.
-- **Дополнения агентов:** `.harness/local/agents/<имя>.md` — домен, инварианты, проектные скиллы для агента `<имя>`; агент читает его до начала работы, и при расхождении дополнение сильнее общего промпта. Каталог `.harness/local/` — проектный; что в нём лежит — его README.
-- **Дополнения скиллов:** `.harness/local/skills/<скилл>.md` — своё проекта к скиллу шаблона: кто вливает PR, кто есть кто в трекере, как проверить выкатку и прочие правила, которые скилл называет «правилом проекта». Скилл читает его первым шагом, и при расхождении дополнение сильнее общего текста.
-- **Хуки** живут в `.harness/hooks/` и вызываются одним диспетчером на событие из настроек агента (в Claude Code — `.claude/settings.json`, в Pi — расширение `.pi/extensions/harness.ts`): на правку — форматирование и проверки по пакету, на команду — охрана общего каталога, на старте и выходе — доклад о дереве и хвостах. Исполнитель (`*-developer`) не сдаёт отчёт, пока по затронутым им пакетам красные {% if rust %}rustfmt и clippy{% if frontend %}, {% endif %}{% endif %}{% if frontend %}tsc{% endif %}: хук остановит его один раз с выводом ошибок. Проектные хуки — `.harness/local/hooks/<слот>/`, контракт в `.harness/hooks/README.md`.
-- **Git-хуки (lefthook):** pre-commit — форматирование staged-файлов, секреты, перенос закрытых вопросов в архив{% if doc_form == 'catalog' %} и оглавления `knowledge/`{% else %} и оглавления документов проектным `knowledge/index.sh`, если он есть{% endif %}; pre-push — только редкие проверки инвариантов. Полные проверки — в CI.
-- **OpenSpec:** propose/apply/archive, конфигурация в `openspec/config.yaml`, состояние — `openspec list`, `openspec status`.
+- **Skills:** `change-finish`, `contract-change`, `harness-upstream`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Which one when — in their descriptions. The project's own skills sit next to them under their own names.
+- **Subagents:**{% if rust %} executor `rust-developer`{% if monorepo %} (only `crates/`){% endif %}{% if frontend %} and{% endif %}{% endif %}{% if frontend %} executor `frontend-developer`{% if monorepo %} (`apps/` and `packages/`){% endif %}{% endif %} — Sonnet; reviewers{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Executors don't invoke skills but read them as files: the path is named in their prompt. In Claude Code agents live in `.claude/agents/`, in Pi — in `.pi/agents/` and are run by the `pi-subagents` extension; the prompt is shared.
+- **Agent addenda:** `.harness/local/agents/<name>.md` — domain, invariants, project skills for the agent `<name>`; the agent reads it before starting work, and on conflict the addendum wins over the shared prompt. The `.harness/local/` directory belongs to the project; what lives there — its README.
+- **Skill addenda:** `.harness/local/skills/<skill>.md` — the project's own additions to a template skill: who merges PRs, who is who in the tracker, how to check a rollout, and other rules the skill calls a "project rule". The skill reads it as its first step, and on conflict the addendum wins over the shared text.
+- **Hooks** live in `.harness/hooks/` and are called by one dispatcher per event from the agent settings (in Claude Code — `.claude/settings.json`, in Pi — the `.pi/extensions/harness.ts` extension): on edit — formatting and package checks, on command — guarding the shared directory, on start and exit — a report on the worktree and leftovers. An executor (`*-developer`) does not hand in its report while {% if rust %}rustfmt and clippy{% if frontend %}, {% endif %}{% endif %}{% if frontend %}tsc{% endif %} are red for the packages it touched: a hook stops it once with the error output. Project hooks — `.harness/local/hooks/<slot>/`, the contract is in `.harness/hooks/README.md`.
+- **Git hooks (lefthook):** pre-commit — formatting staged files, secrets, moving closed questions to the archive{% if doc_form == 'catalog' %} and the `knowledge/` tables of contents{% else %} and document tables of contents via the project's `knowledge/index.sh`, if it exists{% endif %}; pre-push — only rare invariant checks. Full checks — in CI.
+- **OpenSpec:** propose/apply/archive, configuration in `openspec/config.yaml`, state — `openspec list`, `openspec status`.
 {% if linear %}
-- **Linear** (MCP) — канал с заказчиком и журнал всей работы: каждый change, фикс и PR обвязки — задача в проекте этапа до первого пуша, `{{ tracker_prefix }}-N` в начале заголовка PR. Порядок — скилл `linear-triage`. При расхождении верен репозиторий.
+- **Linear** (MCP) — the channel with the customer and the journal of all work: every change, fix and harness PR is an issue in the stage's project before the first push, `{{ tracker_prefix }}-N` at the start of the PR title. The procedure — the `linear-triage` skill. On conflict the repository is right.
 {% endif %}
 
-### Разделение головы и рук
+### Head and hands split
 
-Решения принимаются в главной сессии, руками работают исполнители. Задача исполнителю самодостаточна: пункт `tasks.md`, файлы, которые он трогает, принятое решение и критерий готовности. «Разберись и сделай» исполнителю не отдаётся — это решение, и оно твоё.
+Decisions are made in the main session, executors do the handwork. A task for an executor is self-contained: the `tasks.md` item, the files it touches, the decision made, and the done criterion. "Figure it out and do it" is not handed to an executor — that is a decision, and it is yours.
 
-В главной сессии остаются: чтение и трактовка ТЗ, выбор между вариантами реализации, любое изменение контракта (`contract-change`), правка `openspec/changes/<name>/`, коммиты и приёмка этапа.
+The main session keeps: reading and interpreting the spec, choosing between implementation options, any contract change (`contract-change`), editing `openspec/changes/<name>/`, commits and stage acceptance.
 
-Исполнитель, который вернул вопрос вместо кода, отработал правильно. Ответь на вопрос и перезапусти его — не переформулируй задачу так, чтобы он «просто выбрал сам».
+An executor that returned a question instead of code did the right thing. Answer the question and rerun it — don't rephrase the task so that it "just picks itself".
