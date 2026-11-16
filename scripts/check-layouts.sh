@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
-# Проверка пяти раскладок шаблона.
+# Check of the template's five layouts.
 #
-# Для каждой раскладки `rootstock new --version HEAD` из рабочего каталога
-# репозитория (с незакоммиченными правками) во временный каталог, затем проверки
-# стека: Rust — fmt, clippy, тесты; фронт — install, typecheck, lint, тесты,
-# сборка; обвязка — шаг harness-files: набор агентов Claude Code и Pi и скиллов,
-# нет остатков Jinja, доменных слов и `_partials`; хуки и git-хуки — тесты хуков
-# `.harness/hooks/tests/run.sh`, прослойки Pi `pi.test.ts`, `knowledge/tests/`,
-# `lefthook validate`, actionlint (если установлен) и shellcheck по скриптам
-# `.harness/` и `knowledge/`; обновление харнесса — тесты `.harness/update/tests/`
-# и нет маркеров конфликта в сгенерированном проекте.
+# For each layout, `rootstock new --version HEAD` from the repository's working
+# directory (with uncommitted edits) into a temporary directory, then stack
+# checks: Rust — fmt, clippy, tests; frontend — install, typecheck, lint, tests,
+# build; harness — the harness-files step: the set of Claude Code and Pi agents
+# and skills, no Jinja leftovers, domain words, or `_partials`; hooks and git
+# hooks — hook tests `.harness/hooks/tests/run.sh`, Pi shim `pi.test.ts`,
+# `knowledge/tests/`, `lefthook validate`, actionlint (if installed), and
+# a shellcheck pass over `.harness/` and `knowledge/` scripts; harness update — tests
+# `.harness/update/tests/` and no conflict markers in the generated project.
 #
-# Шестой прогон, monolith, — полная раскладка с формой документов monolith,
-# путями старой формы и модулем Linear: rootstock, harness-files и проверки хуков
-# (стек тот же, что у full, его не собираем; bun install — только ради biome и
-# tsc в тестах хуков), плюс проверка, что тексты ссылаются на файлы-журналы,
-# а не на каталоги.
+# The sixth run, monolith, is the full layout with the monolith document form,
+# old-form paths, and the Linear module: rootstock, harness-files, and hook
+# checks (the stack is the same as full, so it isn't built; bun install is only
+# for biome and tsc in hook tests), plus a check that texts point to journal
+# files, not directories.
 #
-# lefthook берётся `bunx lefthook@2.1.12` через обёртку в PATH: в раскладках
-# без фронта его в node_modules нет. rootstock — из PATH или переменной ROOTSTOCK.
+# lefthook comes from `bunx lefthook@2.1.12` via a wrapper in PATH: layouts
+# without frontend don't have it in node_modules. rootstock — from PATH or ROOTSTOCK.
 #
-# Использование:
-#   scripts/check-layouts.sh               все пять раскладок и monolith
-#   scripts/check-layouts.sh --only <имя>  один прогон
+# Usage:
+#   scripts/check-layouts.sh               all five layouts and monolith
+#   scripts/check-layouts.sh --only <name> a single run
 #
-# Прогоны: full, rust-workspace, rust-crate, web-monorepo, web-app, monolith.
-# Код выхода ненулевой, если хоть один прогон красный. Временные каталоги
-# удаляются за собой.
+# Runs: full, rust-workspace, rust-crate, web-monorepo, web-app, monolith.
+# The exit code is non-zero if any run is red. Temporary directories are
+# cleaned up.
 set -euo pipefail
 
 repo=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
@@ -42,7 +42,7 @@ case "${1:-}" in
   "") ;;
   --only)
     if [[ -z "${2:-}" ]] || [[ " $all_layouts " != *" $2 "* ]]; then
-      printf 'check-layouts.sh: --only ждёт одно из: %s\n' "$all_layouts" >&2
+      printf 'check-layouts.sh: --only expects one of: %s\n' "$all_layouts" >&2
       exit 2
     fi
     layouts=$2
@@ -52,13 +52,13 @@ case "${1:-}" in
     exit 0
     ;;
   *)
-    printf 'check-layouts.sh: непонятный аргумент %s\n' "$1" >&2
+    printf 'check-layouts.sh: unknown argument %s\n' "$1" >&2
     exit 2
     ;;
 esac
 
-# Ответы шаблона на раскладку: rust, frontend, monorepo. Для Rust с фронтом
-# monorepo не передаётся — вопрос не задаётся, значение вычисляет шаблон.
+# Template answers per layout: rust, frontend, monorepo. For Rust with frontend
+# monorepo isn't passed — the question isn't asked, the template computes it.
 layout_data() {
   case "$1" in
     full) echo "--data rust=true --data frontend=true" ;;
@@ -66,8 +66,8 @@ layout_data() {
     rust-crate) echo "--data rust=true --data frontend=false --data monorepo=false" ;;
     web-monorepo) echo "--data rust=false --data frontend=true --data monorepo=true" ;;
     web-app) echo "--data rust=false --data frontend=true --data monorepo=false" ;;
-    # Ответы проекта старой формы: ТЗ и журналы одним файлом, таблица этапов в
-    # README, Linear с префиксом.
+    # Answers of an old-form project: the spec and journals as single files, the
+    # stage table in README, Linear with a prefix.
     monolith)
       echo "--data rust=true --data frontend=true --data doc_form=monolith" \
         "--data spec_path=docs/DENSITY_SCREENER_SPEC.md" \
@@ -81,7 +81,7 @@ layout_data() {
   esac
 }
 
-# Что обязано быть (+) и чего быть не должно (-) в раскладке.
+# What must be (+) and must not be (-) in the layout.
 # shellcheck disable=SC2329
 layout_shape() {
   local common="+.harness/hooks/dispatch.sh +.harness/hooks/tests/run.sh +.harness/local/README.md"
@@ -102,7 +102,7 @@ layout_shape() {
   esac
 }
 
-# Тесты knowledge/ — каждый исполняемым файлом, как их зовут lefthook и CI.
+# knowledge/ tests — each as an executable, the way lefthook and CI call them.
 # shellcheck disable=SC2329
 run_knowledge_tests() {
   local t
@@ -112,12 +112,13 @@ run_knowledge_tests() {
   done
 }
 
-# Тесты хуков — как их зовёт pre-push lefthook: с GIT_DIR и GIT_INDEX_FILE
-# в окружении. Здесь они указывают на репозиторий-приманку — обычный, с рабочим
-# деревом, как у проекта. Тест, который не очистил окружение для своего git,
-# пишет в приманку, а не во временный репозиторий: заводит ссылки или меняет
-# конфиг. Так `git init --bare` теста пометил настоящий клон screener как bare.
-# Под настоящим хуком такой тест писал бы в репозиторий проекта.
+# Hook tests — the way lefthook's pre-push calls them: with GIT_DIR and
+# GIT_INDEX_FILE in the environment. Here they point to a bait repository — a
+# regular one, with a working tree, like a project's. A test that didn't clear
+# the environment for its git writes into the bait rather than its temporary
+# repository: creates refs or changes the config. That's how a test's
+# `git init --bare` marked the real screener clone as bare. Under a real hook
+# such a test would write into the project's repository.
 # shellcheck disable=SC2329
 under_git_hook() {
   local bait config refs
@@ -127,17 +128,17 @@ under_git_hook() {
   GIT_DIR=$bait/.git GIT_INDEX_FILE=$bait/.git/index "$@" || return 1
   refs=$(git --git-dir="$bait/.git" for-each-ref)
   if [[ -n "$refs" ]]; then
-    printf 'тесты писали в репозиторий из GIT_DIR:\n%s\n' "$refs"
+    printf 'tests wrote into the GIT_DIR repository:\n%s\n' "$refs"
     return 1
   fi
   if [[ "$(git --git-dir="$bait/.git" config --local --list)" != "$config" ]]; then
-    printf 'тесты изменили конфиг репозитория из GIT_DIR:\n'
+    printf 'tests changed the config of the GIT_DIR repository:\n'
     diff <(printf '%s\n' "$config") <(git --git-dir="$bait/.git" config --local --list)
     return 1
   fi
 }
 
-# Тесты обновления харнесса — так же, как их зовёт джоба harness в CI проекта.
+# Harness update tests — the same way the harness job in the project's CI calls them.
 # shellcheck disable=SC2329
 run_update_tests() {
   local t
@@ -147,9 +148,9 @@ run_update_tests() {
   done
 }
 
-# Линт скриптов обвязки и knowledge/ (shellcheck) с уровня warning: замечания
-# info и style — идиомы тестов (`проверка && ok || bad`) и source по пути от
-# самого скрипта.
+# Lint of harness and knowledge/ scripts (shellcheck) from the warning level:
+# info and style remarks are test idioms (`check && ok || bad`) and source by a
+# path relative to the script itself.
 # shellcheck disable=SC2329
 run_shellcheck() {
   local -a files=()
@@ -160,7 +161,7 @@ run_shellcheck() {
   shellcheck -x -S warning "${files[@]}"
 }
 
-# Значение ключа из таблицы `[answers]` записи проекта (`ключ = "значение"`).
+# Value of a key from the `[answers]` table of the project record (`key = "value"`).
 # shellcheck disable=SC2329
 answer() {
   awk -v key="$1" '
@@ -169,18 +170,18 @@ answer() {
   ' .rootstock.toml
 }
 
-# Файлы обвязки, которые рендерит шаблон: агенты, скиллы шаблона (без
-# generated OpenSpec), правила процесса, стартовые AGENTS.md и CLAUDE.md и конфиг
-# OpenSpec.
+# Harness files the template renders: agents, template skills (without the
+# generated OpenSpec ones), process rules, starter AGENTS.md and CLAUDE.md, and
+# the OpenSpec config.
 # shellcheck disable=SC2329
 harness_text_files() {
   find .claude/agents .claude/skills .pi/agents -type f -name '*.md' -not -path '.claude/skills/openspec-*'
   printf '%s\n' AGENTS.md CLAUDE.md .harness/process.md openspec/config.yaml
 }
 
-# Обвязка раскладки: набор агентов и скиллов по ответам, нет остатков Jinja,
-# доменных слов и `_partials`; в форме monolith — ссылки на файлы, а не на
-# каталоги. Зовётся через step.
+# The layout's harness: the set of agents and skills per the answers, no Jinja
+# leftovers, domain words, or `_partials`; in the monolith form — links to files,
+# not directories. Called via step.
 # shellcheck disable=SC2329
 check_harness_files() {
   local agents skills expected found file path bad=0
@@ -200,33 +201,33 @@ check_harness_files() {
   for path in .claude/agents .pi/agents; do
     found=$(find "$path" -name '*.md' -exec basename {} .md \; | sort | tr '\n' ' ')
     if [[ "$found" != "$expected" ]]; then
-      echo "агенты $path: ждали «${expected}», есть «${found}»"
+      echo "agents $path: expected '${expected}', got '${found}'"
       bad=1
     fi
   done
-  # Агент Pi без модели молча берёт модель родителя: модель явная у каждого.
+  # A Pi agent without a model silently takes the parent's: every one has an explicit model.
   for file in .pi/agents/*.md; do
-    grep -qE '^model: [^ ]+/' "$file" || { echo "нет model: провайдер/модель в $file"; bad=1; }
+    grep -qE '^model: [^ ]+/' "$file" || { echo "no model: provider/model in $file"; bad=1; }
   done
   expected=$(tr ' ' '\n' <<<"$skills" | sort | tr '\n' ' ')
   found=$(find .claude/skills -mindepth 1 -maxdepth 1 -type d -not -name 'openspec-*' -exec basename {} \; | sort | tr '\n' ' ')
   if [[ "$found" != "$expected" ]]; then
-    echo "скиллы: ждали «${expected}», есть «${found}»"
+    echo "skills: expected '${expected}', got '${found}'"
     bad=1
   fi
 
-  # Точка расширения скиллов: каждый скилл шаблона читает своё дополнение.
+  # Skill extension point: every template skill reads its addendum.
   for path in $skills; do
     grep -qF ".harness/local/skills/$path.md" ".claude/skills/$path/SKILL.md" ||
-      { echo "скилл $path не читает .harness/local/skills/$path.md"; bad=1; }
+      { echo "skill $path doesn't read .harness/local/skills/$path.md"; bad=1; }
   done
 
-  # Правила проекта — в AGENTS.md, CLAUDE.md только подключает их и правила
-  # процесса для Claude Code: импорт `@файл` — строкой целиком.
+  # Project rules are in AGENTS.md; CLAUDE.md only includes them and the process
+  # rules for Claude Code: an `@file` import is a whole line.
   for path in @AGENTS.md @.harness/process.md; do
-    grep -qxF "$path" CLAUDE.md || { echo "CLAUDE.md не импортирует ${path#@}"; bad=1; }
+    grep -qxF "$path" CLAUDE.md || { echo "CLAUDE.md doesn't import ${path#@}"; bad=1; }
   done
-  grep -qF '.harness/process.md' AGENTS.md || { echo "AGENTS.md не называет .harness/process.md"; bad=1; }
+  grep -qF '.harness/process.md' AGENTS.md || { echo "AGENTS.md doesn't name .harness/process.md"; bad=1; }
 
   local -a files=()
   while IFS= read -r file; do
@@ -234,34 +235,35 @@ check_harness_files() {
   done < <(harness_text_files)
 
   for file in "${files[@]}"; do
-    [[ -f "$file" ]] || { echo "нет $file"; bad=1; continue; }
+    [[ -f "$file" ]] || { echo "missing $file"; bad=1; continue; }
     if grep -n '{{\|{%\|%}\|}}' "$file"; then
-      echo "остаток Jinja в $file"
+      echo "Jinja leftover in $file"
       bad=1
     fi
   done
 
   if [[ -n $(find . -name _partials -not -path './node_modules/*') ]]; then
-    echo "в проекте есть _partials"
+    echo "the project has _partials"
     bad=1
   fi
 
-  # Доменные слова — по всему проекту, кроме зависимостей, сборки, generated
-  # OpenSpec и записи шаблона (в ней путь к шаблону). В monolith пути и префикс
-  # задач берутся из ответов старой формы, поэтому там ищутся только слова домена.
-  local words='плотност|Плотност|трейдер|Трейдер'
+  # Domain words — across the whole project except dependencies, build output,
+  # generated OpenSpec, and the template record (it holds the template path). In
+  # monolith the paths and task prefix come from old-form answers, so only domain
+  # words are searched there. Both languages: texts were Russian before v2.0.0.
+  local words='[Dd]ensit|[Tt]rader|плотност|Плотност|трейдер|Трейдер'
   [[ "$layout" == monolith ]] || words="$words|[Ss]creener|SCREENER|DEN-"
   if grep -rnE "$words" . \
     --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=target \
     --exclude-dir=.pi --exclude-dir=opsx --exclude-dir='openspec-*' \
     --exclude-dir=dist --exclude-dir=.turbo \
     --exclude=.rootstock.toml --exclude=bun.lock; then
-    echo "доменные слова в проекте"
+    echo "domain words in the project"
     bad=1
   fi
-  # В `.pi/` generated OpenSpec пропущен выше целиком, файлы шаблона — здесь.
+  # In `.pi/` the generated OpenSpec is skipped above entirely; template files are checked here.
   if grep -rnE "$words" .pi/agents .pi/extensions .pi/settings.json; then
-    echo "доменные слова в .pi/"
+    echo "domain words in .pi/"
     bad=1
   fi
 
@@ -269,41 +271,41 @@ check_harness_files() {
     for path in spec_path revisions_path decisions_path lessons_path; do
       path=$(answer "$path")
       if grep -nF "$path/" "${files[@]}"; then
-        echo "ссылка на каталог $path/ в форме monolith"
+        echo "link to directory $path/ in the monolith form"
         bad=1
       fi
     done
     for file in .claude/skills/knowledge-note/SKILL.md .claude/skills/change-finish/SKILL.md; do
-      grep -qF "$(answer decisions_path)" "$file" || { echo "в $file нет $(answer decisions_path)"; bad=1; }
+      grep -qF "$(answer decisions_path)" "$file" || { echo "$file lacks $(answer decisions_path)"; bad=1; }
     done
     if grep -n 'spec-unfolded' "${files[@]}"; then
-      echo "ссылка на скрипт формы catalog в форме monolith"
+      echo "link to a catalog-form script in the monolith form"
       bad=1
     fi
-    grep -qF 'DEN-N' .claude/skills/change-finish/SKILL.md || { echo "в change-finish нет DEN-N"; bad=1; }
+    grep -qF 'DEN-N' .claude/skills/change-finish/SKILL.md || { echo "change-finish lacks DEN-N"; bad=1; }
   fi
   return "$bad"
 }
 
-# Проверка формы раскладки по layout_shape; зовётся через step.
+# Check of the layout's shape per layout_shape; called via step.
 # shellcheck disable=SC2329
 check_shape() {
   local item path
   for item in $(layout_shape "$layout"); do
     path=${item#?}
     case "$item" in
-      +*) [[ -e "$path" ]] || { echo "нет $path"; return 1; } ;;
-      -*) [[ ! -e "$path" ]] || { echo "лишний $path"; return 1; } ;;
+      +*) [[ -e "$path" ]] || { echo "missing $path"; return 1; } ;;
+      -*) [[ ! -e "$path" ]] || { echo "unexpected $path"; return 1; } ;;
     esac
   done
 }
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/check-layouts.XXXXXX")
 trap 'rm -rf "$work"' EXIT
-# Общий каталог сборки Rust на все раскладки: зависимости собираются один раз.
-# Заданный в окружении (CI кладёт его в кеш) не перекрывается.
+# A shared Rust build directory for all layouts: dependencies are built once.
+# One set in the environment (CI caches it) isn't overridden.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$work/cargo-target}"
-# lefthook для раскладок без фронта и для `lefthook validate`.
+# lefthook for layouts without frontend and for `lefthook validate`.
 mkdir -p "$work/bin"
 printf '#!/bin/sh\nexec bunx lefthook@2.1.12 "$@"\n' >"$work/bin/lefthook"
 chmod +x "$work/bin/lefthook"
@@ -313,8 +315,8 @@ rootstock=${ROOTSTOCK:-rootstock}
 summary=""
 failed=0
 
-# Шаг проверки: имя и команда. Вывод — в журнал раскладки; на провале хвост
-# журнала печатается сразу.
+# A check step: name and command. Output goes to the layout's log; on failure
+# the log tail is printed right away.
 step() {
   local name=$1
   shift
@@ -323,7 +325,7 @@ step() {
     printf 'ok\n'
   else
     printf 'FAIL\n'
-    printf '    --- хвост журнала %s ---\n' "$name"
+    printf '    --- log tail %s ---\n' "$name"
     tail -n 30 "$log" | sed 's/^/    /'
     layout_ok=0
   fi
@@ -336,7 +338,7 @@ for layout in $layouts; do
   layout_ok=1
   copied=0
 
-  # shellcheck disable=SC2046 # ответы раскладки — отдельные слова намеренно
+  # shellcheck disable=SC2046 # layout answers are separate words on purpose
   if ! "$rootstock" new --version HEAD --defaults --trust \
     --data project_name=demo $(layout_data "$layout") \
     "$repo" "$dst" >>"$log" 2>&1; then
@@ -349,7 +351,7 @@ for layout in $layouts; do
     step "shape" check_shape
     step "harness-files" check_harness_files
   fi
-  # Стек monolith тот же, что у full: собирать его второй раз незачем.
+  # The monolith stack is the same as full: no point building it twice.
   if ((copied)) && [[ "$layout" != monolith ]]; then
     if [[ -f "$dst/Cargo.toml" ]]; then
       step "cargo fmt" cargo fmt --check
@@ -368,8 +370,8 @@ for layout in $layouts; do
     if [[ "$layout" == monolith ]]; then
       step "bun install" bun install
     fi
-    # Проект — git-репозиторий, как у пользователя: actionlint ищет корень
-    # по .git, хуки — общий каталог.
+    # The project is a git repository, as for the user: actionlint finds the
+    # root by .git, hooks find the shared directory.
     step "git init" git init -q -b main
     step "hook tests" .harness/hooks/tests/run.sh
     step "pi tests" bun test ./.harness/hooks/tests/pi.test.ts
@@ -393,5 +395,5 @@ for layout in $layouts; do
   fi
 done
 
-printf '\nИтог:\n%s' "$summary"
+printf '\nSummary:\n%s' "$summary"
 exit "$failed"

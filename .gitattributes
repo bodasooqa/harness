@@ -1,4 +1,4 @@
-# Окончания строк — LF в рабочем дереве на любой системе: `rootstock new
-# --version HEAD` рендерит рабочее дерево как есть, и с CRLF от
-# core.autocrlf=true скрипты шаблона падали бы на `\r`.
+# LF line endings in the working tree on any system: `rootstock new
+# --version HEAD` renders the working tree as is, and with CRLF from
+# core.autocrlf=true the template scripts would fail on `\r`.
 * text=auto eol=lf

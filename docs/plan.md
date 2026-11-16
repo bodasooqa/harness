@@ -1,190 +1,190 @@
-# Shared-харнесс: план работ
+# Shared harness: work plan
 
-По дизайну `docs/design.md`, утверждён владельцем 28.10.2026. Порядок — по зависимостям; у каждой фазы — критерий готовности. Фаза 9 (первый новый проект) — вне плана, начинается, когда владелец заведёт проект.
+Based on the design in `docs/design.md`, approved by the owner on 28.10.2026. Order — by dependencies; each phase has a completion criterion. Phase 9 (the first new project) is outside the plan and starts when the owner creates a project.
 
-Правила исполнения: работа в shared — своими PR в `bodasooqa/harness`, вливает главная сессия после зелёного CI (разрешение владельца 28.10.2026). Работа в screener — по его процессу: задача Linear, своё дерево Orca, PR с `DEN-N`. Исполнители (`rust-developer`, `frontend-developer`) получают самодостаточные задачи; решения — в главной сессии.
+Execution rules: work in shared — through its own PRs to `bodasooqa/harness`, merged by the main session after green CI (owner's permission of 28.10.2026). Work in screener — by its process: a Linear task, its own Orca worktree, a PR with `DEN-N`. Executors (`rust-developer`, `frontend-developer`) get self-contained tasks; decisions are made in the main session.
 
-## Фаза 0. Репозиторий
+## Phase 0. Repository
 
-1. Создать публичный `bodasooqa/harness`.
-2. Первый коммит:
-   - `docs/design.md` — дизайн;
-   - `docs/plan.md` — этот план;
-   - `CLAUDE.md` с правилами работы над самим shared: язык русский, PR вливается после зелёного CI, теги, тесты;
-   - `README.md`: что это, как создать проект, как обновить.
-3. Задача Linear в проекте этапа screener (обвязка) со ссылкой на репозиторий.
+1. Create the public `bodasooqa/harness`.
+2. First commit:
+   - `docs/design.md` — the design;
+   - `docs/plan.md` — this plan;
+   - `CLAUDE.md` with the rules for working on shared itself: language Russian, a PR is merged after green CI, tags, tests;
+   - `README.md`: what it is, how to create a project, how to update.
+3. A Linear task in the screener stage project (harness) linking to the repository.
 
-**Готово:** репозиторий есть, задача In Progress.
+**Done:** the repository exists, the task is In Progress.
 
-## Фаза 1. Инвентаризация обвязки screener
+## Phase 1. Inventory of the screener harness
 
-Ничего не меняет в screener. Таблица `docs/inventory.md` в shared: каждый файл `.claude/` (агенты, скиллы, хуки, `lib/`, тесты, `settings.json`), `lefthook.yml`, `biome.json`, `.github/workflows/*`, `knowledge/*.sh` и тесты, `openspec/config.yaml`, каждый раздел `CLAUDE.md` и `crates/*/CLAUDE.md`, `apps/*/CLAUDE.md`, `packages/*/CLAUDE.md`.
+Changes nothing in screener. A table `docs/inventory.md` in shared: every file of `.claude/` (agents, skills, hooks, `lib/`, tests, `settings.json`), `lefthook.yml`, `biome.json`, `.github/workflows/*`, `knowledge/*.sh` and tests, `openspec/config.yaml`, every section of `CLAUDE.md` and `crates/*/CLAUDE.md`, `apps/*/CLAUDE.md`, `packages/*/CLAUDE.md`.
 
-Для каждого:
-- вид: общее, модуль (`rust`, `frontend`, `linear`, `orca`, `telegram`) или проектное screener;
-- что параметризуется: пути документов, имя проекта, префикс задач, имена пакетов;
-- для общих промптов агентов — какие абзацы доменные и уходят в дополнение screener.
+For each:
+- kind: shared, module (`rust`, `frontend`, `linear`, `orca`, `telegram`), or screener project;
+- what is parameterized: document paths, project name, task prefix, package names;
+- for shared agent prompts — which paragraphs are domain-specific and go to the screener addendum.
 
-**Готово:** ни одного файла без вида; владелец видел таблицу (спорное — вопросом).
+**Done:** no file without a kind; the owner has seen the table (disputed items — as a question).
 
-## Фаза 2. Каркас шаблона
+## Phase 2. Template skeleton
 
 1. `copier.yml`:
-   - вопросы: имя, `rust`, `frontend`, `monorepo`, `linear`, `orca`, `telegram`, пути документов, префикс задач;
-   - запрет сочетания Rust + фронт без монорепо;
-   - `_skip_if_exists` для стартовых файлов;
-   - шаблон в подкаталоге.
+   - questions: name, `rust`, `frontend`, `monorepo`, `linear`, `orca`, `telegram`, document paths, task prefix;
+   - forbid the Rust + frontend combination without a monorepo;
+   - `_skip_if_exists` for starter files;
+   - the template in a subdirectory.
 
-   Только возможности, повторимые вне Python: задачи — shell.
-2. Стартовые файлы пяти раскладок:
-   - Cargo-воркспейс или один крейт, edition 2024, `[workspace.dependencies]`;
+   Only features reproducible outside Python: tasks are shell.
+2. Starter files of the five layouts:
+   - a Cargo workspace or a single crate, edition 2024, `[workspace.dependencies]`;
    - Vite + React SPA;
-   - `uikit` из screener — только примитивы без домена;
+   - `uikit` from screener — only primitives without domain;
    - bun, turbo, `tsconfig`;
-   - пустые тесты.
-3. Новая форма документов:
-   - каталог ТЗ;
-   - журнал ревизий по файлу, с отметкой «сведена»;
-   - скрипт списка несведённых;
-   - решения и уроки по файлу;
-   - `open-questions.md` одним файлом.
+   - empty tests.
+3. A new document form:
+   - the spec as a directory;
+   - a revision journal one per file, with a "folded" mark;
+   - a script listing unfolded revisions;
+   - decisions and lessons one per file;
+   - `open-questions.md` as a single file.
 
-**Готово:** `copier copy` каждой из пяти раскладок даёт проект, где зелёные сборка, typecheck, lint и тесты.
+**Done:** `copier copy` of each of the five layouts gives a project with green build, typecheck, lint, and tests.
 
-## Фаза 3. Обвязка для Claude Code
+## Phase 3. Harness for Claude Code
 
-1. **Хуки.**
-   - Диспетчер на событие.
-   - Общие хуки screener переносятся с параметрами: `bash-edit`, `guard-staging`, `session-tree`, `session-leftovers`, `knowledge-due`, `rust-fmt`, `rust-clippy`, `js-fmt`, `js-typecheck`, `lib/`.
-   - Каталог проектных хуков.
-   - `settings.json` вызывает диспетчер.
-   - Тесты хуков (`run.sh`) переносятся и проверяют и пропуск, и срабатывание.
-2. **Агенты.**
-   - Формат-источник и генератор в `.claude/agents/`.
-   - Механизм дополнения `local/agents/<имя>.md`.
-   - Общие промпты без домена screener.
-3. **Скиллы.**
-   - Обобщить: `change-finish`, `knowledge-note`, `stage-acceptance`, `stage-grooming`, `uikit-component`, `linear-triage` (модуль); `contract-change` — в общий вид с таблицей контрактов из `CLAUDE.md` проекта.
-   - Пути брать из ответов шаблона.
-   - Текст без имён инструментов одного агента.
-4. **Новый скилл `telegram-bot`** по опыту screener: `alerting/telegram.rs`, `owner_bot/`, урок про 429 и очередь. Пишется по коду screener, не по памяти.
-5. **`CLAUDE.md`.** Управляемый файл общих правил процесса и стартовый `CLAUDE.md` проекта со ссылкой на него. Проверить, что Claude Code подхватывает связку.
-6. **OpenSpec.** Управляемый `openspec/config.yaml`, задача шаблона `openspec init --tools claude,pi`.
-7. **`knowledge/`.** Скрипты (`index.sh`, `due.sh` и тесты) для новой формы. Старая форма остаётся у screener проектными скриптами, если общие не потянут обе.
-8. **Конфиги.**
-   - lefthook: управляемый плюс стартовый с `extends`.
-   - biome: так же.
-   - CI: управляемый workflow с общими джобами плюс стартовый `ci.yml` проекта.
+1. **Hooks.**
+   - A dispatcher per event.
+   - Shared screener hooks are moved over with parameters: `bash-edit`, `guard-staging`, `session-tree`, `session-leftovers`, `knowledge-due`, `rust-fmt`, `rust-clippy`, `js-fmt`, `js-typecheck`, `lib/`.
+   - A directory for project hooks.
+   - `settings.json` calls the dispatcher.
+   - Hook tests (`run.sh`) are moved over and check both the pass-through and the trigger.
+2. **Agents.**
+   - A source format and a generator into `.claude/agents/`.
+   - The addendum mechanism `local/agents/<name>.md`.
+   - Shared prompts without the screener domain.
+3. **Skills.**
+   - Generalize: `change-finish`, `knowledge-note`, `stage-acceptance`, `stage-grooming`, `uikit-component`, `linear-triage` (module); `contract-change` — into a shared form with the contract table from the project's `CLAUDE.md`.
+   - Take paths from the template answers.
+   - Text without tool names of a single agent.
+4. **A new `telegram-bot` skill** from screener's experience: `alerting/telegram.rs`, `owner_bot/`, the lesson about 429 and the queue. Written from screener's code, not from memory.
+5. **`CLAUDE.md`.** A managed file of shared process rules and the project's starter `CLAUDE.md` linking to it. Check that Claude Code picks up the link.
+6. **OpenSpec.** A managed `openspec/config.yaml`, the template task `openspec init --tools claude,pi`.
+7. **`knowledge/`.** Scripts (`index.sh`, `due.sh`, and tests) for the new form. The old form stays in screener as project scripts if the shared ones can't handle both.
+8. **Configs.**
+   - lefthook: managed plus starter with `extends`.
+   - biome: the same.
+   - CI: a managed workflow with shared jobs plus the project's starter `ci.yml`.
 
-**Готово:** в полной раскладке сессия Claude Code:
-- видит скиллы и агентов;
-- хук `guard-staging` отклоняет `git add -A` в общем каталоге;
-- правка `.rs` и `.tsx` форматируется;
-- тесты хуков зелёные во всех пяти раскладках.
+**Done:** in the full layout, a Claude Code session:
+- sees the skills and agents;
+- the `guard-staging` hook rejects `git add -A` in the shared directory;
+- an edit to `.rs` and `.tsx` is formatted;
+- hook tests are green in all five layouts.
 
-## Фаза 4. Pi
+## Phase 4. Pi
 
-1. Проверить на Pi 1.4:
-   - какие context files он грузит, если в каталоге есть и `AGENTS.md`, и `CLAUDE.md`;
-   - понимает ли он ссылку на общий файл правил.
+1. Check on Pi 1.4:
+   - which context files it loads if the directory has both `AGENTS.md` and `CLAUDE.md`;
+   - whether it understands a link to a shared rules file.
 
-   Выбрать механизм, чтобы общие правила дошли до Pi.
-2. Скиллы видны Pi без второй копии файлов. Проверить `.agents/skills/` или ссылку.
-3. Генератор агентов → `.pi/agents/` для `pi-subagents`: отображение инструментов и таблица моделей в настройках проекта.
-4. Расширение Pi `.pi/extensions/harness.ts`: события `tool_call` (с блокировкой), `tool_result`, `session_start`, `session_shutdown`, `input` → тот же диспетчер, вход JSON как у Claude.
-5. Асинхронные хуки (clippy, tsc с пробуждением при ошибке): воспроизвести или записать расхождение в README shared.
-6. Тесты хуков через прослойку Pi.
+   Choose a mechanism so that the shared rules reach Pi.
+2. Skills are visible to Pi without a second copy of the files. Check `.agents/skills/` or a link.
+3. Agent generator → `.pi/agents/` for `pi-subagents`: tool mapping and a model table in the project settings.
+4. Pi extension `.pi/extensions/harness.ts`: events `tool_call` (with blocking), `tool_result`, `session_start`, `session_shutdown`, `input` → the same dispatcher, JSON input as in Claude.
+5. Asynchronous hooks (clippy, tsc with wake-up on error): reproduce or record the difference in the shared README.
+6. Hook tests through the Pi shim.
 
-**Готово:** в полной раскладке сессия Pi:
-- видит скиллы;
-- запускает `rust-reviewer` через `pi-subagents`;
-- `guard-staging` блокирует;
-- правка форматируется.
+**Done:** in the full layout, a Pi session:
+- sees the skills;
+- runs `rust-reviewer` through `pi-subagents`;
+- `guard-staging` blocks;
+- an edit is formatted.
 
-## Фаза 5. CI и релизы shared
+## Phase 5. CI and releases of shared
 
-1. Workflow на раннерах GitHub: матрица пяти раскладок, в каждой `copier copy` → сборка, typecheck, lint, тесты, тесты хуков через обе прослойки.
-2. Тег при вливании:
-   - patch или minor по метке PR или префиксу коммита;
-   - мажорная версия — только вручную, с заметкой о миграции в `CHANGELOG.md`.
+1. A workflow on GitHub runners: a matrix of the five layouts, in each `copier copy` → build, typecheck, lint, tests, hook tests through both shims.
+2. A tag on merge:
+   - patch or minor by PR label or commit prefix;
+   - a major version — only manually, with a migration note in `CHANGELOG.md`.
 
-**Готово:** PR в shared показывает зелёную матрицу; вливание даёт тег.
+**Done:** a PR in shared shows a green matrix; a merge produces a tag.
 
-## Фаза 6. Доставка обновлений
+## Phase 6. Delivering updates
 
-1. Управляемый workflow проекта:
-   - триггер — событие из shared или проверка тегов по расписанию;
-   - `copier update` до тега, конфликты маркерами;
-   - PR токеном или GitHub App (не `GITHUB_TOKEN`: его PR не запускает CI).
-2. Проверка CI «нет маркеров конфликта».
-3. Автовливание по событию завершения CI: зелёный, без маркеров, версия не мажорная.
-4. Владелец создаёт секрет — вид выбирается здесь, с его согласия.
-5. Песочница: временный приватный репозиторий из шаблона, на нём три случая:
-   - чистое обновление вливается само;
-   - конфликт оставляет красный открытый PR;
-   - мажорная версия ждёт.
+1. A managed project workflow:
+   - trigger — an event from shared or a scheduled tag check;
+   - `copier update` to the tag, conflicts as markers;
+   - a PR with a token or a GitHub App (not `GITHUB_TOKEN`: its PR doesn't trigger CI).
+2. A CI check "no conflict markers".
+3. Automerge on the CI completion event: green, no markers, version not major.
+4. The owner creates the secret — the kind is chosen here, with their consent.
+5. A sandbox: a temporary private repository from the template, with three cases on it:
+   - a clean update merges itself;
+   - a conflict leaves a red open PR;
+   - a major version waits.
 
-   Песочницу удалить после проверки, с разрешения владельца.
+   Delete the sandbox after the check, with the owner's permission.
 
-**Готово:** все три случая отработали на песочнице.
+**Done:** all three cases worked on the sandbox.
 
-## Фаза 7. Перевод screener
+## Phase 7. Moving screener over
 
-Задача Linear, своё дерево, PR в screener.
+A Linear task, its own worktree, a PR to screener.
 
-1. Наложить шаблон на screener с его ответами: Rust, фронт, монорепо, Linear, Orca, Telegram, пути старой формы, префикс `DEN`.
-2. Доменное — в проектные расширения:
-   - хуки `contract-touch`, `guard-data`;
-   - скиллы `new-exchange-adapter`, `core-fsm-test`, `reel`, доменная часть `contract-change`;
-   - агент `video-developer`;
-   - дополнения `rust-developer`/`rust-reviewer`/`spec-auditor`;
-   - джоба `spec-defaults`;
-   - доменные разделы `CLAUDE.md`.
-3. Расхождения разобрать вручную.
-4. Запись в `knowledge/decisions.md` screener о переходе на shared. Обновить `README.md` (раздел обвязки) и `CLAUDE.md` (таблица источников правды: обвязка теперь из shared).
-5. Проверки: тесты хуков, `change-finish` полностью, CI зелёный.
-6. Хуки lefthook переустановить из основного каталога.
+1. Apply the template to screener with its answers: Rust, frontend, monorepo, Linear, Orca, Telegram, old-form paths, prefix `DEN`.
+2. Domain material — into project extensions:
+   - hooks `contract-touch`, `guard-data`;
+   - skills `new-exchange-adapter`, `core-fsm-test`, `reel`, the domain part of `contract-change`;
+   - agent `video-developer`;
+   - addenda for `rust-developer`/`rust-reviewer`/`spec-auditor`;
+   - job `spec-defaults`;
+   - domain sections of `CLAUDE.md`.
+3. Resolve differences manually.
+4. An entry in screener's `knowledge/decisions.md` about moving to shared. Update `README.md` (the harness section) and `CLAUDE.md` (the sources-of-truth table: the harness now comes from shared).
+5. Checks: hook tests, `change-finish` in full, CI green.
+6. Reinstall lefthook hooks from the main directory.
 
-**Готово:**
-- PR влит;
-- `.copier-answers.yml` в screener;
-- следующий выпуск shared приходит в screener PR'ом и вливается сам.
+**Done:**
+- the PR is merged;
+- `.copier-answers.yml` in screener;
+- the next shared release reaches screener as a PR and merges itself.
 
-**Итог (29.10.2026).** screener#550 влит на v0.3.3. Перевод нашёл три ошибки шаблона, исправлены выпусками:
-- v0.3.1 — входы `rust`/`js` у `harness.yml`: проекту с базой в services общая rust мешала;
-- v0.3.2 — `copier update` терял правки проекта в управляемых файлах (`_skip_if_exists` с ответом рендерился без ответов в `/**`) и пересоздавал удалённые стартовые файлы; тест `scripts/check-update.sh`;
-- v0.3.3 — `pi.test.ts` под pre-push писал в настоящий репозиторий: Bun не передаёт `delete process.env` дочерним процессам. Наложил коммиты, завёл ветку, пометил клон как bare. Проверка — шаги `* as hook` в `check-layouts.sh`.
+**Outcome (29.10.2026).** screener#550 merged at v0.3.3. The move found three template bugs, fixed in releases:
+- v0.3.1 — `rust`/`js` inputs of `harness.yml`: the shared rust job got in the way of a project with its base in services;
+- v0.3.2 — `copier update` lost the project's edits in managed files (`_skip_if_exists` with an answer was rendered without answers in `/**`) and recreated deleted starter files; test `scripts/check-update.sh`;
+- v0.3.3 — `pi.test.ts` under pre-push wrote into the real repository: Bun doesn't pass `delete process.env` to child processes. It applied commits, created a branch, marked the clone as bare. The check — the `* as hook` steps in `check-layouts.sh`.
 
-Последний пункт «Готово» ждёт секрета `HARNESS_UPDATE_TOKEN` в screener.
+The last "Done" item waits for the `HARNESS_UPDATE_TOKEN` secret in screener.
 
-Замечания перевода, ещё не сделанные — кандидаты в фазу 8 и дальше:
-- ~~**Оглавления документов формы monolith** — общей точки нет. Screener держит свой `knowledge/index.sh` и выключает общую джобу lefthook `knowledge`: при `extends` её `run` не переопределить.~~ Исправлено: в форме monolith общая джоба `knowledge` зовёт проектный `knowledge/index.sh --stage`, если он есть, и будится правкой журналов решений и уроков; CI сверяет оглавления тем же скриптом. Screener снимает свою джобу и выключение общей.
-- ~~**Дополнения скиллов проекта.** `change-finish` и `linear-triage` ссылаются на «дополнение проекта», но точки расширения у скиллов нет, в отличие от агентов (`.harness/local/agents/`). Screener держит дополнения в `CLAUDE.md`.~~ Исправлено: дополнение скилла — `.harness/local/skills/<скилл>.md`, каждый скилл шаблона читает его первым шагом. Screener переносит свои правила из `CLAUDE.md` туда.
-- ~~**`js-fmt.sh` и соседнее дерево.**~~ Исправлено в фазе 8: biome запускается из корня дерева самого файла.
-- ~~**`harness-automerge.yml`** сверяет автора коммитов по подписи, а её легко подделать. Защита держится на фильтре «PR открыл владелец токена»; это записано, не исправлено.~~ Исправлено после фазы 8: голову проверяет журнал пушей GitHub (`/activity`: пуш, давший голову, сделан владельцем токена), а подпись коммитов осталась подсказкой.
+Remarks from the move not yet addressed — candidates for phase 8 and later:
+- ~~**Tables of contents for monolith-form documents** — no shared point. Screener keeps its own `knowledge/index.sh` and disables the shared lefthook job `knowledge`: with `extends` its `run` can't be overridden.~~ Fixed: in the monolith form the shared `knowledge` job calls the project's `knowledge/index.sh --stage` if it exists, and is triggered by edits to the decision and lesson journals; CI checks the tables of contents with the same script. Screener drops its own job and the disabling of the shared one.
+- ~~**Project skill addenda.** `change-finish` and `linear-triage` refer to a "project addendum", but skills have no extension point, unlike agents (`.harness/local/agents/`). Screener keeps the addenda in `CLAUDE.md`.~~ Fixed: a skill addendum is `.harness/local/skills/<skill>.md`, every template skill reads it as its first step. Screener moves its rules there from `CLAUDE.md`.
+- ~~**`js-fmt.sh` and a neighboring worktree.**~~ Fixed in phase 8: biome runs from the root of the file's own worktree.
+- ~~**`harness-automerge.yml`** checks the commit author by signature, which is easy to forge. Protection rests on the filter "the PR was opened by the token owner"; this is recorded, not fixed.~~ Fixed after phase 8: the head is checked against GitHub's push log (`/activity`: the push that produced the head was made by the token owner), and the commit signature remains a hint.
 
-## Фаза 8. Улучшения из проекта в shared
+## Phase 8. Improvements from a project into shared
 
-1. Скилл в shared: как сессия проекта открывает PR в shared — где клон, ветка, тесты shared, PR, правка у себя до выпуска.
-2. Проверить один раз на настоящем улучшении из screener.
+1. A skill in shared: how a project session opens a PR to shared — where the clone is, the branch, shared's tests, the PR, the local fix until release.
+2. Check it once on a real improvement from screener.
 
-**Готово:** одно улучшение прошло весь круг: PR из сессии screener → вливание владельцем → тег → PR в screener → автовливание.
+**Done:** one improvement went full circle: PR from a screener session → merge by the owner → tag → PR to screener → automerge.
 
-### Итог (29.10.2026)
+### Outcome (29.10.2026)
 
-- v0.4.0 — скилл `harness-upstream`.
-- v0.4.1 — первое улучшение из screener по скиллу: `js-fmt.sh` форматирует файл соседнего дерева по его `biome.json`.
-- v0.4.2 — первый запуск `harness-update` в screener упал: на своём раннере нет `gh`. Workflows обновления ставят `gh` и `uv` сами, если их нет. Screener переведён на v0.4.2 вручную той же командой (screener#551): старый workflow сам себя обновить не мог.
-- v0.4.3–v0.4.5 — фоновое ревью безопасности на v0.4.1: хук исполнял `biome` из дерева правленого файла, а `js-typecheck` и `rust-clippy` и раньше запускали `tsc` и `cargo` в чужом каталоге. Теперь biome только проектный, а `lib/same-repo.sh` пускает проверки только в зарегистрированные деревья проекта: по физическому пути, без вложенных `.git`, не в игнорируемом. Git в проверяемом каталоге не спрашивается — его ответ задаёт сам каталог (`core.worktree`, подложный `.git`).
-- Круг замкнут: `harness-update` открыл screener#552 (v0.3.3 → v0.4.5 поверх ручного v0.4.2), `harness-automerge` влил его после зелёного CI.
+- v0.4.0 — the `harness-upstream` skill.
+- v0.4.1 — the first improvement from screener via the skill: `js-fmt.sh` formats a file of a neighboring worktree with its `biome.json`.
+- v0.4.2 — the first run of `harness-update` in screener failed: its self-hosted runner has no `gh`. The update workflows install `gh` and `uv` themselves if they're missing. Screener was moved to v0.4.2 manually with the same command (screener#551): the old workflow couldn't update itself.
+- v0.4.3–v0.4.5 — a background security review of v0.4.1: the hook ran `biome` from the edited file's worktree, and `js-typecheck` and `rust-clippy` had already been running `tsc` and `cargo` in a foreign directory. Now biome is project-only, and `lib/same-repo.sh` lets checks run only in the project's registered worktrees: by physical path, without nested `.git`, not in an ignored one. Git isn't consulted in the checked directory — its answer is set by the directory itself (`core.worktree`, a fake `.git`).
+- The circle is closed: `harness-update` opened screener#552 (v0.3.3 → v0.4.5 on top of the manual v0.4.2), `harness-automerge` merged it after green CI.
 
-Замечания:
-- На раннере screener четыре теста адаптеров `exchanges` (таймеры: watchdog, подписки) упали один раз и прошли при перезапуске — нестабильны под нагрузкой.
-- ~~В корне репозитория шаблона нет `biome.json`: файлы `template/` хук сессии форматирует умолчаниями biome (табы). Править их — с проверкой `lint` раскладок.~~ Исправлено после v1.0.1: `biome.json` корня наследует шаблонный `.harness/biome.json`, CI шаблона гоняет `biome check .`.
+Remarks:
+- On screener's runner four `exchanges` adapter tests (timers: watchdog, subscriptions) failed once and passed on rerun — flaky under load.
+- ~~The template repository root has no `biome.json`: the session hook formats `template/` files with biome defaults (tabs). Edit them with a `lint` check of the layouts.~~ Fixed after v1.0.1: the root `biome.json` extends the template's `.harness/biome.json`, template CI runs `biome check .`.
 
-## Что нужно от владельца по ходу
+## What is needed from the owner along the way
 
-- Фаза 0: согласие на создание публичного репозитория (уже дано в разговоре).
-- Фаза 1: просмотр инвентаризации.
-- Фаза 6: создание секрета; разрешение удалить песочницу.
-- Позже: настройка MCP в Pi для Linear; раннер для первого нового проекта.
+- Phase 0: consent to create a public repository (already given in conversation).
+- Phase 1: review of the inventory.
+- Phase 6: creating the secret; permission to delete the sandbox.
+- Later: MCP setup in Pi for Linear; a runner for the first new project.
