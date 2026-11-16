@@ -1,40 +1,40 @@
 # {{ project_name }}
 
-Что делает проект — описать здесь.
+What the project does — describe it here.
 
-Создан из шаблона [harness](https://github.com/bodasooqa/harness); ответы на его вопросы и версия — `.rootstock.toml`.
+Created from the [harness](https://github.com/bodasooqa/harness) template; the answers to its questions and the version are in `.rootstock.toml`.
 
-## Где что лежит
+## What lives where
 
 {% if rust and monorepo %}
-- `crates/` — Rust, Cargo-воркспейс; версии зависимостей закреплены в `[workspace.dependencies]` корневого `Cargo.toml`. `crates/app` — бинарь.
+- `crates/` — Rust, a Cargo workspace; dependency versions are pinned in `[workspace.dependencies]` of the root `Cargo.toml`. `crates/app` is the binary.
 {% elif rust %}
-- `src/` — Rust, один крейт в корне.
+- `src/` — Rust, a single crate at the root.
 {% endif %}
 {% if frontend and monorepo %}
-- `apps/web` — веб-клиент, React SPA на Vite.
-- `packages/uikit` — компоненты по соглашению shadcn и тема.
+- `apps/web` — web client, a React SPA on Vite.
+- `packages/uikit` — components following the shadcn convention, and the theme.
 {% elif frontend %}
-- `src/` — React SPA на Vite; компоненты по соглашению shadcn — `src/components/ui`.
+- `src/` — React SPA on Vite; components following the shadcn convention are in `src/components/ui`.
 {% endif %}
 {% if doc_form == 'catalog' %}
-- `{{ spec_path }}` — ТЗ, по файлу на раздел; журнал ревизий — `{{ revisions_path }}`.
-- `knowledge/` — решения, уроки, открытые вопросы.
+- `{{ spec_path }}` — the spec, one file per section; revision journal — `{{ revisions_path }}`.
+- `knowledge/` — decisions, lessons, open questions.
 {% else %}
-- `{{ spec_path }}` — ТЗ; журнал ревизий — `{{ revisions_path }}`.
+- `{{ spec_path }}` — the spec; revision journal — `{{ revisions_path }}`.
 {% endif %}
 {% if stages_path == 'README.md' %}
 
-## Состояние этапов
+## Stage status
 
-Строку правит приёмка этапа (скилл `stage-acceptance`); срок открытых вопросов `knowledge/due.sh` считает по этой таблице.
+A row is updated by stage acceptance (the `stage-acceptance` skill); `knowledge/due.sh` computes open question deadlines from this table.
 
-| Этап | Состояние |
+| Stage | State |
 |---|---|
-| 1. Первый этап | не начат |
+| 1. First stage | not started |
 {% endif %}
 
-## Как запустить
+## How to run
 
 {% if rust %}
 Rust (stable, edition 2024):
@@ -56,7 +56,7 @@ cargo fmt --check
 {% endif %}
 {% endif %}
 {% if frontend %}
-Фронт (bun{% if monorepo %} и turbo{% endif %}):
+Frontend (bun{% if monorepo %} and turbo{% endif %}):
 
 ```sh
 bun install
@@ -68,12 +68,12 @@ bun run build
 ```
 {% endif %}
 
-## Обновление обвязки
+## Updating the harness
 
-Новые версии шаблона приходят PR'ом сами (`.github/workflows/harness-update.yml`, подключение — `.harness/local/README.md`). Вручную:
+New template versions arrive as a PR on their own (`.github/workflows/harness-update.yml`, setup in `.harness/local/README.md`). Manually:
 
 ```sh
 rootstock update
 ```
 
-Новая версия шаблона накатывается трёхсторонним слиянием: правки проекта сохраняются, конфликт виден в файле.
+A new template version is applied with a three-way merge: project edits are kept, a conflict is visible in the file.

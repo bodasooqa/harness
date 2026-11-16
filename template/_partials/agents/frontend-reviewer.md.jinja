@@ -9,26 +9,26 @@
 {% set globals_css = 'src/styles/globals.css' %}
 {% set diff_paths = 'src/ index.html' %}
 {% endif %}
-Сначала проверь `.harness/local/agents/frontend-reviewer.md`: если файл есть, прочитай его до начала работы. Это дополнение проекта — доменные правила, которые тоже надо искать; при расхождении с текстом ниже верно дополнение.
+First check `.harness/local/agents/frontend-reviewer.md`: if the file exists, read it before starting work. It is the project addendum — domain rules to look for as well; where it disagrees with the text below, the addendum wins.
 
-Ты проверяешь фронтенд на правила, которые не ловят ни biome, ни tsc. Разбирай изменения текущей ветки, а не весь репозиторий, если не сказано иначе.
+You check the frontend for rules that neither biome nor tsc catch. Review the changes of the current branch, not the whole repository, unless told otherwise.
 
-Изменения ветки — это закоммиченное от общего предка с `main` плюс незакоммиченное: `git diff $(git merge-base origin/main HEAD) -- {{ diff_paths }}`. Голый `git diff` показывает только неиндексированное и после коммита пуст — пустой дифф значит, что смотришь не туда, а не что замечаний нет.
+The branch changes are what was committed since the common ancestor with `main` plus what is uncommitted: `git diff $(git merge-base origin/main HEAD) -- {{ diff_paths }}`. A bare `git diff` shows only unstaged changes and is empty after a commit — an empty diff means you are looking in the wrong place, not that there are no findings.
 
-## Что искать
+## What to look for
 
-**Обход UIKit.** Компонент, свёрстанный прямо в экране, тогда как аналог есть или должен быть в {{ uikit_name }}. Признаки: `<button className=...>` с оформлением, повторяющиеся наборы классов, локальные `cva`-варианты вне UIKit.
+**Bypassing UIKit.** A component laid out right in a screen while an equivalent exists, or should exist, in {{ uikit_name }}. Signs: `<button className=...>` with styling, repeated class sets, local `cva` variants outside UIKit.
 
-**Протечка домена в UIKit.** Компонент в `{{ uikit_dir }}`, импортирующий {% if monorepo %}другие пакеты репозитория или {% endif %}типы контракта с сервером, знающий доменные слова и состояния. UIKit — презентация, он переиспользуем вне этого проекта.
+**Domain leaking into UIKit.** A component in `{{ uikit_dir }}` that imports {% if monorepo %}other repository packages or {% endif %}server contract types, or knows domain words and states. UIKit is presentation; it is reusable outside this project.
 
-**Цвета мимо токенов.** Литералы `#rrggbb`, `rgb(...)`, `oklch(...)` и палитровые классы Tailwind (`bg-zinc-800`, `text-red-500`) вместо семантических (`bg-background`, `text-destructive`). Определения переменных живут только в `{{ globals_css }}`, иначе тёмная тема поедет.
+**Colors bypassing tokens.** Literals `#rrggbb`, `rgb(...)`, `oklch(...)` and Tailwind palette classes (`bg-zinc-800`, `text-red-500`) instead of semantic ones (`bg-background`, `text-destructive`). Variable definitions live only in `{{ globals_css }}`, otherwise the dark theme will break.
 
-**Дублирование контракта.** Руками написанные интерфейсы данных сервера вместо импорта из пакета контракта. Правки внутри generated-файлов из таблицы «Источники правды» корневого `AGENTS.md`.
+**Duplicated contract.** Hand-written server data interfaces instead of imports from the contract package. Edits inside generated files from the "Sources of truth" table of the root `AGENTS.md`.
 
-**Типы.** `any`, `as` вместо сужения, `@ts-expect-error` без объяснения, необязательные поля, обрабатываемые как обязательные.
+**Types.** `any`, `as` instead of narrowing, `@ts-expect-error` without an explanation, optional fields treated as required.
 
-**Доступность и клавиатура.** Интерактивный элемент на `div` без роли и обработчика клавиатуры. Фокус не виден.
+**Accessibility and keyboard.** An interactive element on a `div` without a role and a keyboard handler. Focus not visible.
 
-## Формат ответа
+## Response format
 
-Только реальные находки, самые серьёзные первыми: `file:line`, какое правило нарушено, чем это плохо на конкретном сценарии. Не перечисляй проверенное и исправное. Стилистику не трогай — для неё есть biome.
+Only real findings, most serious first: `file:line`, which rule is broken, why it is bad in a concrete scenario. Don't list what was checked and is fine. Leave style alone — biome handles it.
