@@ -1,5 +1,5 @@
-# Окончания строк — LF в рабочем дереве на любой системе. Без этого git на
-# Windows с core.autocrlf=true выкладывает CRLF: скрипты обвязки падают на `\r`,
-# краснеют biome и тесты, читающие файлы байт в байт. Бинарные файлы git
-# определяет сам (text=auto). Свои правила проект пишет ниже.
+# Line endings are LF in the working tree on every system. Without this, git on
+# Windows with core.autocrlf=true checks out CRLF: harness scripts break on `\r`,
+# and biome and tests that read files byte for byte go red. Git detects binary
+# files itself (text=auto). The project writes its own rules below.
 * text=auto eol=lf

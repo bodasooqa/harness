@@ -1,9 +1,9 @@
-# Шаблон harness для rootstock (https://github.com/bodasooqa/rootstock).
-# Устройство — docs/design.md, раздел «Шаблон».
+# harness template for rootstock (https://github.com/bodasooqa/rootstock).
+# How it works — docs/design.md, section "Template".
 schema = 1
 root = "template"
-# Рендерятся только файлы с суффиксом `.jinja`, остальные копируются как есть:
-# в TSX и CSS бывают `{{`, которые Jinja приняла бы за подстановку.
+# Only files with the `.jinja` suffix are rendered, the rest are copied as is:
+# TSX and CSS can contain `{{`, which Jinja would take for a substitution.
 suffix = ".jinja"
 
 [jinja]
@@ -11,45 +11,45 @@ keep_trailing_newline = true
 lstrip_blocks = true
 trim_blocks = true
 
-# Частичные файлы для include: тело агента одно на Claude Code и Pi. include
-# ищет от корня репозитория, а не от `template/`, поэтому пишется с префиксом
-# `template/_partials/`.
+# Partial files for include: an agent's body is shared by Claude Code and Pi.
+# include resolves from the repository root, not from `template/`, so it is
+# written with the `template/_partials/` prefix.
 #
-# Стартовые файлы создаются один раз и дальше принадлежат проекту: обновление
-# их не трогает, а удалённый проектом стартовый файл не возвращается. Шаблоны
-# путей рендерятся с ответами.
+# Starter files are created once and then belong to the project: an update
+# leaves them alone, and a starter file the project deleted does not come back.
+# Path templates are rendered with the answers.
 [files]
 exclude = ["_partials"]
 starter = [
   "/README.md",
-  # Правила проекта для всех агентов — в AGENTS.md; CLAUDE.md только импортирует
-  # его и правила процесса для Claude Code.
+  # Project rules for all agents live in AGENTS.md; CLAUDE.md only imports it
+  # and the process rules for Claude Code.
   "/AGENTS.md",
   "/CLAUDE.md",
   "/.gitignore",
-  # Свой у проекта, где он уже был (screener): стартовый не перетирает его на
-  # обновлении, а проекту без него создаётся.
+  # The project's own where it already existed (screener): as a starter file it
+  # is not overwritten on update, and a project without one gets it created.
   "/.gitattributes",
   "openspec/config.yaml",
-  # Точки расширения обвязки: свои хуки проекта, свои git-хуки, свои джобы CI
+  # Harness extension points: the project's own hooks, git hooks, CI jobs
   ".harness/local/**",
   "/lefthook.yml",
   ".github/workflows/ci.yml",
   # Rust
   "/Cargo.toml",
   "crates/app/**",
-  # Фронт
+  # Frontend
   "/package.json",
   "/biome.json",
   "apps/web/**",
   "packages/uikit/**",
-  # Один крейт или одно приложение в корне
+  # A single crate or a single app at the root
   "/src/**",
   "/index.html",
   "/vite.config.ts",
   "/tsconfig.json",
   "/components.json",
-  # Документы новой формы
+  # Documents of the new form
   "{% if spec_path %}{{ spec_path }}/**{% endif %}",
   "{% if revisions_path %}{{ revisions_path }}/**{% endif %}",
   "{% if decisions_path %}{{ decisions_path }}/**{% endif %}",
@@ -60,87 +60,97 @@ starter = [
 
 [[hooks]]
 when = ["new"]
-run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi --no-animation; else echo "harness: openspec не найден в PATH, выполните в проекте openspec init --tools claude,pi" >&2; fi'
+run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi --no-animation; else echo "harness: openspec not found in PATH, run openspec init --tools claude,pi in the project" >&2; fi'
 
-# Git-хуки (lefthook). Ставятся, только если у проекта уже свой репозиторий
-# (`.git` в корне): иначе `lefthook install` нашёл бы объемлющий репозиторий и
-# поставил хуки ему. rootstock 0.1 делает `git init` (`--git`) после задач
-# шаблона, поэтому обычно задача только напоминает — громко, а не молча, как
-# было: без хуков не работают pre-commit и pre-push. Во фронт-проекте lefthook
-# приходит с `bun install` (`bunx lefthook install`).
+# Git hooks (lefthook). Installed only if the project already has its own
+# repository (`.git` at the root): otherwise `lefthook install` would find an
+# enclosing repository and install the hooks there. rootstock 0.1 runs
+# `git init` (`--git`) after the template tasks, so usually the task only
+# reminds — loudly, not silently as before: without hooks pre-commit and
+# pre-push don't work. In a frontend project lefthook comes with `bun install`
+# (`bunx lefthook install`).
 [[hooks]]
 when = ["new"]
-run = 'if [ -e .git ] && command -v lefthook >/dev/null 2>&1; then lefthook install || echo "harness: lefthook install не прошёл, выполните его в проекте" >&2; elif command -v lefthook >/dev/null 2>&1; then echo "harness: git-хуки не поставлены — репозитория ещё нет. После git init выполните в проекте lefthook install" >&2; else echo "harness: lefthook не найден в PATH, git-хуки не поставлены. Поставьте lefthook (во фронт-проекте он придёт с bun install) и после git init выполните в проекте lefthook install (или bunx lefthook install)" >&2; fi'
+run = 'if [ -e .git ] && command -v lefthook >/dev/null 2>&1; then lefthook install || echo "harness: lefthook install failed, run it in the project" >&2; elif command -v lefthook >/dev/null 2>&1; then echo "harness: git hooks not installed — there is no repository yet. After git init run lefthook install in the project" >&2; else echo "harness: lefthook not found in PATH, git hooks not installed. Install lefthook (in a frontend project it comes with bun install) and after git init run lefthook install in the project (or bunx lefthook install)" >&2; fi'
 
 [[questions]]
 name = "project_name"
 type = "str"
-help = "Имя проекта в kebab-case (латиница, цифры, дефис). Из него — имена пакетов `<имя>-<крейт>` и `@<имя>/<пакет>`"
-validator = "{% if not (project_name | regex_search('^[a-z][a-z0-9-]*$')) %} Имя — kebab-case: строчная латинская буква, затем строчные буквы, цифры, дефис {% endif %}"
+help = "Project name in kebab-case (Latin letters, digits, hyphen). Package names derive from it: `<name>-<crate>` and `@<name>/<package>`"
+validator = "{% if not (project_name | regex_search('^[a-z][a-z0-9-]*$')) %} The name is kebab-case: a lowercase Latin letter, then lowercase letters, digits, hyphens {% endif %}"
 
 [[questions]]
 name = "rust"
 type = "bool"
 default = true
-help = "Rust в проекте?"
+help = "Rust in the project?"
 
 [[questions]]
 name = "frontend"
 type = "bool"
 default = true
-help = "Фронт (React SPA на Vite) в проекте?"
-validator = "{% if not rust and not frontend %} Нужен хотя бы Rust или фронт {% endif %}"
+help = "Frontend (React SPA on Vite) in the project?"
+validator = "{% if not rust and not frontend %} At least Rust or frontend is required {% endif %}"
 
-# При Rust и фронте вместе вопрос не задаётся: это всегда монорепо. Вопрос с
-# ложным `when` берёт значение из `default`.
+# With Rust and frontend together the question is not asked: it is always a
+# monorepo. A question with a false `when` takes its value from `default`.
 [[questions]]
 name = "monorepo"
 type = "bool"
 default = true
 when = "not (rust and frontend)"
-help = "Монорепо (Cargo-воркспейс в crates/, фронт в apps/ и packages/)? Иначе — один крейт или одно приложение в корне"
-validator = "{% if rust and frontend and not monorepo %} Rust и фронт вместе — только монорепо {% endif %}"
+help = "Monorepo (Cargo workspace in crates/, frontend in apps/ and packages/)? Otherwise a single crate or a single app at the root"
+validator = "{% if rust and frontend and not monorepo %} Rust and frontend together — monorepo only {% endif %}"
 
 [[questions]]
 name = "linear"
 type = "bool"
 default = false
-help = "Подключить модуль Linear (задачи, номер задачи в заголовке PR)?"
+help = "Enable the Linear module (issues, issue number in the PR title)?"
 
 [[questions]]
 name = "tracker_prefix"
 type = "str"
 when = "linear"
-help = "Префикс задач в Linear, заглавными латинскими буквами (например, DEN)"
-validator = "{% if not (tracker_prefix | regex_search('^[A-Z]+$')) %} Префикс — только заглавные латинские буквы {% endif %}"
+help = "Linear issue prefix, uppercase Latin letters (for example, DEN)"
+validator = "{% if not (tracker_prefix | regex_search('^[A-Z]+$')) %} The prefix is uppercase Latin letters only {% endif %}"
 
 [[questions]]
 name = "orca"
 type = "bool"
 default = true
-help = "Подключить модуль Orca (рабочее дерево на сессию через orca worktree)?"
+help = "Enable the Orca module (a worktree per session via orca worktree)?"
 
 [[questions]]
 name = "telegram"
 type = "bool"
 default = false
 when = "rust"
-help = "Подключить скилл telegram-bot для Rust-исполнителя?"
+help = "Enable the telegram-bot skill for the Rust executor?"
 
-# Модели агентов в Pi: класс модели агента Claude Code (`model:` в
-# `.claude/agents/`) → идентификатор модели Pi `провайдер/модель`
-# (`pi --list-models`). Словарь, а не зашитые строки: провайдер у проектов разный.
-# По умолчанию — модели Anthropic через OpenRouter.
+# Agents talk to the owner in chat in this language; everything else (artifacts,
+# code comments, commits, PRs, the knowledge journal) is written in English.
+[[questions]]
+name = "chat_language"
+type = "str"
+default = "Russian"
+help = "The language agents use when talking to the owner in chat; everything else is English"
+validator = "{% if not chat_language %} Specify a language {% endif %}"
+
+# Agent models in Pi: the Claude Code agent model class (`model:` in
+# `.claude/agents/`) → Pi model id `provider/model` (`pi --list-models`).
+# A mapping rather than hardcoded strings: providers differ between projects.
+# Default — Anthropic models via OpenRouter.
 [[questions]]
 name = "pi_models"
 type = "yaml"
-help = "Модели агентов в Pi: словарь opus/sonnet/haiku → модель Pi `провайдер/модель` (pi --list-models)"
+help = "Agent models in Pi: mapping opus/sonnet/haiku → Pi model `provider/model` (pi --list-models)"
 validator = """
 {% if pi_models is not mapping
    or pi_models.opus is not string or not pi_models.opus
    or pi_models.sonnet is not string or not pi_models.sonnet
    or pi_models.haiku is not string or not pi_models.haiku %}
-Нужен словарь с ключами opus, sonnet, haiku и моделями Pi строками {% endif %}"""
+A mapping with keys opus, sonnet, haiku and Pi models as strings is required {% endif %}"""
 
 [questions.default]
 opus = "openrouter/anthropic/claude-opus-5.5"
@@ -151,56 +161,57 @@ haiku = "openrouter/anthropic/claude-haiku-5.5"
 name = "doc_form"
 type = "choice"
 default = "catalog"
-help = "Форма документов"
+help = "Document form"
 
 [[questions.choices]]
-label = "catalog — ТЗ каталогом, ревизии, решения и уроки по файлу (новый проект)"
+label = "catalog — spec as a directory, revisions, decisions and lessons one per file (new project)"
 value = "catalog"
 
 [[questions.choices]]
-label = "monolith — ТЗ и журналы одним файлом (существующий проект)"
+label = "monolith — spec and journals as single files (existing project)"
 value = "monolith"
 
 [[questions]]
 name = "spec_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}docs/spec{% endif %}"
-help = "Путь к ТЗ от корня проекта (каталог в форме catalog, файл в форме monolith)"
-validator = "{% if not spec_path %} Укажите путь {% endif %}"
+help = "Path to the spec from the project root (a directory in the catalog form, a file in the monolith form)"
+validator = "{% if not spec_path %} Specify a path {% endif %}"
 
 [[questions]]
 name = "revisions_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}docs/spec/revisions{% endif %}"
-help = "Путь к журналу ревизий ТЗ (каталог в форме catalog, файл в форме monolith)"
-validator = "{% if not revisions_path %} Укажите путь {% endif %}"
+help = "Path to the spec revisions journal (a directory in the catalog form, a file in the monolith form)"
+validator = "{% if not revisions_path %} Specify a path {% endif %}"
 
 [[questions]]
 name = "decisions_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}knowledge/decisions{% endif %}"
-help = "Путь к журналу решений (каталог в форме catalog, файл в форме monolith)"
-validator = "{% if not decisions_path %} Укажите путь {% endif %}"
+help = "Path to the decisions journal (a directory in the catalog form, a file in the monolith form)"
+validator = "{% if not decisions_path %} Specify a path {% endif %}"
 
 [[questions]]
 name = "lessons_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}knowledge/lessons{% endif %}"
-help = "Путь к урокам (каталог в форме catalog, файл в форме monolith)"
-validator = "{% if not lessons_path %} Укажите путь {% endif %}"
+help = "Path to lessons (a directory in the catalog form, a file in the monolith form)"
+validator = "{% if not lessons_path %} Specify a path {% endif %}"
 
 [[questions]]
 name = "open_questions_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}knowledge/open-questions.md{% endif %}"
-help = "Путь к файлу открытых вопросов"
-validator = "{% if not open_questions_path %} Укажите путь {% endif %}"
+help = "Path to the open questions file"
+validator = "{% if not open_questions_path %} Specify a path {% endif %}"
 
-# Таблицу читает `knowledge/due.sh`: сроки открытых вопросов «к этапу N»
-# сверяются с состоянием этапов. В форме catalog таблица — в разделе этапов ТЗ.
+# The table is read by `knowledge/due.sh`: open question deadlines "Due: stage N"
+# are checked against the stage states. In the catalog form the table lives in
+# the stages section of the spec.
 [[questions]]
 name = "stages_path"
 type = "str"
 default = "{% if doc_form == 'catalog' %}{{ spec_path }}/03-stages.md{% endif %}"
-help = "Путь к файлу с таблицей состояния этапов (`| N. Название | состояние |`, состояния «в работе», «закрыт»)"
-validator = "{% if not stages_path %} Укажите путь {% endif %}"
+help = "Path to the file with the stage state table (`| N. Title | state |`, states `in progress`, `closed`)"
+validator = "{% if not stages_path %} Specify a path {% endif %}"

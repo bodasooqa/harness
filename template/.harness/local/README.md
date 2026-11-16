@@ -1,46 +1,46 @@
-# Расширения обвязки проекта
+# Project harness extensions
 
-`.harness/` целиком принадлежит шаблону и обновляется `rootstock update`, кроме этого каталога: `.harness/local/` создаётся один раз и дальше принадлежит проекту. Обновление шаблона его не трогает.
+`.harness/` belongs entirely to the template and is updated by `rootstock update`, except this directory: `.harness/local/` is created once and then belongs to the project. A template update leaves it alone.
 
-Правило: проект не правит управляемый файл, а кладёт своё в точку расширения. Тогда обновление почти не конфликтует.
+The rule: the project doesn't edit a managed file but puts its own into an extension point. Then an update almost never conflicts.
 
-## Точки расширения
+## Extension points
 
-| Что | Своё — сюда | Как подключается |
+| What | Your own — here | How it is wired |
 |---|---|---|
-| Правила проекта | `AGENTS.md` в корне и в пакетах | файл стартовый, его читают все агенты. `CLAUDE.md` рядом — импорт `@AGENTS.md` (в корне и `@.harness/process.md`) для Claude Code; правила в него не пишутся. Pi подхватывает `AGENTS.md` сам, `.harness/process.md` доводит прослойка |
-| Хуки агента | `.harness/local/hooks/<слот>/<имя>.sh` | диспетчер `.harness/hooks/dispatch.sh` запускает их после общих хуков слота, по алфавиту; зовут его и Claude Code, и прослойка Pi. Слоты и контракт — `.harness/hooks/README.md` |
-| Дополнения агентов | `.harness/local/agents/<имя>.md` | агент читает файл, если он есть, — и в `.claude/agents/`, и в `.pi/agents/` |
-| Дополнения скиллов | `.harness/local/skills/<скилл>.md` | скилл шаблона первым шагом читает файл, если он есть; текст скилла один на Claude Code и Pi (Pi берёт скиллы из `.claude/skills/`). При расхождении дополнение сильнее общего текста. Свой скилл целиком — рядом со скиллами шаблона в `.claude/skills/<имя>/`, под своим именем |
-| Расширения Pi | `.pi/extensions/<имя>.ts` | Pi подключает все расширения каталога; `harness.ts` в нём управляемый |
-| Git-хуки | `lefthook.yml` в корне | подключает общий `.harness/lefthook.yml` через `extends`; свои джобы — в нём же |
-| Оглавления документов (форма monolith) | `knowledge/index.sh` | общая джоба `knowledge` в pre-commit зовёт его с `--stage` после архива закрытых вопросов (с `--stage` скрипт сам ставит в индекс то, что переписал), CI — без аргумента и краснеет, если дерево после него изменилось. Нет файла — шаг пропускается. В форме catalog этот файл общий |
-| CI | `.github/workflows/ci.yml` | зовёт общий `.github/workflows/harness.yml`; свои джобы — рядом |
-| biome | `biome.json` в корне | `extends` на `.harness/biome.json` |
-| Разрешения Claude Code | `.claude/settings.json` | файл управляемый, но свои строки в `permissions.allow` и `permissions.deny` проект дописывает прямо в него: `rootstock update` сливает правки трёхсторонним слиянием и их сохраняет |
-| Настройки Pi | `.pi/settings.json` | так же: файл управляемый, свои ключи проект дописывает прямо в него, слияние их сохраняет |
+| Project rules | `AGENTS.md` at the root and in packages | a starter file, read by all agents. `CLAUDE.md` next to it is an import of `@AGENTS.md` (at the root also `@.harness/process.md`) for Claude Code; no rules are written into it. Pi picks up `AGENTS.md` by itself, `.harness/process.md` is delivered by the shim |
+| Agent hooks | `.harness/local/hooks/<slot>/<name>.sh` | the dispatcher `.harness/hooks/dispatch.sh` runs them after the slot's shared hooks, alphabetically; it is called by both Claude Code and the Pi shim. Slots and the contract — `.harness/hooks/README.md` |
+| Agent addenda | `.harness/local/agents/<name>.md` | the agent reads the file if it exists — both in `.claude/agents/` and in `.pi/agents/` |
+| Skill addenda | `.harness/local/skills/<skill>.md` | a template skill reads the file as its first step if it exists; a skill's text is shared by Claude Code and Pi (Pi takes skills from `.claude/skills/`). On conflict the addendum wins over the shared text. A whole skill of your own — next to the template skills in `.claude/skills/<name>/`, under its own name |
+| Pi extensions | `.pi/extensions/<name>.ts` | Pi loads every extension in the directory; `harness.ts` there is managed |
+| Git hooks | `lefthook.yml` at the root | includes the shared `.harness/lefthook.yml` via `extends`; your own jobs go in it too |
+| Document tables of contents (monolith form) | `knowledge/index.sh` | the shared `knowledge` job in pre-commit calls it with `--stage` after archiving closed questions (with `--stage` the script stages what it rewrote itself), CI — without an argument and goes red if the tree changed after it. No file — the step is skipped. In the catalog form this file is shared |
+| CI | `.github/workflows/ci.yml` | calls the shared `.github/workflows/harness.yml`; your own jobs go next to it |
+| biome | `biome.json` at the root | `extends` on `.harness/biome.json` |
+| Claude Code permissions | `.claude/settings.json` | the file is managed, but the project adds its own lines to `permissions.allow` and `permissions.deny` right in it: `rootstock update` merges edits with a three-way merge and keeps them |
+| Pi settings | `.pi/settings.json` | likewise: the file is managed, the project adds its own keys right in it, the merge keeps them |
 
-## Обновления харнесса
+## Harness updates
 
-Новые версии шаблона приходят PR'ом сами. Три управляемых файла:
+New template versions arrive as a PR by themselves. Three managed files:
 
-- `.github/workflows/harness-update.yml` — раз в сутки (и вручную, Actions → harness-update → Run workflow, с необязательной версией) сверяет теги шаблона с `version` в `.rootstock.toml`. Есть новее — `rootstock update` до неё ([rootstock](https://github.com/bodasooqa/rootstock)), конфликты маркерами в файлах, PR «Обновление харнесса до vX.Y.Z» из ветки `harness/update-vX.Y.Z`. Мажорная версия получает метку `harness:major`, конфликт — `harness:conflict`. Логика — `.harness/update/update.sh`.
-- `.github/workflows/harness-automerge.yml` — по завершении CI (workflow `CI` из `ci.yml`; переименуешь его — автовливание перестанет срабатывать) вливает PR обновления squash'ем, если CI зелёный, меток `harness:major` и `harness:conflict` нет, голова PR — проверенный коммит, голову запушил владелец токена (по журналу пушей GitHub, а не по подписи коммита — его не подделать), а все коммиты PR сделаны самим обновлением. PR из форка и PR другого автора не трогает.
-- Джоба `markers` в `.github/workflows/harness.yml` — CI красный, пока в файлах есть маркеры конфликта.
+- `.github/workflows/harness-update.yml` — once a day (and manually, Actions → harness-update → Run workflow, with an optional version) compares the template tags with `version` in `.rootstock.toml`. If there is a newer one — `rootstock update` to it ([rootstock](https://github.com/bodasooqa/rootstock)), conflicts as markers in files, a PR "Update harness to vX.Y.Z" from the branch `harness/update-vX.Y.Z`. A major version gets the `harness:major` label, a conflict — `harness:conflict`. The logic — `.harness/update/update.sh`.
+- `.github/workflows/harness-automerge.yml` — when CI completes (the `CI` workflow from `ci.yml`; rename it and automerge stops firing) squash-merges the update PR if CI is green, there are no `harness:major` and `harness:conflict` labels, the PR head is the checked commit, the head was pushed by the token owner (per GitHub's push log, not the commit signature — that can't be forged), and all PR commits were made by the update itself. It leaves PRs from forks and PRs by another author alone.
+- The `markers` job in `.github/workflows/harness.yml` — CI is red while files contain conflict markers.
 
-Конфликт разбирается как обычная задача: разреши маркеры в ветке PR, закоммить и после зелёного CI влей PR руками — коммит, сделанный не обновлением, автовливание намеренно не пропускает. Мажорную версию вливают руками после шагов миграции из `CHANGELOG.md` шаблона.
+A conflict is handled like a regular task: resolve the markers in the PR branch, commit, and after green CI merge the PR by hand — automerge deliberately skips a commit not made by the update. A major version is merged by hand after the migration steps from the template's `CHANGELOG.md`.
 
-Подключение (Settings → Secrets and variables → Actions):
+Setup (Settings → Secrets and variables → Actions):
 
-| Что | Вид | Зачем |
+| What | Kind | Why |
 |---|---|---|
-| `HARNESS_UPDATE_TOKEN` | секрет, обязателен | fine-grained PAT владельца на этот репозиторий: Contents — read and write, Pull requests — read and write, Issues — read and write (метки `harness:major`, `harness:conflict`), Workflows — read and write, Metadata — read. Штатный `GITHUB_TOKEN` не годится: его PR не запускает CI, а пушить правки в `.github/workflows/` ему нельзя. Без секрета оба workflow падают с подсказкой. Автор PR обновления — владелец токена; PR другого автора автовливание не трогает |
-| `HARNESS_RUNNER` | переменная, по желанию | раннер обоих workflow: метка строкой (`self-hosted`) или массив меток в JSON (`["self-hosted", "ci"]`); по умолчанию `ubuntu-latest`. На своём раннере нужны `git`, `jq` и `curl`; `gh`, если его нет, workflow сам ставит закреплённой версией в каталог джоба — на Linux x86_64 и arm64. rootstock ставится всегда сам, закреплённой версией со сверкой суммы — на Linux и macOS, x86_64 и arm64 |
-| `HARNESS_TEMPLATE_URL` | переменная, по желанию | откуда брать теги шаблона; по умолчанию `https://github.com/bodasooqa/harness`. Обязан совпадать с `source` в `.rootstock.toml` (форма `gh:владелец/репозиторий` тоже годится), иначе обновление остановится с ошибкой |
+| `HARNESS_UPDATE_TOKEN` | secret, required | the owner's fine-grained PAT for this repository: Contents — read and write, Pull requests — read and write, Issues — read and write (labels `harness:major`, `harness:conflict`), Workflows — read and write, Metadata — read. The stock `GITHUB_TOKEN` won't do: its PR doesn't trigger CI, and it may not push edits to `.github/workflows/`. Without the secret both workflows fail with a hint. The author of the update PR is the token owner; automerge leaves PRs by another author alone |
+| `HARNESS_RUNNER` | variable, optional | the runner for both workflows: a label as a string (`self-hosted`) or a JSON array of labels (`["self-hosted", "ci"]`); default `ubuntu-latest`. A self-hosted runner needs `git`, `jq` and `curl`; `gh`, if missing, is installed by the workflow itself at a pinned version into the job directory — on Linux x86_64 and arm64. rootstock is always installed by the workflow itself, at a pinned version with a checksum check — on Linux and macOS, x86_64 and arm64 |
+| `HARNESS_TEMPLATE_URL` | variable, optional | where to take template tags from; default `https://github.com/bodasooqa/harness`. Must match `source` in `.rootstock.toml` (the `gh:owner/repository` form also works), otherwise the update stops with an error |
 
-## Хук проекта
+## Project hook
 
-Пример: запрет команды, которая сносит данные проекта.
+Example: forbidding a command that wipes project data.
 
 ```bash
 #!/usr/bin/env bash
@@ -50,9 +50,9 @@ set -uo pipefail
 
 scan=$(bash_scan) || exit 0
 if printf '%s' "$scan" | grep -Eq 'docker[[:space:]]+volume[[:space:]]+rm'; then
-  deny "Том хранит данные, которые не восстанавливаются. Попроси пользователя удалить его самому."
+  deny "The volume holds data that cannot be restored. Ask the user to remove it themselves."
 fi
 exit 0
 ```
 
-Файл должен быть исполняемым (`chmod +x`): хук без права на исполнение диспетчер пропускает — так его можно выключить, не удаляя. Тесты своих хуков — тоже здесь, например `.harness/local/hooks/tests/`.
+The file must be executable (`chmod +x`): the dispatcher skips a hook without the execute bit — so it can be disabled without deleting it. Tests for your own hooks also go here, for example `.harness/local/hooks/tests/`.
