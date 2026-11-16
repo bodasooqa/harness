@@ -1,23 +1,23 @@
-# packages/uikit — набор компонентов
+# packages/uikit — component kit
 
-Правила корневого `AGENTS.md` действуют. Здесь — только локальное.
+The rules of the root `AGENTS.md` apply. This file holds only local ones.
 
-## Границы
+## Boundaries
 
-- Ни одной внутренней зависимости. UIKit не знает ни о других пакетах репозитория, ни о домене проекта.
-- Проверка принадлежности: компоненту нужен доменный тип, доменное слово или состояние бизнес-логики — значит это не компонент UIKit, а часть экрана, и его место в приложении.
-- Экспорт гранулярный, барреля нет: `@{{ project_name }}/uikit/components/<имя>`, `@{{ project_name }}/uikit/lib/utils`, `@{{ project_name }}/uikit/hooks/<имя>`. Это конвенция shadcn — `shadcn add` кладёт файл, и он сразу импортируется без правки индекса.
+- No internal dependencies at all. UIKit knows nothing about other packages in the repository or about the project domain.
+- Membership test: if a component needs a domain type, a domain word, or business-logic state, it is not a UIKit component but part of a screen, and it belongs in the app.
+- Granular exports, no barrel: `@{{ project_name }}/uikit/components/<name>`, `@{{ project_name }}/uikit/lib/utils`, `@{{ project_name }}/uikit/hooks/<name>`. This is the shadcn convention: `shadcn add` drops in a file, and it is importable right away without editing an index.
 
-## Соглашение
+## Conventions
 
-Следуем shadcn: компонент копируется в репозиторий и принадлежит нам. Конфигурация — `components.json`: стиль `base-nova`, база компонентов `@base-ui/react`, база цвета `zinc`, иконки `@remixicon/react`, шрифт Geist, css-переменные. Компоненты добавляются по мере надобности (`bunx shadcn add <имя>` из этого каталога); в шаблоне их нет — у каждого проекта свои.
+We follow shadcn: a component is copied into the repository and is ours. Configuration is `components.json`: style `base-nova`, component base `@base-ui/react`, base color `zinc`, icons `@remixicon/react`, Geist font, CSS variables. Components are added as needed (`bunx shadcn add <name>` from this directory); the template ships none, since every project has its own.
 
-Коротко: варианты через `cva` с явными `defaultVariants`; классы сливаются через `cn` из `lib/utils`; `className` принимается и прокидывается последним; пропсы расширяют нативный тип элемента и прокидываются через `...props`.
+In short: variants via `cva` with explicit `defaultVariants`; classes are merged via `cn` from `lib/utils`; `className` is accepted and passed last; props extend the element's native type and are passed through via `...props`.
 
-## Цвет
+## Color
 
-Только токены темы из `src/styles/globals.css`. Литералы `#rrggbb`, `rgb()`, `oklch()` и цветовые классы Tailwind внутри компонента запрещены — на них ломается тёмная тема. Нужен новый цвет — токен добавляется сразу в оба блока, `:root` и `.dark`.
+Only theme tokens from `src/styles/globals.css`. Literals `#rrggbb`, `rgb()`, `oklch()` and Tailwind color classes inside a component are forbidden: they break the dark theme. Need a new color? Add the token to both blocks at once, `:root` and `.dark`.
 
-## Проверки
+## Checks
 
 `bun run --filter '@{{ project_name }}/uikit' typecheck`, `bun run --filter '@{{ project_name }}/uikit' test`, `bunx biome check packages/uikit`.

@@ -9,8 +9,8 @@ edition = "2024"
 rust-version = "1.90"
 publish = false
 
-# Единственное место, где закреплены версии зависимостей.
-# Крейт подключает нужное через `dep = { workspace = true }`, а не пишет версию у себя.
+# The single place where dependency versions are pinned.
+# A crate pulls what it needs via `dep = { workspace = true }` instead of stating its own version.
 [workspace.dependencies]
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros"] }
 serde = { version = "1", features = ["derive"] }

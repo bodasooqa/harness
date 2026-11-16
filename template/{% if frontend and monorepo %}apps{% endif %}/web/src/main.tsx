@@ -8,7 +8,7 @@ document.title = pageTitle();
 
 const root = document.getElementById("root");
 if (!root) {
-  throw new Error("не найден корневой элемент #root");
+  throw new Error("root element #root not found");
 }
 
 createRoot(root).render(

@@ -4,9 +4,9 @@
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
-/* Пути @source относительны этому файлу: packages/uikit/src/styles/ — до корня
-   репозитория четыре уровня. Tailwind видит файлы приложения и через граф
-   модулей Vite, а @source покрывает и те, что в граф не попали. */
+/* @source paths are relative to this file: packages/uikit/src/styles/ is four
+   levels below the repository root. Tailwind also sees app files through the
+   Vite module graph, and @source covers the ones outside that graph. */
 @source "../../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
@@ -53,8 +53,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Нейтральная тема shadcn zinc (реестр shadcn, colors/zinc). Новый цвет —
-   токен сразу в оба блока, `:root` и `.dark`. */
+/* Neutral shadcn zinc theme (shadcn registry, colors/zinc). A new color is a
+   token added to both blocks at once, `:root` and `.dark`. */
 :root {
   color-scheme: light;
   --radius: 0.625rem;
