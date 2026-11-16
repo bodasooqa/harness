@@ -1,37 +1,37 @@
 {#
-  Метаданные агентов — один источник для `.claude/agents/` и `.pi/agents/`.
-  Тело агента — `<имя>.md.jinja` рядом. Подключается так:
+  Agent metadata — a single source for `.claude/agents/` and `.pi/agents/`.
+  The agent body is `<name>.md.jinja` next to this file. Included like this:
   `{% from 'template/_partials/agents/meta.jinja' import agents, pi_tools with context %}`.
 
-  `tools` — имена инструментов Claude Code; для Pi их переводит `pi_tools` по таблице
-  `pi_tool_names` (инструменты Pi — документация пакета `@gotgenes/pi-subagents`, раздел
-  «Tool selection»). У Claude `Glob` ищет и файлы, и каталоги; в Pi это `find` и `ls`.
+  `tools` are Claude Code tool names; for Pi they are translated by `pi_tools` via the
+  `pi_tool_names` table (Pi tools — documentation of the `@gotgenes/pi-subagents` package,
+  section "Tool selection"). In Claude, `Glob` finds both files and directories; in Pi that is `find` and `ls`.
 
-  `model` — класс модели Claude Code; в Pi он переводится вопросом шаблона `pi_models`.
+  `model` is a Claude Code model class; in Pi it is translated by the `pi_models` template question.
 #}
 {% set agents = {
   "rust-developer": {
-    "description": "Исполнитель в Rust-части" ~ (" (crates/)" if monorepo else "") ~ ". Получает сформулированную задачу с уже принятым решением и доводит её до зелёных проверок. Знает границы пакетов и правила кода проекта. Решения не принимает — спорное возвращает вопросом.",
+    "description": "Executor in the Rust part" ~ (" (crates/)" if monorepo else "") ~ ". Takes a well-defined task with the decision already made and carries it to green checks. Knows the package boundaries and the project's code rules. Makes no decisions — returns anything debatable as a question.",
     "tools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"],
     "model": "sonnet",
   },
   "rust-reviewer": {
-    "description": "Ревью Rust-части — паники и unwrap вне тестов, unsafe, блокирующие вызовы в async, магические числа вместо конфигурации, println и секреты в логах, тихая обработка запрещённых случаев. Запускать перед коммитом Rust-изменений.",
+    "description": "Review of the Rust part — panics and unwrap outside tests, unsafe, blocking calls in async, magic numbers instead of configuration, println and secrets in logs, silent handling of forbidden cases. Run before committing Rust changes.",
     "tools": ["Read", "Grep", "Glob", "Bash"],
     "model": "opus",
   },
   "frontend-developer": {
-    "description": "Исполнитель во фронтенде" ~ (" (apps/ и packages/)" if monorepo else "") ~ " — экраны и компоненты UIKit. Получает сформулированную задачу с уже принятым решением и доводит её до зелёных проверок. Знает соглашение shadcn и правило «экран собирается из готовых компонентов UIKit». Решения не принимает — спорное возвращает вопросом.",
+    "description": "Executor in the frontend" ~ (" (apps/ and packages/)" if monorepo else "") ~ " — screens and UIKit components. Takes a well-defined task with the decision already made and carries it to green checks. Knows the shadcn convention and the rule \"a screen is assembled from ready UIKit components\". Makes no decisions — returns anything debatable as a question.",
     "tools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"],
     "model": "sonnet",
   },
   "frontend-reviewer": {
-    "description": "Ревью фронтенда — граница UIKit и экранов, соглашение shadcn, токены темы вместо цветов, типы только из контракта, доступность. Запускать перед коммитом фронтовой части.",
+    "description": "Review of the frontend — the boundary between UIKit and screens, the shadcn convention, theme tokens instead of colors, types only from the contract, accessibility. Run before committing the frontend part.",
     "tools": ["Read", "Grep", "Glob", "Bash"],
     "model": "opus",
   },
   "spec-auditor": {
-    "description": "Сверяет реализацию с ТЗ (" ~ spec_path ~ ") — параграфы, на которые ссылается change, общие инварианты и инварианты домена из дополнения проекта, границы пакетов. Запускать перед приёмкой этапа, перед архивацией change'а, меняющего поведение продукта, и после любого изменения контракта или схемы данных.",
+    "description": "Checks the implementation against the spec (" ~ spec_path ~ ") — the paragraphs a change references, the general invariants and the domain invariants from the project addendum, package boundaries. Run before stage acceptance, before archiving a change that alters product behavior, and after any change to a contract or data schema.",
     "tools": ["Read", "Grep", "Glob", "Bash"],
     "model": "opus",
   },

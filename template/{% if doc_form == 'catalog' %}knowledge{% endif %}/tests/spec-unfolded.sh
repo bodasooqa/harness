@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Тест spec-unfolded.sh на временном проекте: две ревизии, одна сведена —
-# в списке и в блоке README ТЗ остаётся одна. Пути ТЗ и журнала в тесте
-# нестандартные, чтобы проверить, что скрипт берёт их из файла ответов.
+# Test of spec-unfolded.sh on a temporary project: two revisions, one folded —
+# one stays in the list and in the spec README block. The spec and journal
+# paths in the test are non-standard, to check that the script takes them from
+# the answers file.
 set -euo pipefail
 
 script="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)/spec-unfolded.sh"
@@ -16,7 +17,7 @@ fail() {
 mkdir -p "$tmp/knowledge" "$tmp/specs/main" "$tmp/specs/log"
 cp "$script" "$tmp/knowledge/spec-unfolded.sh"
 
-# Ключи с теми же именами вне `[answers]` не считаются.
+# Keys with the same names outside `[answers]` do not count.
 cat >"$tmp/.rootstock.toml" <<'EOF'
 schema = 1
 source = "gh:bodasooqa/harness"
@@ -32,15 +33,15 @@ revisions_path = "wrong"
 EOF
 
 cat >"$tmp/specs/main/README.md" <<'EOF'
-# ТЗ
+# Spec
 
-Текст до блока.
+Text before the block.
 
-<!-- несведённые ревизии -->
-Несведённых ревизий нет.
-<!-- /несведённые ревизии -->
+<!-- unfolded revisions -->
+No unfolded revisions.
+<!-- /unfolded revisions -->
 
-Текст после блока.
+Text after the block.
 EOF
 
 cat >"$tmp/specs/log/0001-1.1.md" <<'EOF'
@@ -50,7 +51,7 @@ date: 2026-10-01
 folded: true
 ---
 
-# Первая ревизия
+# First revision
 EOF
 
 cat >"$tmp/specs/log/0002-1.2.md" <<'EOF'
@@ -60,36 +61,36 @@ date: 2026-10-02
 folded: false
 ---
 
-# Вторая ревизия
+# Second revision
 EOF
 
-# Печать списка.
+# Printing the list.
 listed=$(bash "$tmp/knowledge/spec-unfolded.sh")
-expected='- [1.2](../log/0002-1.2.md) — 2026-10-02 — Вторая ревизия'
-[[ "$listed" == "$expected" ]] || fail "список: ожидалось «$expected», получено «$listed»"
+expected='- [1.2](../log/0002-1.2.md) — 2026-10-02 — Second revision'
+[[ "$listed" == "$expected" ]] || fail "list: expected \"$expected\", got \"$listed\""
 
-# Запись блока; повторная запись ничего не меняет.
+# Writing the block; a second write changes nothing.
 bash "$tmp/knowledge/spec-unfolded.sh" --write
 first=$(cat "$tmp/specs/main/README.md")
 bash "$tmp/knowledge/spec-unfolded.sh" --write
-[[ "$(cat "$tmp/specs/main/README.md")" == "$first" ]] || fail "повторная запись изменила README"
+[[ "$(cat "$tmp/specs/main/README.md")" == "$first" ]] || fail "a second write changed the README"
 
-block=$(awk '/^<!-- несведённые ревизии -->$/ { on = 1; next } /^<!-- \/несведённые ревизии -->$/ { on = 0 } on' \
+block=$(awk '/^<!-- unfolded revisions -->$/ { on = 1; next } /^<!-- \/unfolded revisions -->$/ { on = 0 } on' \
   "$tmp/specs/main/README.md")
-[[ "$block" == "$expected" ]] || fail "блок: ожидалось «$expected», получено «$block»"
-grep -qxF 'Текст до блока.' "$tmp/specs/main/README.md" || fail "пропал текст до блока"
-grep -qxF 'Текст после блока.' "$tmp/specs/main/README.md" || fail "пропал текст после блока"
+[[ "$block" == "$expected" ]] || fail "block: expected \"$expected\", got \"$block\""
+grep -qxF 'Text before the block.' "$tmp/specs/main/README.md" || fail "text before the block is gone"
+grep -qxF 'Text after the block.' "$tmp/specs/main/README.md" || fail "text after the block is gone"
 
-# Все сведены — блок говорит, что несведённых нет, список пуст.
+# All folded — the block says there are none, the list is empty.
 sed 's/^folded: false$/folded: true/' "$tmp/specs/log/0002-1.2.md" >"$tmp/rev" && mv "$tmp/rev" "$tmp/specs/log/0002-1.2.md"
-[[ -z "$(bash "$tmp/knowledge/spec-unfolded.sh")" ]] || fail "список не пуст, когда всё сведено"
+[[ -z "$(bash "$tmp/knowledge/spec-unfolded.sh")" ]] || fail "the list is not empty when everything is folded"
 bash "$tmp/knowledge/spec-unfolded.sh" --write
-grep -qxF 'Несведённых ревизий нет.' "$tmp/specs/main/README.md" || fail "нет строки о пустом списке"
+grep -qxF 'No unfolded revisions.' "$tmp/specs/main/README.md" || fail "no line about the empty list"
 
-# Ревизия без folded — ошибка, а не тихий пропуск.
+# A revision without folded is an error, not a silent skip.
 printf -- '---\nversion: "1.3"\ndate: 2026-10-03\n---\n' >"$tmp/specs/log/0003-1.3.md"
 if bash "$tmp/knowledge/spec-unfolded.sh" >/dev/null 2>&1; then
-  fail "ревизия без folded прошла молча"
+  fail "a revision without folded passed silently"
 fi
 
 printf 'spec-unfolded.sh: ok\n'

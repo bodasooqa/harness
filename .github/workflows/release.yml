@@ -1,19 +1,19 @@
-# Автотег после вливания в main. Тег ставится только на коммит с зелёным CI:
-# workflow срабатывает на завершение CI (`workflow_run`) прогона push в main и
-# ничего не делает, если CI не зелёный.
+# Automatic tag after a merge into main. The tag is set only on a commit with
+# green CI: the workflow fires on CI completion (`workflow_run`) of a push run
+# on main and does nothing if CI isn't green.
 #
-# Вид повышения — по метке влитого PR этого коммита:
+# Bump kind — by the label of this commit's merged PR:
 #   release:minor          → minor;
-#   release:patch, без метки → patch;
-#   release:none           → без тега;
-#   release:major          → без тега, предупреждение в сводке: мажор ставится
-#                            вручную, с заметкой о миграции в CHANGELOG.md.
-# Первый тег — v0.1.0. Тег и GitHub Release с автоописанием создаются
-# `gh release create --generate-notes` от GITHUB_TOKEN.
+#   release:patch, no label → patch;
+#   release:none           → no tag;
+#   release:major          → no tag, a warning in the summary: a major is set
+#                            manually, with a migration note in CHANGELOG.md.
+# The first tag is v0.1.0. The tag and a GitHub Release with generated notes are
+# created by `gh release create --generate-notes` with GITHUB_TOKEN.
 #
-# Идемпотентно: коммит, на котором уже есть тег, не помечается второй раз.
-# Коммит не впереди последнего тега (CI старого коммита закончился позже
-# нового) пропускается: его изменения уже в более новом теге.
+# Idempotent: a commit that already has a tag isn't tagged a second time.
+# A commit not ahead of the latest tag (an old commit's CI finished after a
+# newer one's) is skipped: its changes are already in the newer tag.
 name: release
 
 on:
@@ -22,7 +22,7 @@ on:
     types: [completed]
     branches: [main]
 
-# Теги ставятся по одному: два параллельных прогона взяли бы одну версию.
+# Tags are set one at a time: two parallel runs would take the same version.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -45,21 +45,21 @@ jobs:
       REPO: ${{ github.repository }}
       SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Тег и релиз
+      - name: Tag and release
         run: |
           set -euo pipefail
 
           say() { printf '%s\n' "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
 
-          # Уже помечен — ничего не делать.
+          # Already tagged — do nothing.
           existing=$(gh api --paginate "repos/$REPO/tags" \
             --jq ".[] | select(.commit.sha == \"$SHA\") | .name")
           if [ -n "$existing" ]; then
-            say "Коммит \`$SHA\` уже помечен: $(echo "$existing" | tr '\n' ' ')— тег не нужен."
+            say "Commit \`$SHA\` is already tagged: $(echo "$existing" | tr '\n' ' ')— no tag needed."
             exit 0
           fi
 
-          # Метка влитого PR этого коммита.
+          # Label of this commit's merged PR.
           merged=$(gh api "repos/$REPO/commits/$SHA/pulls" \
             --jq '[.[] | select(.merged_at != null)][0] // {} | {number, labels: [.labels[]?.name]}')
           pr=$(jq -r '.number // empty' <<<"$merged")
@@ -67,23 +67,23 @@ jobs:
           has() { printf '%s\n' "$labels" | grep -qx "$1"; }
 
           if has release:major; then
-            echo "::warning title=Мажорная версия::PR #$pr помечен release:major — автотег не ставится."
+            echo "::warning title=Major version::PR #$pr is labeled release:major — no automatic tag."
             {
-              echo "### Мажорная версия — вручную"
+              echo "### Major version — manual"
               echo
-              echo "PR #$pr помечен \`release:major\`. Автотег не ставится: мажор ставится вручную,"
-              echo "с заметкой о миграции в \`CHANGELOG.md\` (шаги, которые надо сделать в проектах)."
+              echo "PR #$pr is labeled \`release:major\`. No automatic tag: a major is set manually,"
+              echo "with a migration note in \`CHANGELOG.md\` (the steps projects need to take)."
             } >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           if has release:none; then
-            say "PR #$pr помечен \`release:none\` — без тега."
+            say "PR #$pr is labeled \`release:none\` — no tag."
             exit 0
           fi
           bump="patch"
           has release:minor && bump="minor"
 
-          # Последняя версия vX.Y.Z среди тегов.
+          # The latest vX.Y.Z version among the tags.
           last=$(gh api --paginate "repos/$REPO/tags" --jq '.[].name' \
             | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
           if [ -z "$last" ]; then
@@ -91,7 +91,7 @@ jobs:
           else
             status=$(gh api "repos/$REPO/compare/$last...$SHA" --jq .status)
             if [ "$status" != ahead ]; then
-              say "Коммит \`$SHA\` не впереди $last (сравнение: $status) — без тега."
+              say "Commit \`$SHA\` is not ahead of $last (comparison: $status) — no tag."
               exit 0
             fi
             IFS=. read -r major minor patch <<<"${last#v}"
@@ -103,4 +103,4 @@ jobs:
 
           gh release create "$next" --repo "$REPO" --target "$SHA" \
             --title "$next" --generate-notes
-          say "Поставлен $next ($bump${pr:+, PR #$pr}) на \`$SHA\`."
+          say "Tagged $next ($bump${pr:+, PR #$pr}) on \`$SHA\`."

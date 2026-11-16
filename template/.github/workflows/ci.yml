@@ -1,5 +1,5 @@
-# CI проекта. Общие проверки — в `harness.yml` (управляемый, обновляется
-# шаблоном); свои джобы проект пишет здесь, рядом с вызовом.
+# Project CI. Shared checks live in `harness.yml` (managed, updated by the
+# template); the project writes its own jobs here, next to the call.
 name: CI
 
 on:
@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
 
-# Прогон устаревает, как только в ветку приходит следующий коммит.
+# A run is stale as soon as the next commit lands on the branch.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,12 +18,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    # Свой раннер: метка строкой или массив меток в JSON. Общую джобу rust или
-    # js (входы есть, если проект их выбрал), которой нужно своё окружение —
-    # база, переменные, — проект выключает и пишет свою ниже.
+    # Custom runner: a label string or a JSON array of labels. A shared rust or
+    # js job (the inputs exist if the project chose them) that needs its own
+    # environment (a database, variables) is turned off by the project, which
+    # writes its own below.
     # with:
     #   runs-on: '["self-hosted", "ci"]'
     #   rust: false
     #   js: false
 
-  # Свои джобы проекта — ниже.
+  # The project's own jobs go below.

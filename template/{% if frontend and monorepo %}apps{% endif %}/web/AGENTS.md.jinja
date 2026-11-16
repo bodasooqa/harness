@@ -1,14 +1,14 @@
-# apps/web — веб-клиент
+# apps/web — web client
 
-Правила корневого `AGENTS.md` действуют. Здесь — только локальное.
+The rules of the root `AGENTS.md` apply. This file holds only local ones.
 
-## Границы
+## Boundaries
 
-- Внутренняя зависимость одна — `@{{ project_name }}/uikit`. Остальное — внешние пакеты.
-- Экран собирается из готовых компонентов `@{{ project_name }}/uikit`. Нужного компонента нет — он заводится в UIKit, а не верстается здесь на месте: одноразовый компонент внутри экрана — это будущее расхождение стилей.
-- Цвет — только токены темы UIKit. Своих литералов цвета здесь нет.
-- Интерактив — на `button`/`a`, а не на `div` с `onClick`; фокус виден.
+- One internal dependency: `@{{ project_name }}/uikit`. Everything else is external packages.
+- Screens are built from ready-made `@{{ project_name }}/uikit` components. If a component is missing, add it to UIKit instead of laying it out here on the spot: a one-off component inside a screen is a future style divergence.
+- Color: UIKit theme tokens only. No color literals of its own here.
+- Interactivity goes on `button`/`a`, not on a `div` with `onClick`; focus is visible.
 
-## Проверки
+## Checks
 
 `bun run --filter '@{{ project_name }}/web' typecheck`, `bun run --filter '@{{ project_name }}/web' test`, `bunx biome check apps/web`, `bun run --filter '@{{ project_name }}/web' build`.

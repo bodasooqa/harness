@@ -1,15 +1,15 @@
 {% if monorepo %}
 {% set uikit_dir = 'packages/uikit' %}
 {% set uikit_name = '@' ~ project_name ~ '/uikit' %}
-{% set component_path = 'packages/uikit/src/components/<имя>.tsx' %}
-{% set component_import = '@' ~ project_name ~ '/uikit/components/<имя>' %}
+{% set component_path = 'packages/uikit/src/components/<name>.tsx' %}
+{% set component_import = '@' ~ project_name ~ '/uikit/components/<name>' %}
 {% set utils_import = '@' ~ project_name ~ '/uikit/lib/utils' %}
 {% set globals_css = 'packages/uikit/src/styles/globals.css' %}
 {% else %}
 {% set uikit_dir = 'src/components/ui' %}
 {% set uikit_name = 'src/components/ui' %}
-{% set component_path = 'src/components/ui/<имя>.tsx' %}
-{% set component_import = '@/components/ui/<имя>' %}
+{% set component_path = 'src/components/ui/<name>.tsx' %}
+{% set component_import = '@/components/ui/<name>' %}
 {% set utils_import = '@/lib/utils' %}
 {% set globals_css = 'src/styles/globals.css' %}
 {% endif %}
@@ -18,40 +18,40 @@ name: uikit-component
 description: Use when adding or changing a UI kit component in {{ uikit_dir }} — the shadcn convention this project follows, theme tokens, cva variants, and the boundary between UI kit components and app screens.
 ---
 
-# Компонент UIKit
+# UIKit component
 
-Сначала проверь `.harness/local/skills/uikit-component.md`: если файл есть, прочитай его до начала работы. Это дополнение проекта — свои правила дизайн-системы; при расхождении с текстом ниже верно дополнение.
+First check `.harness/local/skills/uikit-component.md`: if the file exists, read it before starting work. It is the project addendum — the project's own design system rules; where it disagrees with the text below, the addendum wins.
 
-UIKit живёт в `{{ uikit_dir }}` и следует соглашению shadcn: компонент **копируется в репозиторий и принадлежит нам**, а не подключается зависимостью. Значит его можно и нужно править под проект — но по правилам ниже, иначе набор перестанет быть системой.
+UIKit lives in `{{ uikit_dir }}` and follows the shadcn convention: a component is **copied into the repository and belongs to us**, rather than pulled in as a dependency. So it can and should be adapted to the project — but by the rules below, otherwise the set stops being a system.
 
-## Сначала — а туда ли компонент
+## First — does the component belong here
 
-- Компоненту нужен доменный тип, тип из контракта с сервером, доменное слово или состояние бизнес-логики? Тогда это не компонент UIKit, а часть экрана. Его место — рядом с экраном.
-- Компонент осмысленно выглядит в любом другом проекте (кнопка, таблица, поповер, бейдж)? Тогда это UIKit.
-- Компонент уже есть в `{{ uikit_name }}`? Тогда ничего не заводим — пользуемся существующим и, если не хватает, расширяем его вариантом, а не клонируем.
+- Does the component need a domain type, a type from the server contract, a domain word, or a business logic state? Then it is not a UIKit component but part of a screen. Its place is next to the screen.
+- Does the component make sense in any other project (button, table, popover, badge)? Then it is UIKit.
+- Is the component already in `{{ uikit_name }}`? Then we add nothing — we use the existing one and, if it falls short, extend it with a variant rather than cloning it.
 
 {% if monorepo %}
-UIKit не зависит ни от одного другого пакета репозитория. Проверка простая: `packages/uikit/package.json` не должен получить ни одной внутренней зависимости.
+UIKit depends on no other package of the repository. The check is simple: `packages/uikit/package.json` must not gain a single internal dependency.
 {% else %}
-UIKit не импортирует ничего из экранов и из кода работы с данными: в `src/components/ui` импортируются только внешние пакеты, `@/lib/*` и другие компоненты UIKit.
+UIKit imports nothing from screens or from data-handling code: `src/components/ui` imports only external packages, `@/lib/*`, and other UIKit components.
 {% endif %}
 
-## Порядок
+## Order
 
-1. **Ставь компонент через CLI.** {% if monorepo %}`cd packages/uikit && bunx shadcn@latest add <имя>`{% else %}`bunx shadcn@latest add <имя>` из корня{% endif %}: `components.json` настроен так, что файл ляжет в `{{ component_path }}`. Руками компонент пишется только тогда, когда его нет в реестре.
+1. **Install the component via the CLI.** {% if monorepo %}`cd packages/uikit && bunx shadcn@latest add <name>`{% else %}`bunx shadcn@latest add <name>` from the root{% endif %}: `components.json` is set up so the file lands in `{{ component_path }}`. A component is written by hand only when it is not in the registry.
 
-   Конфигурация набора — `components.json`: стиль `base-nova`, база компонентов `@base-ui/react` (не Radix), база цвета `zinc`, иконки `@remixicon/react`, шрифт Geist, css-переменные. Проект может её сменить — тогда верна его `components.json`, а не этот абзац.
-2. **Варианты — через `cva`.** Размеры, тона, состояния описываются `class-variance-authority`, а не набором булевых пропсов и не ветвлением в JSX. Дефолтный вариант задаётся явно в `defaultVariants`.
-3. **Классы сливай через `cn`.** `import { cn } from "{{ utils_import }}"`. Компонент обязан принимать `className` и прокидывать его последним аргументом `cn`, иначе его нельзя будет настроить с места использования.
-4. **Цвет — только токеном.** Разрешены переменные из `{{ globals_css }}` и соответствующие им утилиты Tailwind (`bg-background`, `text-foreground`, `border-border`, `ring-ring` и прочие из блока `@theme inline`). Литералы `#rrggbb`, `rgb()`, `oklch()` и цветовые классы Tailwind внутри компонента запрещены: на них ломается тёмная тема. Нужен новый цвет — добавь токен в оба блока `:root` и `.dark`.
-5. **Пропсы наружу.** Расширяй нативный тип элемента (`React.ComponentProps<"button">`), прокидывай `ref` и остальные пропсы через `...props`. Компонент, съедающий `aria-*` и обработчики, непригоден.
-6. **Экспорт.** {% if monorepo %}Ничего добавлять не нужно: карта `exports` в `packages/uikit/package.json` отдаёт `./components/*` пофайлово.{% else %}Ничего добавлять не нужно: компонент импортируется по пути файла.{% endif %} Импорт — `{{ component_import }}`. Барреля `index.ts` в этом наборе нет намеренно: он заставлял бы править индекс на каждый `shadcn add`.
+   The set's configuration is `components.json`: style `base-nova`, component base `@base-ui/react` (not Radix), base color `zinc`, icons `@remixicon/react`, font Geist, CSS variables. The project may change it — then its `components.json` is right, not this paragraph.
+2. **Variants via `cva`.** Sizes, tones, and states are described with `class-variance-authority`, not with a set of boolean props or branching in JSX. The default variant is set explicitly in `defaultVariants`.
+3. **Merge classes via `cn`.** `import { cn } from "{{ utils_import }}"`. A component must accept `className` and pass it as the last argument of `cn`, otherwise it can't be customized at the call site.
+4. **Color only via tokens.** Allowed are the variables from `{{ globals_css }}` and the matching Tailwind utilities (`bg-background`, `text-foreground`, `border-border`, `ring-ring`, and others from the `@theme inline` block). Literals `#rrggbb`, `rgb()`, `oklch()` and Tailwind color classes inside a component are forbidden: the dark theme breaks on them. Need a new color — add a token to both the `:root` and `.dark` blocks.
+5. **Props pass through.** Extend the native element type (`React.ComponentProps<"button">`), forward `ref` and the remaining props via `...props`. A component that swallows `aria-*` and handlers is unusable.
+6. **Export.** {% if monorepo %}Nothing to add: the `exports` map in `packages/uikit/package.json` exposes `./components/*` file by file.{% else %}Nothing to add: the component is imported by its file path.{% endif %} Import — `{{ component_import }}`. There is deliberately no `index.ts` barrel in this set: it would force editing the index on every `shadcn add`.
 
-## Клавиатура и доступность
+## Keyboard and accessibility
 
-Интерактивный элемент — это `button` или `a`, а не `div` с `onClick`. Фокус виден и оформлен через `--ring`. Цветом ничего не сообщается в одиночку: состояние несёт ещё и текст или значок.
+An interactive element is a `button` or `a`, not a `div` with `onClick`. Focus is visible and styled via `--ring`. Nothing is conveyed by color alone: the state is also carried by text or an icon.
 
-## Проверка
+## Check
 
 ```
 {% if monorepo %}
@@ -65,11 +65,11 @@ bun run build
 {% endif %}
 ```
 
-Компоненты shadcn приходят отформатированными под prettier, а у нас biome — первый `bunx biome check --write` после установки компонента это нормально и ожидаемо.
+shadcn components come formatted for prettier, while we use biome — the first `bunx biome check --write` after installing a component is normal and expected.
 
-## Чего не делать
+## What not to do
 
-- Не тащить в UIKit одноразовый компонент, который нужен ровно одному экрану.
-- Не заводить второй компонент вместо варианта у существующего.
-- Не завязывать компонент на данные: он получает пропсы, а не ходит за ними сам.
-- Не менять `components.json` под один компонент — это конфигурация всего набора.
+- Don't pull into UIKit a one-off component that exactly one screen needs.
+- Don't create a second component instead of a variant of an existing one.
+- Don't tie a component to data: it receives props, it doesn't fetch them itself.
+- Don't change `components.json` for one component — it is the configuration of the whole set.

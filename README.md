@@ -1,100 +1,100 @@
 # harness
 
-Общая обвязка проектов: стек, процесс и агентская обвязка для Claude Code и Pi в одном шаблоне [rootstock](https://github.com/bodasooqa/rootstock). Проект создаётся из шаблона, а улучшения шаблона приходят во все проекты PR'ом.
+A shared harness for projects: the stack, the process, and the agent harness for Claude Code and Pi in a single [rootstock](https://github.com/bodasooqa/rootstock) template. A project is created from the template, and template improvements reach every project as a PR.
 
-Выросла из обвязки проекта screener за два месяца работы. Дизайн — [`docs/design.md`](docs/design.md), план — [`docs/plan.md`](docs/plan.md).
+Grew out of the screener project's harness over two months of work. Design — [`docs/design.md`](docs/design.md), plan — [`docs/plan.md`](docs/plan.md).
 
-## Состояние
+## Status
 
-План пройден целиком. `rootstock new` создаёт проект любой из пяти раскладок с зелёными сборкой, typecheck, lint и тестами, с агентами, скиллами, хуками (диспетчер и точки расширения в `.harness/local/`), правилами процесса `.harness/process.md`, lefthook, CI и скриптами `knowledge/`; в Pi те же правила, скиллы, агенты и хуки приходят через `.pi/` (раздел «Claude Code и Pi»). CI шаблона гоняет все раскладки и ставит теги; новые версии приходят в проекты PR'ом (фаза 6, раздел «Обновления»). Screener переведён на шаблон и получает выпуски автоматически; улучшение из проекта несёт в шаблон скилл `harness-upstream`.
+The plan is complete. `rootstock new` creates a project in any of the five layouts with green build, typecheck, lint, and tests, with agents, skills, hooks (a dispatcher and extension points in `.harness/local/`), process rules in `.harness/process.md`, lefthook, CI, and `knowledge/` scripts; in Pi the same rules, skills, agents, and hooks come through `.pi/` (section "Claude Code and Pi"). Template CI runs all layouts and sets tags; new versions reach projects as a PR (phase 6, section "Updates"). Screener has moved to the template and receives releases automatically; the `harness-upstream` skill carries an improvement from a project into the template.
 
-| Фаза | Что | Состояние |
+| Phase | What | Status |
 |---|---|---|
-| 0 | Репозиторий, дизайн, план | готово |
-| 1 | Инвентаризация обвязки screener | готово |
-| 2 | Каркас шаблона, пять раскладок | готово |
-| 3 | Обвязка для Claude Code | готово |
-| 4 | Обвязка для Pi | готово |
-| 5 | CI и релизы | готово |
-| 6 | Доставка обновлений в проекты | готово |
-| 7 | Перевод screener | готово |
-| 8 | Улучшения из проекта в shared | готово |
+| 0 | Repository, design, plan | done |
+| 1 | Inventory of the screener harness | done |
+| 2 | Template skeleton, five layouts | done |
+| 3 | Harness for Claude Code | done |
+| 4 | Harness for Pi | done |
+| 5 | CI and releases | done |
+| 6 | Delivering updates to projects | done |
+| 7 | Moving screener over | done |
+| 8 | Improvements from a project into shared | done |
 
-## Что будет внутри
+## What's inside
 
-- **Стек на выбор:** Rust (Cargo-воркспейс или один крейт), React SPA на Vite с пакетом `uikit` по соглашению shadcn, монорепо на bun и turbo или одно приложение; biome, lefthook, CI.
-- **Процесс:** ТЗ с журналом ревизий, OpenSpec, этапы с приёмкой, `knowledge/` с решениями, уроками и открытыми вопросами со сроками.
-- **Агенты и скиллы:** исполнители и ревьюеры по областям, `spec-auditor`, `change-finish`, скиллы этапов и знаний; модули Linear, Orca и Telegram по желанию.
-- **Хуки:** форматирование и проверки на правку, охрана общего каталога, доклад о рабочем дереве — одной логикой для Claude Code и Pi.
+- **Stack of your choice:** Rust (a Cargo workspace or a single crate), a React SPA on Vite with a `uikit` package following the shadcn convention, a bun and turbo monorepo or a single app; biome, lefthook, CI.
+- **Process:** a spec with a revision journal, OpenSpec, stages with acceptance, `knowledge/` with decisions, lessons, and open questions with due dates.
+- **Agents and skills:** executors and reviewers per area, `spec-auditor`, `change-finish`, stage and knowledge skills; optional Linear, Orca, and Telegram modules.
+- **Hooks:** formatting and checks on edit, a guard for the shared directory, a worktree report — one logic for Claude Code and Pi.
 
-## Как будет работать
+## How it works
 
 ```sh
-cargo install rootstock   # или бинарник из выпуска: github.com/bodasooqa/rootstock/releases
+cargo install rootstock   # or a release binary: github.com/bodasooqa/rootstock/releases
 rootstock new gh:bodasooqa/harness my-project --git
 ```
 
-До v1.0.0 шаблон был в формате Copier; переход проектов — `CHANGELOG.md`, раздел v1.0.0.
+Before v1.0.0 the template was in Copier format; moving projects over — `CHANGELOG.md`, section v1.0.0.
 
-Вопросы шаблона (`rootstock.toml`):
+Template questions (`rootstock.toml`):
 
-| Вопрос | Что | По умолчанию |
+| Question | What | Default |
 |---|---|---|
-| `project_name` | Имя в kebab-case; из него имена пакетов `<имя>-<крейт>` и `@<имя>/<пакет>` | — |
-| `rust` | Rust в проекте | да |
-| `frontend` | Фронт: React SPA на Vite, bun, biome | да |
-| `monorepo` | Монорепо или один крейт / одно приложение в корне. При Rust и фронте не спрашивается: всегда монорепо | да |
-| `linear` | Модуль Linear | нет |
-| `tracker_prefix` | Префикс задач Linear (`DEN`); только при `linear` | — |
-| `orca` | Модуль Orca: рабочее дерево на сессию | да |
-| `telegram` | Скилл `telegram-bot`; только при `rust` | нет |
-| `pi_models` | Модели агентов в Pi: словарь `opus`/`sonnet`/`haiku` → модель Pi `провайдер/модель` | Opus, Sonnet и Haiku 5.5 через OpenRouter (`openrouter/anthropic/claude-…-5.5`) |
-| `doc_form` | Форма документов: `catalog` — ТЗ каталогом, ревизии, решения и уроки по файлу; `monolith` — одним файлом, для существующих проектов | `catalog` |
-| `spec_path`, `revisions_path`, `decisions_path`, `lessons_path`, `open_questions_path` | Пути к ТЗ, журналу ревизий, решениям, урокам, открытым вопросам | при `catalog`: `docs/spec`, `docs/spec/revisions`, `knowledge/decisions`, `knowledge/lessons`, `knowledge/open-questions.md`; при `monolith` — вводятся |
+| `project_name` | Name in kebab-case; package names `<name>-<crate>` and `@<name>/<package>` derive from it | — |
+| `rust` | Rust in the project | yes |
+| `frontend` | Frontend: React SPA on Vite, bun, biome | yes |
+| `monorepo` | A monorepo, or a single crate / single app at the root. Not asked with Rust and frontend: always a monorepo | yes |
+| `linear` | Linear module | no |
+| `tracker_prefix` | Linear task prefix (`DEN`); only with `linear` | — |
+| `orca` | Orca module: a worktree per session | yes |
+| `telegram` | `telegram-bot` skill; only with `rust` | no |
+| `pi_models` | Agent models in Pi: a map `opus`/`sonnet`/`haiku` → Pi model `provider/model` | Opus, Sonnet, and Haiku 5.5 via OpenRouter (`openrouter/anthropic/claude-…-5.5`) |
+| `doc_form` | Document form: `catalog` — the spec as a directory, revisions, decisions, and lessons one per file; `monolith` — a single file each, for existing projects | `catalog` |
+| `spec_path`, `revisions_path`, `decisions_path`, `lessons_path`, `open_questions_path` | Paths to the spec, the revision journal, decisions, lessons, open questions | with `catalog`: `docs/spec`, `docs/spec/revisions`, `knowledge/decisions`, `knowledge/lessons`, `knowledge/open-questions.md`; with `monolith` — entered |
 
-Раскладки:
+Layouts:
 
-| Rust | Фронт | Монорепо | Что в корне |
+| Rust | Frontend | Monorepo | What's at the root |
 |---|---|---|---|
-| да | да | да | Cargo-воркспейс `crates/app`, `apps/web`, `packages/uikit`; bun и turbo |
-| да | нет | да | Cargo-воркспейс `crates/app` |
-| да | нет | нет | один крейт, `src/main.rs` |
-| нет | да | да | `apps/web`, `packages/uikit`; bun и turbo |
-| нет | да | нет | одно приложение, `src/` с компонентами в `src/components/ui` |
+| yes | yes | yes | Cargo workspace `crates/app`, `apps/web`, `packages/uikit`; bun and turbo |
+| yes | no | yes | Cargo workspace `crates/app` |
+| yes | no | no | a single crate, `src/main.rs` |
+| no | yes | yes | `apps/web`, `packages/uikit`; bun and turbo |
+| no | yes | no | a single app, `src/` with components in `src/components/ui` |
 
-Проверка всех раскладок — `scripts/check-layouts.sh` (`--only <имя>` для одной).
+Checking all layouts — `scripts/check-layouts.sh` (`--only <name>` for one).
 
-## Claude Code и Pi
+## Claude Code and Pi
 
-Одна обвязка на оба агента: правила, скиллы, промпты агентов и логика хуков общие, у каждого агента своя тонкая проводка.
+One harness for both agents: rules, skills, agent prompts, and hook logic are shared; each agent has its own thin wiring.
 
-| Что | Claude Code | Pi |
+| What | Claude Code | Pi |
 |---|---|---|
-| Правила проекта и процесса | правила проекта — `AGENTS.md`; `CLAUDE.md` только импортирует `@AGENTS.md` и `@.harness/process.md` | Pi берёт `AGENTS.md` сам; `.harness/process.md` добавляет в контекст расширение `.pi/extensions/harness.ts`. Другие агенты, читающие `AGENTS.md` (Codex), получают те же правила, а `.harness/process.md` читают по указанию из него |
-| Скиллы | `.claude/skills/` | те же: путь `../.claude/skills` в `.pi/settings.json`, без копий |
-| Агенты | `.claude/agents/` | `.pi/agents/` для `pi-subagents`; тело промпта общее, модели — из ответа `pi_models` |
-| Хуки | `.claude/settings.json` → `.harness/hooks/dispatch.sh` | `.pi/extensions/harness.ts` → тот же диспетчер с тем же входом |
-| Команды OpenSpec | `/opsx:propose` и др. | `/opsx-propose` и др. (`openspec init --tools claude,pi`) |
+| Project and process rules | project rules — `AGENTS.md`; `CLAUDE.md` only imports `@AGENTS.md` and `@.harness/process.md` | Pi picks up `AGENTS.md` itself; `.harness/process.md` is added to the context by the `.pi/extensions/harness.ts` extension. Other agents that read `AGENTS.md` (Codex) get the same rules and read `.harness/process.md` as it instructs |
+| Skills | `.claude/skills/` | the same: path `../.claude/skills` in `.pi/settings.json`, no copies |
+| Agents | `.claude/agents/` | `.pi/agents/` for `pi-subagents`; the prompt body is shared, models come from the `pi_models` answer |
+| Hooks | `.claude/settings.json` → `.harness/hooks/dispatch.sh` | `.pi/extensions/harness.ts` → the same dispatcher with the same input |
+| OpenSpec commands | `/opsx:propose` etc. | `/opsx-propose` etc. (`openspec init --tools claude,pi`) |
 
-Чтобы обвязка заработала в Pi:
+To make the harness work in Pi:
 
-- поставить расширение субагентов: `pi install npm:@gotgenes/pi-subagents`;
-- запускать `pi` из корня проекта: `.pi/` ищется только в рабочем каталоге;
-- выдать проекту доверие: без него Pi не грузит `.pi/settings.json` и `.pi/extensions/` — в интерактивном режиме спросит сам, в `pi -p` нужен `--approve`.
+- install the subagents extension: `pi install npm:@gotgenes/pi-subagents`;
+- run `pi` from the project root: `.pi/` is looked up only in the working directory;
+- trust the project: without trust Pi doesn't load `.pi/settings.json` and `.pi/extensions/` — in interactive mode it asks itself, `pi -p` needs `--approve`.
 
-Расхождения:
+Differences:
 
-- **Асинхронная проверка после правки** (`post-edit-async`: clippy, tsc) идёт в фоне и будит модель сообщением, как `asyncRewake` в Claude Code. В `pi -p` Pi выходит после ответа и фоновый прогон не дожидается.
-- **Проверки исполнителя на выходе** (`subagent-stop`): в Claude Code — `SubagentStop` и отчёт `SubagentHandback`, в Pi — `agent_before_settle` ребёнка `pi-subagents`. Слота `pre-handback` в Pi нет: нет и инструмента отчёта.
-- **`AGENTS.md` и `CLAUDE.md`.** Pi грузит из каталога один файл, `AGENTS.md` раньше `CLAUDE.md`, и импорт `@файл` не раскрывает. `CLAUDE.md` из одних импортов ему не нужен; `CLAUDE.md` со своими правилами (проект ещё не перешёл на `AGENTS.md`) расширение возвращает в контекст следом за `AGENTS.md`.
-- **Разрешения** (`permissions` в `.claude/settings.json`) есть только у Claude Code; в Pi охрана — хуки `pre-bash`.
+- **Asynchronous post-edit check** (`post-edit-async`: clippy, tsc) runs in the background and wakes the model with a message, like `asyncRewake` in Claude Code. In `pi -p`, Pi exits after the reply and doesn't wait for the background run.
+- **Executor checks on exit** (`subagent-stop`): in Claude Code — `SubagentStop` and the `SubagentHandback` report, in Pi — `agent_before_settle` of the `pi-subagents` child. Pi has no `pre-handback` slot: it has no report tool either.
+- **`AGENTS.md` and `CLAUDE.md`.** Pi loads one file per directory, `AGENTS.md` before `CLAUDE.md`, and doesn't expand `@file` imports. A `CLAUDE.md` made only of imports isn't needed there; a `CLAUDE.md` with its own rules (the project hasn't moved to `AGENTS.md` yet) is put back into the context by the extension right after `AGENTS.md`.
+- **Permissions** (`permissions` in `.claude/settings.json`) exist only in Claude Code; in Pi the guard is the `pre-bash` hooks.
 
-Подробности проводки — `template/.harness/hooks/README.md`, раздел «Прослойка Pi».
+Wiring details — `template/.harness/hooks/README.md`, section "Pi shim".
 
-## Обновления
+## Updates
 
-Обновления в проект приносит управляемый workflow `harness-update.yml`: раз в сутки он сверяет теги шаблона с версией проекта, делает `rootstock update`, конфликты оставляет маркерами в файлах и открывает PR. `harness-automerge.yml` вливает PR после зелёного CI, если нет конфликта, мажорной версии и посторонних коммитов. Проекту нужен секрет `HARNESS_UPDATE_TOKEN`; подключение — `template/.harness/local/README.md`, раздел «Обновления харнесса».
+Updates are brought into a project by the managed `harness-update.yml` workflow: once a day it compares the template's tags with the project's version, runs `rootstock update`, leaves conflicts as markers in files, and opens a PR. `harness-automerge.yml` merges the PR after green CI if there's no conflict, no major version, and no foreign commits. The project needs a `HARNESS_UPDATE_TOKEN` secret; setup — `template/.harness/local/README.md`, section "Harness updates".
 
-## Релизы
+## Releases
 
-Тег ставится сам после зелёного CI влитого PR, по его метке: `release:minor` — minor, `release:patch` или без метки — patch, `release:none` — без тега; `release:major` автотега не получает — мажор ставится вручную с заметкой о миграции в [`CHANGELOG.md`](CHANGELOG.md).
+A tag is set automatically after green CI of a merged PR, by its label: `release:minor` — minor, `release:patch` or no label — patch, `release:none` — no tag; `release:major` gets no automatic tag — a major is set manually with a migration note in [`CHANGELOG.md`](CHANGELOG.md).

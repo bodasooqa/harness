@@ -1,7 +1,7 @@
-/** Имя проекта — из ответов шаблона. */
+/** Project name, from the template answers. */
 export const projectName = "{{ project_name }}";
 
-/** Заголовок вкладки: раздел и имя проекта, без раздела — одно имя. */
+/** Tab title: section and project name; without a section, just the name. */
 export function pageTitle(section?: string): string {
   return section ? `${section} · ${projectName}` : projectName;
 }

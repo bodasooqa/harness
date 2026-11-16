@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Слот post-edit-async (PostToolUse/Write|Edit, асинхронный), модуль frontend:
-# проверяет типы в пакете, которому принадлежит файл. Выход 2 будит модель
-# с текстом ошибки.
+# Slot post-edit-async (PostToolUse/Write|Edit, asynchronous), module frontend:
+# type-checks the package the file belongs to. Exit 2 wakes the model
+# with the error text.
 #
-# Проверяющая команда подменяема через `HARNESS_TSC` — как `HARNESS_CLIPPY`
-# у соседнего хука, и по той же причине: окно между вердиктом и диском
-# воспроизводится подставной командой, а не расчётом на то, что настоящий
-# `tsc` окажется медленнее стороннего сторожа.
+# The checking command can be substituted via `HARNESS_TSC` — like `HARNESS_CLIPPY`
+# in the neighbouring hook, and for the same reason: the window between the
+# verdict and the disk is reproduced with a stand-in command, not by counting on
+# the real `tsc` being slower than a third-party watcher.
 #
-# Предохранитель против шквала: вердикт, устаревший к моменту готовности,
-# не будит — см. `lib/staleness.sh`. `tsc` считает секунды, а правка идёт
-# пачкой: без предохранителя каждый промежуточный кадр рефакторинга будил
-# сессию текстом о состоянии, которого на диске уже нет.
+# Fuse against a flood: a verdict that is stale by the time it is ready doesn't
+# wake anyone — see `lib/staleness.sh`. `tsc` takes seconds, and edits come
+# in batches: without the fuse every intermediate frame of a refactoring woke
+# the session with text about a state no longer on disk.
 set -uo pipefail
 
 here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
@@ -23,10 +23,10 @@ here=$(cd "${BASH_SOURCE[0]%/*}" && pwd)
 . "$here/lib/js-package.sh"
 
 input=$(cat)
-# Правка субагента не будит главную сессию: исполнитель идёт по TDD,
-# и красные промежуточные состояния — его рабочий ход, а не сигнал.
-# Свои проверки он гоняет сам, главная сессия — полный прогон перед PR.
-# Признак — поле `agent_id`: Claude Code кладёт его только в события субагентов.
+# A subagent's edit doesn't wake the main session: the executor follows TDD,
+# and red intermediate states are its working moves, not a signal.
+# It runs its own checks; the main session does a full run before the PR.
+# The marker is the `agent_id` field: Claude Code puts it only in subagent events.
 [ -n "$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null)" ] && exit 0
 f=$(printf '%s' "$input" | jq -r '.tool_response.filePath // .tool_input.file_path // empty' 2>/dev/null) || exit 0
 case "$f" in
@@ -34,7 +34,7 @@ case "$f" in
   *) exit 0 ;;
 esac
 
-# Пакет файла и его каталог — `lib/js-package.sh`.
+# The file's package and its directory — `lib/js-package.sh`.
 pkg_dir=""
 pkg_file=""
 js_package "$f" || exit 0
@@ -46,10 +46,10 @@ trap 'stale_drop "$mark"' EXIT
 
 out=$(js_tsc "$dir") && exit 0
 
-# Дерево ушло вперёд, пока считали: правка пачкой продолжается, и этот вердикт
-# уже не о том, что лежит на диске. Следующая правка запустит проверку заново,
-# а у последней правки пачки следующей не будет — она и доложит.
+# The worktree moved on while we were checking: the batch of edits continues, and
+# this verdict is no longer about what is on disk. The next edit restarts the
+# check, and the last edit of the batch has no next one — it will report.
 stale_since "$mark" "$dir" "$f" && exit 0
 
-printf 'tsc: %s не проходит проверку типов\n\n%s\n' "$dir" "$(printf '%s' "$out" | tail -40)" >&2
+printf 'tsc: %s fails type checking\n\n%s\n' "$dir" "$(printf '%s' "$out" | tail -40)" >&2
 exit 2
