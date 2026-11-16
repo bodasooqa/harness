@@ -1,25 +1,25 @@
 # CLAUDE.md — harness
 
-Этот репозиторий — общая обвязка проектов владельца: шаблон [rootstock](https://github.com/bodasooqa/rootstock) со стеком (Rust, React, bun, turbo, biome, lefthook, CI) и процессом (ТЗ → OpenSpec → этапы → `knowledge/`), с агентами, скиллами и хуками для Claude Code и Pi. Проект создаётся из шаблона, а новые версии шаблона приходят в него PR'ом.
+This repository is the shared harness of the owner's projects: a [rootstock](https://github.com/bodasooqa/rootstock) template with a stack (Rust, React, bun, turbo, biome, lefthook, CI) and a process (spec → OpenSpec → stages → `knowledge/`), with agents, skills, and hooks for Claude Code and Pi. A project is created from the template, and new template versions reach it as a PR.
 
-Зачем и как устроено — `docs/design.md`. Порядок работ и критерии фаз — `docs/plan.md`. При вопросе о поведении шаблона — читать дизайн, а не вспоминать.
+Why and how it works — `docs/design.md`. Order of work and phase criteria — `docs/plan.md`. When in doubt about template behavior, read the design instead of recalling.
 
-## Правила
+## Rules
 
-- **Язык — русский:** тексты скиллов, промптов, сообщения хуков, коммиты, документы. Идентификаторы и имена файлов — английские.
-- **Репозиторий публичный.** Ни секретов, ни доменного знания проектов (screener и других): доменное живёт в проектных расширениях самих проектов.
-- **Два вида файлов шаблона.** Управляемые обновляются у всех проектов; стартовые создаются один раз и дальше принадлежат проекту. Новый файл — сначала решить, какой он. Правка управляемого файла доезжает до всех проектов: проверять её на всех раскладках.
-- **Точки расширения вместо правки.** Если проекту нужно своё — даём место для его файла (проектные хуки, дополнения агентов, свой CI-файл), а не ветку в общем.
-- **Только повторимое вне одного инструмента.** Никаких расширений Jinja на Python; хуки шаблона — shell. Скрипты обвязки читают `.rootstock.toml` сами, без бинарника rootstock.
-- **Claude Code и Pi.** Любая обвязка проверяется в обоих. Логика хуков — в shell-скриптах, прослойки тонкие. Агенты — один источник, генерация в оба формата. Текст скиллов не называет инструменты одного агента.
-- **Правка файлов** — инструментами Write и Edit, а не оболочкой.
+- **Language — English** for everything in the repository: skill texts, prompts, hook messages, comments, documents, commits, PR titles and bodies. Agents talk to the owner in chat in Russian.
+- **The repository is public.** No secrets and no domain knowledge of projects (screener and others): domain material lives in the projects' own extensions.
+- **Two kinds of template files.** Managed files are updated in every project; starter files are created once and belong to the project from then on. For a new file, first decide which kind it is. An edit to a managed file reaches every project: check it on all layouts.
+- **Extension points instead of edits.** If a project needs something of its own, give it a place for its file (project hooks, agent addenda, its own CI file), not a branch in the shared one.
+- **Only what is reproducible outside one tool.** No Python Jinja extensions; template hooks are shell. Harness scripts read `.rootstock.toml` themselves, without the rootstock binary.
+- **Claude Code and Pi.** Every piece of the harness is checked in both. Hook logic lives in shell scripts, shims are thin. Agents have one source, generated into both formats. Skill texts don't name tools of a single agent.
+- **Edit files** with the Write and Edit tools, not the shell.
 
-## Вливание и версии
+## Merge and versions
 
-- Работа идёт PR'ами. PR вливает главная сессия после зелёного CI (разрешение владельца 28.10.2026).
-- При вливании ставится тег patch или minor. Мажорная версия (переименован путь, изменился вопрос шаблона, нужна миграция в проектах) — только вручную, с заметкой о миграции в `CHANGELOG.md`.
-- Задачи ведутся в Linear проекта, откуда пришла работа (сейчас — screener, команда DEN); `DEN-N` в начале заголовка PR.
+- Work goes through PRs. The main session merges a PR after green CI (owner's permission of 28.10.2026).
+- On merge, a patch or minor tag is set. A major version (a path renamed, a template question changed, projects need a migration) — only manually, with a migration note in `CHANGELOG.md`.
+- Tasks are tracked in the Linear project the work came from (currently screener, team DEN); `DEN-N` at the start of the PR title.
 
-## Улучшение из проекта
+## Improvement from a project
 
-Сессия проекта, нашедшая улучшение обвязки, правит клон этого репозитория на своей ветке и открывает PR сюда. Пока выпуск не вышел, проект может поправить свой файл сам — обновление увидит ту же правку и пройдёт без конфликта.
+A project session that finds a harness improvement edits a clone of this repository on its own branch and opens a PR here. Until the release is out, the project may fix its own file itself — the update will see the same edit and pass without a conflict.

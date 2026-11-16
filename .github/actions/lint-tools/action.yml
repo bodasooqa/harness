@@ -1,20 +1,20 @@
-# shellcheck и actionlint закреплённых версий — как на машине владельца:
-# у разных версий разные замечания, и зелёное локально краснеет в CI.
+# shellcheck and actionlint at pinned versions — as on the owner's machine:
+# different versions give different remarks, and what is green locally turns red in CI.
 name: lint-tools
-description: Ставит shellcheck и actionlint заданных версий в PATH
+description: Installs shellcheck and actionlint of the given versions into PATH
 
 inputs:
   shellcheck-version:
-    description: Версия shellcheck без префикса v
+    description: shellcheck version without the v prefix
     required: true
   actionlint-version:
-    description: Версия actionlint без префикса v
+    description: actionlint version without the v prefix
     required: true
 
 runs:
   using: composite
   steps:
-    - name: shellcheck и actionlint
+    - name: shellcheck and actionlint
       shell: bash
       env:
         SHELLCHECK_VERSION: ${{ inputs.shellcheck-version }}

@@ -1,9 +1,9 @@
-# rootstock закреплённой версии из его выпуска на GitHub, со сверкой суммы
-# архива, — тот же, что ставит проектам template/.github/workflows/harness-update.yml.
-# Сменил версию — смени её и суммы здесь и там (SHA256SUMS выпуска; у проектов —
-# только Linux).
+# rootstock at a pinned version from its GitHub release, with an archive checksum
+# check — the same one template/.github/workflows/harness-update.yml installs for projects.
+# Changed the version — change it and the checksums here and there (the release's
+# SHA256SUMS; projects need only Linux).
 name: rootstock
-description: Ставит rootstock закреплённой версии в PATH (Linux x86_64, Windows x86_64)
+description: Installs rootstock at a pinned version into PATH (Linux x86_64, Windows x86_64)
 
 runs:
   using: composite
@@ -28,17 +28,17 @@ runs:
         archive="$RUNNER_TEMP/$name.$ext"
         curl -fsSL -o "$archive" \
           "https://github.com/bodasooqa/rootstock/releases/download/v${ROOTSTOCK_VERSION}/${name}.${ext}"
-        # Со стандартного входа: путь с `\` (RUNNER_TEMP на Windows) sha256sum
-        # экранирует и ставит `\` перед суммой.
+        # From standard input: sha256sum escapes a path with `\` (RUNNER_TEMP on
+        # Windows) and puts `\` before the checksum.
         got=$(sha256sum <"$archive" | cut -d' ' -f1)
         if [ "$got" != "$want" ]; then
-          echo "::error title=Сумма rootstock::Архив $name.$ext не совпал с закреплённой суммой: $got вместо $want."
+          echo "::error title=rootstock checksum::Archive $name.$ext doesn't match the pinned checksum: $got instead of $want."
           exit 1
         fi
         bin="$RUNNER_TEMP/rootstock-bin"
         mkdir -p "$bin"
         if [ "$ext" = zip ]; then
-          # 7z есть на раннерах Windows; unzip в Git for Windows не гарантирован.
+          # 7z is on Windows runners; unzip isn't guaranteed in Git for Windows.
           7z e -y -bso0 "-o$bin" "$archive" "$name/rootstock.exe"
         else
           tar -xzf "$archive" -C "$bin" --strip-components=1 "$name/rootstock"

@@ -1,100 +1,100 @@
-# Журнал изменений
+# Changelog
 
-Версии — semver `vX.Y.Z`, теги ставит `release.yml` после зелёного CI влитого в main коммита; вид повышения — метка PR (`release:minor`, `release:patch` или без метки — patch, `release:none` — без тега). Описание каждого релиза собирается автоматически из PR.
+Versions are semver `vX.Y.Z`; tags are set by `release.yml` after green CI of a commit merged into main; the bump kind is the PR label (`release:minor`, `release:patch` or no label — patch, `release:none` — no tag). Each release's description is assembled automatically from PRs.
 
-Когда здесь пишется заметка:
+When a note is written here:
 
-- **Мажорная версия — обязательно.** Переименован путь, изменился вопрос шаблона, нужна миграция в проектах. PR с меткой `release:major` автотега не получает: после вливания тег ставится вручную, и в том же выпуске здесь — раздел версии с шагами миграции, которые проект делает до или после обновления.
-- **Minor и patch — по желанию.** Автоописания релиза достаточно; заметка нужна, только если изменение стоит пояснить шире, чем заголовки PR.
+- **Major version — always.** A path renamed, a template question changed, projects need a migration. A PR labeled `release:major` gets no automatic tag: after the merge the tag is set manually, and in the same release this file gets a version section with the migration steps the project takes before or after the update.
+- **Minor and patch — optional.** The automatic release description is enough; a note is needed only if the change deserves a wider explanation than the PR titles.
 
-Новые записи — сверху.
+New entries go on top.
 
-## Проверки исполнителя на выходе (minor)
+## Executor checks on exit (minor)
 
-Исполнитель (агент `*-developer`: `rust-developer`, `frontend-developer` и проектные того же вида) больше не сдаёт работу с красными быстрыми проверками. Новый общий хук `agent-checks.sh` берёт изменения рабочего дерева относительно HEAD и неотслеживаемые файлы, сводит их к крейтам и пакетам и гоняет `rustfmt --check`, clippy по крейту и `tsc --noEmit` по пакету — по модулям проекта. Красное — отказ один раз, с выводом ошибок в причине; исполнитель исправляет или возвращает вопрос.
+An executor (a `*-developer` agent: `rust-developer`, `frontend-developer`, and project agents of the same kind) no longer hands in work with red fast checks. The new shared hook `agent-checks.sh` takes the worktree changes relative to HEAD plus untracked files, maps them to crates and packages, and runs `rustfmt --check`, clippy per crate, and `tsc --noEmit` per package — according to the project's modules. Red means a single refusal, with the error output in the reason; the executor fixes it or returns a question.
 
-- Claude Code: слоты `subagent-stop` (`SubagentStop`, `matcher` по `-developer$`) и `pre-handback` (`PreToolUse` на `SubagentHandback` — в auto mode отчёт уходит этим инструментом до остановки). Таймаут — 600 с.
-- Pi: слот `subagent-stop` на `agent_before_settle` ребёнка `pi-subagents` — одно продолжение запуска. `pre-handback` в Pi нет.
-- `Stop` главной сессии шаблон не проводит; исполнителю отдельной сессией `claude --agent <исполнитель>` проект может провести `Stop` → `dispatch.sh subagent-stop` сам (README хуков, «Проверки исполнителя»).
-- Разбор пути крейта и пакета и команды проверок переехали из `rust-clippy.sh` и `js-typecheck.sh` в `lib/rust-crate.sh` и `lib/js-package.sh`; clippy теперь запускается из каталога крейта, так что правка в соседнем дереве проверяется в своём дереве.
+- Claude Code: slots `subagent-stop` (`SubagentStop`, `matcher` on `-developer$`) and `pre-handback` (`PreToolUse` on `SubagentHandback` — in auto mode the report goes out through this tool before the stop). Timeout — 600 s.
+- Pi: slot `subagent-stop` on `agent_before_settle` of the `pi-subagents` child — one continuation of the run. Pi has no `pre-handback`.
+- The template doesn't wire `Stop` of the main session; for an executor run as a separate session `claude --agent <executor>`, the project can wire `Stop` → `dispatch.sh subagent-stop` itself (hooks README, "Executor checks").
+- Resolving the crate and package path and the check commands moved from `rust-clippy.sh` and `js-typecheck.sh` into `lib/rust-crate.sh` and `lib/js-package.sh`; clippy now runs from the crate directory, so an edit in a neighboring worktree is checked in its own worktree.
 
-Миграции нет: проводка — в управляемых `.claude/settings.json` и `.pi/extensions/harness.ts`. Свой хук на конец работы исполнителя проект кладёт в `.harness/local/hooks/subagent-stop/`.
+No migration: the wiring is in the managed `.claude/settings.json` and `.pi/extensions/harness.ts`. A project puts its own hook for the end of executor work in `.harness/local/hooks/subagent-stop/`.
 
-## AGENTS.md — правила проекта для всех агентов
+## AGENTS.md — project rules for all agents
 
-Правила проекта переезжают из `CLAUDE.md` в `AGENTS.md`: его читают Pi, Codex и другие агенты, а импорт `@файл`, которым `CLAUDE.md` подключал `.harness/process.md`, понимает только Claude Code. Теперь в новом проекте:
+Project rules move from `CLAUDE.md` to `AGENTS.md`: it is read by Pi, Codex, and other agents, while the `@file` import that `CLAUDE.md` used to pull in `.harness/process.md` is understood only by Claude Code. Now, in a new project:
 
-- `AGENTS.md` (стартовый) — правила проекта; вместо строки импорта он велит прочитать `.harness/process.md` целиком до начала работы;
-- `CLAUDE.md` (стартовый) — только `@AGENTS.md` и `@.harness/process.md`, чтобы Claude Code получил оба;
-- в пакетах фронт-монорепо (`apps/web`, `packages/uikit`) — так же: `AGENTS.md` с правилами, `CLAUDE.md` из `@AGENTS.md`.
+- `AGENTS.md` (starter) — project rules; instead of an import line it tells the agent to read `.harness/process.md` in full before starting work;
+- `CLAUDE.md` (starter) — only `@AGENTS.md` and `@.harness/process.md`, so Claude Code gets both;
+- in frontend monorepo packages (`apps/web`, `packages/uikit`) — the same: `AGENTS.md` with the rules, `CLAUDE.md` made of `@AGENTS.md`.
 
-Управляемые тексты (`.harness/process.md`, скиллы, агенты, README хуков) называют местом правил проекта `AGENTS.md`. Прослойка Pi берёт главным файлом `AGENTS.md`, а без него — `CLAUDE.md`, и следом доводит `.harness/process.md`. `CLAUDE.md` рядом с `AGENTS.md` она не добавляет, пока в нём одни импорты; со своими правилами — добавляет.
+Managed texts (`.harness/process.md`, skills, agents, hooks README) name `AGENTS.md` as the place of project rules. The Pi shim takes `AGENTS.md` as the main file, `CLAUDE.md` without it, and then brings in `.harness/process.md`. It doesn't add a `CLAUDE.md` next to `AGENTS.md` while it holds only imports; with its own rules, it does.
 
-**Что сделает обновление в подключённом проекте.** Стартовые файлы, которых у проекта ещё не было, обновление создаёт: появятся заготовки `AGENTS.md` в корне и, во фронт-монорепо, в `apps/web/` и `packages/uikit/`. `CLAUDE.md` обновление не трогает — правила остаются в нём. Без миграции Claude Code работает как раньше, Pi получает и заготовку, и `CLAUDE.md` с правилами проекта, но Codex видит только заготовку, а управляемые тексты отсылают к `AGENTS.md`. Поэтому миграцию лучше не откладывать.
+**What the update does in a connected project.** Starter files the project didn't have yet are created by the update: `AGENTS.md` stubs appear at the root and, in a frontend monorepo, in `apps/web/` and `packages/uikit/`. The update doesn't touch `CLAUDE.md` — the rules stay there. Without the migration Claude Code works as before, Pi gets both the stub and the `CLAUDE.md` with project rules, but Codex sees only the stub, and managed texts point to `AGENTS.md`. So it's better not to postpone the migration.
 
-**Миграция** — отдельным PR после влития обновления (свой коммит в ветке обновления снимает автовливание):
+**Migration** — as a separate PR after the update is merged (your own commit on the update branch disables automerge):
 
-1. Правила проекта — в `AGENTS.md` поверх заготовки, с историей: `git mv -f CLAUDE.md AGENTS.md`. В нём заголовок `# CLAUDE.md — …` → `# AGENTS.md — …`; строку `@.harness/process.md` и фразу о подключении строкой ниже заменить указанием прочитать `.harness/process.md` целиком до начала работы (образец — абзац в `template/AGENTS.md.jinja` шаблона); «у каждого пакета свой `CLAUDE.md`» → `AGENTS.md`.
-2. Новый `CLAUDE.md` из двух строк — как `template/CLAUDE.md.jinja` шаблона:
+1. Project rules go into `AGENTS.md` over the stub, with history: `git mv -f CLAUDE.md AGENTS.md`. In it, the heading `# CLAUDE.md — …` → `# AGENTS.md — …`; replace the `@.harness/process.md` line and the phrase about including it on the line below with an instruction to read `.harness/process.md` in full before starting work (the model is the paragraph in the template's `template/AGENTS.md.jinja`); "each package has its own `CLAUDE.md`" → `AGENTS.md`.
+2. A new two-line `CLAUDE.md` — like the template's `template/CLAUDE.md.jinja`:
 
    ```
    @AGENTS.md
    @.harness/process.md
    ```
 
-3. Пакеты — по желанию, тем же приёмом: `git mv -f <пакет>/CLAUDE.md <пакет>/AGENTS.md`, в нём «правила корневого `CLAUDE.md`» → `AGENTS.md`, рядом `CLAUDE.md` со строкой `@AGENTS.md`. Агенты шаблона ищут правила пакета в `<пакет>/AGENTS.md`. Если пакеты не переносятся — удалить заготовки `apps/web/AGENTS.md` и `packages/uikit/AGENTS.md`: удалённый стартовый файл обновление не возвращает.
-4. Прослойка Pi из выпуска работает и без миграции, и после неё — отдельного шага нет.
-5. `.harness/local/README.md` стартовый: строку «Правила проекта» в таблицу точек расширения перенести из `template/.harness/local/README.md` шаблона руками, если нужна.
+3. Packages — optional, the same way: `git mv -f <package>/CLAUDE.md <package>/AGENTS.md`, in it "the rules of the root `CLAUDE.md`" → `AGENTS.md`, next to it a `CLAUDE.md` with the line `@AGENTS.md`. Template agents look for package rules in `<package>/AGENTS.md`. If the packages aren't moved, delete the stubs `apps/web/AGENTS.md` and `packages/uikit/AGENTS.md`: the update doesn't bring back a deleted starter file.
+4. The Pi shim from the release works both without the migration and after it — no separate step.
+5. `.harness/local/README.md` is a starter file: copy the "Project rules" row of the extension point table from the template's `template/.harness/local/README.md` by hand, if needed.
 
-## Дополнения скиллов проекта
+## Project skill addenda
 
-У скиллов шаблона появилась точка расширения, как у агентов: `.harness/local/skills/<скилл>.md`. Каждый скилл шаблона первым шагом читает этот файл, если он есть, — и в Claude Code, и в Pi (текст скилла общий); при расхождении дополнение сильнее общего текста. Каталог проектный: `.harness/local/**` — стартовый, `rootstock update` его не трогает.
+Template skills got an extension point, like agents: `.harness/local/skills/<skill>.md`. Every template skill reads this file as its first step, if it exists — both in Claude Code and in Pi (the skill text is shared); where they disagree, the addendum overrides the shared text. The directory belongs to the project: `.harness/local/**` is starter, `rootstock update` doesn't touch it.
 
-**По желанию проекта:**
+**Optional for the project:**
 
-- Правила к скиллам, которые проект держал в `CLAUDE.md` (кто вливает PR, кто есть кто в Linear, как проверить выкатку), перенести в `.harness/local/skills/<скилл>.md`. Скиллы по-прежнему смотрят и в `CLAUDE.md`, так что перенос не обязателен.
-- `.harness/local/README.md` стартовый и обновлением не меняется: строку «Дополнения скиллов» в таблицу точек расширения перенести из `template/.harness/local/README.md` шаблона руками.
+- Move the skill rules the project kept in `CLAUDE.md` (who merges PRs, who is who in Linear, how to check a rollout) into `.harness/local/skills/<skill>.md`. Skills still look into `CLAUDE.md` too, so the move isn't mandatory.
+- `.harness/local/README.md` is a starter file and isn't changed by the update: copy the "Skill addenda" row of the extension point table from the template's `template/.harness/local/README.md` by hand.
 
-## Узкие разрешения Claude Code (#21)
+## Narrow Claude Code permissions (#21)
 
-`permissions.allow` в `.claude/settings.json` больше не пропускает без запроса формы, которые исполняют команду или пишут в произвольный путь: убраны `Bash(rg *)`, `Bash(git diff *)`, `Bash(git log *)`, `Bash(lefthook *)`, `Bash(bunx *)`; `bun`, `turbo`, `openspec` сужены до конкретных подкоманд; в `deny` — опасные флаги (`rg --pre`, `git diff|log|show --output|--ext-diff`, `cargo --config` и файлы отчётов biome, turbo, `bun test`). Почему так и что осталось — `docs/design.md`, раздел «Разрешения Claude Code».
+`permissions.allow` in `.claude/settings.json` no longer lets through without a prompt the forms that execute a command or write to an arbitrary path: removed `Bash(rg *)`, `Bash(git diff *)`, `Bash(git log *)`, `Bash(lefthook *)`, `Bash(bunx *)`; `bun`, `turbo`, `openspec` narrowed to specific subcommands; `deny` holds dangerous flags (`rg --pre`, `git diff|log|show --output|--ext-diff`, `cargo --config`, and report files of biome, turbo, `bun test`). Why so and what remains — `docs/design.md`, section "Claude Code permissions".
 
-**Что заметит проект:** часть команд, шедших молча, теперь спрашивает разрешение (`bunx <пакет>`, `bun run <свой скрипт>`, `lefthook run`, `openspec init|update`). Безопасные `git diff`, `git log` по-прежнему без запроса — их пускает сам Claude Code. Нужная проекту команда — своей строкой в `.claude/settings.json` (переживает обновление) или в `.claude/settings.local.json`; строки deny при этом действуют.
+**What the project will notice:** some commands that used to run silently now ask for permission (`bunx <package>`, `bun run <own script>`, `lefthook run`, `openspec init|update`). Safe `git diff`, `git log` still run without a prompt — Claude Code itself allows them. A command the project needs — as its own line in `.claude/settings.json` (survives the update) or in `.claude/settings.local.json`; deny lines still apply.
 
-`rootstock new` теперь ставит git-хуки (`lefthook install`), если у проекта уже есть репозиторий, а иначе громко напоминает: rootstock 0.1 делает `git init` после задач шаблона, так что при `--git` хуки ставятся руками — `lefthook install` (во фронт-проекте после `bun install` — `bunx lefthook install`).
+`rootstock new` now installs git hooks (`lefthook install`) if the project already has a repository, and otherwise loudly reminds you: rootstock 0.1 runs `git init` after the template tasks, so with `--git` the hooks are installed by hand — `lefthook install` (in a frontend project, after `bun install` — `bunx lefthook install`).
 
-## biome.json в корне репозитория шаблона
+## biome.json at the root of the template repository
 
-Касается только репозитория шаблона, проекты ничего не получают. В корне появился `biome.json`, наследующий шаблонный `template/.harness/biome.json`: хук сессии форматирует файлы `template/` так же, как их форматирует сгенерированный проект (два пробела, ширина 100), а не умолчаниями biome (табы). Файлы `.jinja` biome не трогает — расширение ему незнакомо; пути с `{% if %}` для него обычные каталоги. CI шаблона в джобе `lint` гоняет `biome check .` той же версии, что в `package.json` шаблона. Для правки файлов `template/` локально нужен biome этой версии (`bunx @biomejs/biome@2.5.12`): более старый не поймёт ключи конфига.
+Concerns only the template repository; projects get nothing. The root got a `biome.json` that extends the template's `template/.harness/biome.json`: the session hook formats `template/` files the same way the generated project formats them (two spaces, width 100), not with biome defaults (tabs). biome doesn't touch `.jinja` files — it doesn't know the extension; paths with `{% if %}` are ordinary directories to it. Template CI runs `biome check .` in the `lint` job with the same version as in the template's `package.json`. To edit `template/` files locally you need biome of this version (`bunx @biomejs/biome@2.5.12`): an older one won't understand the config keys.
 
-## Git-хуки на Windows (#26)
+## Git hooks on Windows (#26)
 
-- **pre-push на Windows работает без `LEFTHOOK=0`.** lefthook исполняет `files:` без оболочки, и `.sh` на Windows не запускался. Теперь `files: sh ./.harness/lefthook/push-files.sh`, сам скрипт — на POSIX sh. В `run:` нет двойных кавычек: на Windows lefthook оборачивает строку в них без экранирования.
-- **Стартовый `.gitattributes`** с `* text=auto eol=lf`: без него git на Windows с `core.autocrlf=true` выкладывает CRLF, и падают скрипты обвязки, biome и тесты. Проекту без `.gitattributes` он приходит обновлением; свой (как у screener) не трогается. Проект, где своего нет, но git уже выложил CRLF, после обновления перевыкладывает файлы: `git rm -r --cached -q . && git reset --hard`.
-- В CI шаблона — джоба `windows` (Git Bash): `scripts/check-lefthook.sh` гоняет коммит и пуш через lefthook, pre-push без upstream и с ним, тесты `knowledge/` и выкладку при `core.autocrlf=true`.
+- **pre-push on Windows works without `LEFTHOOK=0`.** lefthook runs `files:` without a shell, and `.sh` didn't run on Windows. Now `files: sh ./.harness/lefthook/push-files.sh`, and the script itself is POSIX sh. `run:` has no double quotes: on Windows lefthook wraps the line in them without escaping.
+- **Starter `.gitattributes`** with `* text=auto eol=lf`: without it git on Windows with `core.autocrlf=true` checks out CRLF, and harness scripts, biome, and tests fail. A project without `.gitattributes` gets it with the update; its own (like screener's) isn't touched. A project that has none of its own but where git has already checked out CRLF re-checks out the files after the update: `git rm -r --cached -q . && git reset --hard`.
+- Template CI has a `windows` job (Git Bash): `scripts/check-lefthook.sh` runs a commit and a push through lefthook, pre-push without and with an upstream, `knowledge/` tests, and checkout with `core.autocrlf=true`.
 
-## Оглавления документов формы monolith
+## Tables of contents for monolith-form documents
 
-В форме monolith общая джоба lefthook `knowledge` после архива закрытых вопросов зовёт проектный `knowledge/index.sh --stage`, если он есть; будит её теперь и правка журналов решений и уроков. Шаг CI «Оглавления собраны» в этой форме тоже зовёт скрипт (без аргумента) и краснеет, если дерево после него изменилось. Нет скрипта — оба шага пропускаются, форма catalog не меняется.
+In the monolith form, the shared lefthook job `knowledge`, after archiving closed questions, calls the project's `knowledge/index.sh --stage` if it exists; edits to the decision and lesson journals now trigger it too. The CI step "Tables of contents built" in this form also calls the script (without an argument) and turns red if the tree changed after it. No script — both steps are skipped; the catalog form doesn't change.
 
-Проекту со своим скриптом оглавлений, выключившему общую джобу `knowledge` (`skip: true`) ради своей, можно снять обе свои джобы. Скрипт должен понимать `--stage`: с ним — ставить в индекс то, что переписал (архив закрытых вопросов ставит `archive-questions.sh --stage`). Без снятия ничего не ломается: общая джоба остаётся выключенной, а CI начнёт сверять оглавления.
+A project with its own TOC script that disabled the shared `knowledge` job (`skip: true`) in favor of its own can drop both of its jobs. The script must understand `--stage`: with it, stage what it rewrote (the closed questions archive is staged by `archive-questions.sh --stage`). Nothing breaks without dropping them: the shared job stays disabled, and CI starts checking the tables of contents.
 
-## v1.0.0 — шаблон на rootstock
+## v1.0.0 — the template on rootstock
 
-Шаблон переходит с [Copier](https://copier.readthedocs.io/) на [rootstock](https://github.com/bodasooqa/rootstock). Файлы, которые получает проект, те же: все пять раскладок и monolith rootstock рендерит байт в байт как Copier.
+The template moves from [Copier](https://copier.readthedocs.io/) to [rootstock](https://github.com/bodasooqa/rootstock). The files a project gets are the same: rootstock renders all five layouts and monolith byte for byte like Copier.
 
-**Что изменилось:**
+**What changed:**
 
-- Конфиг шаблона — `rootstock.toml` вместо `copier.yml`. Новый проект: `rootstock new gh:bodasooqa/harness <каталог> --git`.
-- Запись проекта — `.rootstock.toml` вместо `.copier-answers.yml`: источник, версия, ответы (таблица `[answers]`), инвентарь файлов. Скрипты `knowledge/` (`due.sh`, `archive-questions.sh`, `index.sh`, `spec-unfolded.sh`) читают пути из неё.
-- `harness-update.yml` обновляет только `rootstock update`; pipx и uv раннеру больше не нужны. rootstock workflow ставит сам, закреплённой версией со сверкой суммы.
-- Стартовый файл, удалённый проектом, больше не возвращается на обновлении (Copier его пересоздавал).
+- Template config — `rootstock.toml` instead of `copier.yml`. New project: `rootstock new gh:bodasooqa/harness <directory> --git`.
+- Project record — `.rootstock.toml` instead of `.copier-answers.yml`: source, version, answers (the `[answers]` table), file inventory. The `knowledge/` scripts (`due.sh`, `archive-questions.sh`, `index.sh`, `spec-unfolded.sh`) read paths from it.
+- `harness-update.yml` updates only with `rootstock update`; the runner no longer needs pipx and uv. The workflow installs rootstock itself, at a pinned version with a checksum check.
+- A starter file deleted by the project no longer comes back on update (Copier recreated it).
 
-**Миграция:**
+**Migration:**
 
-1. **Проект на v0.5.x (выпуск-мост).** Проект на более ранней версии сначала обновляется до v0.5.x обычным PR: workflow `harness-update` (или `gh workflow run harness-update -f version=v0.5.0`), без workflow — `copier update --vcs-ref v0.5.0`. Workflow до моста не умеет rootstock: обновлением до v1.0.0 он сломал бы проект, а метка `harness:major` не даёт такому PR влиться самому.
-2. **PR до v1.0.0 приходит сам** с меткой `harness:major`, двумя коммитами: «Перевод харнесса на rootstock» (`rootstock import-copier`: `.rootstock.toml` вместо `.copier-answers.yml` на прежней версии, файлы проекта не меняются) и «Обновление харнесса до v1.0.0» (`rootstock update`). Проверить и влить вручную после зелёного CI.
-3. **Без workflow** — то же руками, на чистом дереве: `rootstock import-copier`, коммит, `rootstock update --to v1.0.0`, коммит.
-4. **Свои скрипты проекта**, которые читали `.copier-answers.yml` (в `.harness/local/`, своих джобах CI), переводятся на `.rootstock.toml`: ответы — в таблице `[answers]`, строками `ключ = "значение"`; версия — `version`, источник — `source` верхнего уровня.
-   Стартовые файлы обновление не трогает, поэтому `.harness/local/README.md` и `README.md` проекта по-прежнему говорят о Copier; свежий текст — в `template/` шаблона, переносится руками по желанию.
-5. **Локально** для ручных обновлений нужен rootstock (`cargo install rootstock` или бинарник из выпуска); copier больше не нужен.
+1. **Project on v0.5.x (bridge release).** A project on an earlier version first updates to v0.5.x with a regular PR: the `harness-update` workflow (or `gh workflow run harness-update -f version=v0.5.0`), without the workflow — `copier update --vcs-ref v0.5.0`. The workflow before the bridge can't do rootstock: updating to v1.0.0 would break the project, and the `harness:major` label keeps such a PR from merging itself.
+2. **The PR to v1.0.0 arrives by itself** with the `harness:major` label and two commits: «Перевод харнесса на rootstock» ("Move harness to rootstock"; `rootstock import-copier`: `.rootstock.toml` instead of `.copier-answers.yml` at the previous version, project files unchanged) and «Обновление харнесса до v1.0.0» ("Update harness to v1.0.0"; `rootstock update`). Review and merge manually after green CI.
+3. **Without the workflow** — the same by hand, on a clean tree: `rootstock import-copier`, commit, `rootstock update --to v1.0.0`, commit.
+4. **The project's own scripts** that read `.copier-answers.yml` (in `.harness/local/`, own CI jobs) switch to `.rootstock.toml`: answers are in the `[answers]` table, as lines `key = "value"`; version — `version`, source — top-level `source`.
+   The update doesn't touch starter files, so the project's `.harness/local/README.md` and `README.md` still talk about Copier; fresh text is in the template's `template/`, copied by hand if desired.
+5. **Locally**, manual updates need rootstock (`cargo install rootstock` or a release binary); copier is no longer needed.
