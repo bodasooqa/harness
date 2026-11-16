@@ -3,19 +3,19 @@ name: telegram-bot
 description: Use when writing or changing a Telegram bot in Rust — the Bot API client on plain reqwest, sending limits and the send queue with 429 handling, markup and escaping, long polling with getUpdates or a webhook, bot commands and /help, error classes, keeping the token out of logs, and testing all of it with paused time, fakes and a stub server.
 ---
 
-# Telegram-бот на Rust
+# Telegram bot in Rust
 
-Сначала проверь `.harness/local/skills/telegram-bot.md`: если файл есть, прочитай его до начала работы. Это дополнение проекта — боты проекта, их конфиг и ограничения; при расхождении с текстом ниже верно дополнение.
+First check `.harness/local/skills/telegram-bot.md`: if the file exists, read it before starting work. It is the project addendum — the project's bots, their config and constraints; where it disagrees with the text below, the addendum wins.
 
-Приёмы, которые уже стоили ошибок. Каждый — правило и причина. Числа (таймауты, паузы, пределы очереди) живут в секции `[telegram]` конфига, а не в коде. Факты о Bot API сверены с https://core.telegram.org/bots/api и https://core.telegram.org/bots/faq; что не сверено, помечено **(не проверено)**.
+Techniques that have already cost mistakes. Each one is a rule and a reason. Numbers (timeouts, pauses, queue limits) live in the `[telegram]` section of the config, not in code. Facts about the Bot API are checked against https://core.telegram.org/bots/api and https://core.telegram.org/bots/faq; whatever isn't checked is marked **(unverified)**.
 
-## Клиент: свой, на `reqwest`
+## Client: our own, on `reqwest`
 
-**Правило.** Тонкий клиент на `reqwest` и `serde`: структура `{ http, api_base: Url, timeout }` и один приватный `call`, через который идут все методы. `api_base` — ключ конфига, а не константа.
+**Rule.** A thin client on `reqwest` and `serde`: a `{ http, api_base: Url, timeout }` struct and a single private `call` that all methods go through. `api_base` is a config key, not a constant.
 
-**Причина.** Боту обычно хватает четырёх методов: `sendMessage`, `getUpdates`, `editMessageText`, `answerCallbackQuery`. Это пара сотен строк, а `reqwest` в проекте уже есть. Свой клиент даёт полный контроль над текстом ошибки, а токен лежит в URL (см. «Токен»). Ключ `api_base` позволяет тестам направить клиент на заглушку. Готовые крейты подробно не сравнивались. Если понадобится большой кусок API (платежи, медиа, inline-режим), взвесь крейт, но сначала проверь, что его ошибки не печатают URL запроса.
+**Reason.** A bot usually needs four methods: `sendMessage`, `getUpdates`, `editMessageText`, `answerCallbackQuery`. That's a couple hundred lines, and `reqwest` is already in the project. Our own client gives full control over the error text, and the token sits in the URL (see "Token"). The `api_base` key lets tests point the client at a stub. Ready-made crates haven't been compared in detail. If a big chunk of the API is needed (payments, media, inline mode), weigh a crate, but first check that its errors don't print the request URL.
 
-Клиент собирается через `reqwest::Client::builder().build()?`: `Client::new()` паникует, если не поднялся TLS-бэкенд. Таймаут ставится на каждый запрос, потому что у долгого опроса он свой.
+The client is built via `reqwest::Client::builder().build()?`: `Client::new()` panics if the TLS backend fails to start. The timeout is set per request, because long polling has its own.
 
 ```rust
 async fn call<B: Serialize>(&self, token: &BotToken, method: &str, body: &B, timeout: Duration)
@@ -45,11 +45,11 @@ async fn call<B: Serialize>(&self, token: &BotToken, method: &str, body: &B, tim
 }
 ```
 
-## Токен
+## Token
 
-**Правило.** Токен приходит только из конфига или окружения, без значения по умолчанию. Он завёрнут в тип-обёртку: `Debug` печатает `BotToken(***)`, `Display` нет, строку отдаёт только `expose()`, и зовёт его только клиент.
+**Rule.** The token comes only from the config or the environment, with no default value. It is wrapped in a newtype: `Debug` prints `BotToken(***)`, there is no `Display`, only `expose()` returns the string, and only the client calls it.
 
-**Правило.** Токен лежит в пути URL (`/bot<token>/<method>`), поэтому любая `reqwest::Error` превращается в строку только через `without_url()`. Тип ошибки клиента не реализует `From<reqwest::Error>`: так `?` не протащит сырую ошибку в обход правила. `without_url()` не трогает цепочку `source()`, и её стоит приклеить, иначе причина будет голым «error sending request».
+**Rule.** The token sits in the URL path (`/bot<token>/<method>`), so any `reqwest::Error` is turned into a string only via `without_url()`. The client's error type doesn't implement `From<reqwest::Error>`: that way `?` can't sneak a raw error past the rule. `without_url()` doesn't touch the `source()` chain, and it's worth appending it, otherwise the cause is a bare "error sending request".
 
 ```rust
 fn describe_reqwest_error(error: reqwest::Error) -> String {
@@ -64,39 +64,39 @@ fn describe_reqwest_error(error: reqwest::Error) -> String {
 }
 ```
 
-**Проверка.** Тесты ставят токен-метку (`123456:secret-marker`) и проверяют, что её нет ни в `Display` и `Debug` ошибки, ни в теле HTTP-ответа приложения, ни в перехваченном журнале. Сетевую ошибку даёт закрытый порт, отказ — заглушка.
+**Check.** Tests set a marker token (`123456:secret-marker`) and check that it appears neither in the error's `Display` and `Debug`, nor in the body of the application's HTTP response, nor in the captured log. A closed port produces a network error, a stub produces a rejection.
 
-## Ошибки
+## Errors
 
-| Что пришло | Вариант | Повтор |
+| What came back | Variant | Retry |
 |---|---|---|
-| Сеть, таймаут, 5xx | `Unavailable(reason)` | да, с растущей паузой |
-| 429 | `RetryAfter { after, description }` | всегда, не раньше `after` |
-| Прочие 4xx | `Rejected(description)` | нет: ответ не изменится |
+| Network, timeout, 5xx | `Unavailable(reason)` | yes, with a growing pause |
+| 429 | `RetryAfter { after, description }` | always, no sooner than `after` |
+| Other 4xx | `Rejected(description)` | no: the answer won't change |
 
-- Ветвление идёт по HTTP-статусу. Поле `error_code` документация называет «subject to change», а `description` — текст для человека, не для разбора.
-- `retry_after` — секунды до разрешённого повтора (`ResponseParameters`). Его нет — повтор по обычной паузе, а не немедленно.
-- Пользователь, заблокировавший бота, даёт 4xx, то есть `Rejected`. Ожидаемый ответ — 403 с описанием «Forbidden: bot was blocked by the user» **(не проверено)**. Повторять бессмысленно. Промежуток до следующей отправки ставится и после неудачи: иначе мёртвый чат получал бы запрос на каждое событие. Блокировку можно узнать и заранее: в личном чате обновление `my_chat_member` приходит только при блокировке или разблокировке бота пользователем (сверено).
-- Отказ Telegram не роняет процесс. Отправка живёт в своей задаче, ошибка уходит в журнал на `warn`, следующая итерация идёт дальше.
+- Branching is on the HTTP status. The documentation calls the `error_code` field "subject to change", and `description` is text for humans, not for parsing.
+- `retry_after` is the number of seconds until a retry is allowed (`ResponseParameters`). If it's absent — retry after the usual pause, not immediately.
+- A user who blocked the bot produces a 4xx, i.e. `Rejected`. The expected answer is 403 with the description "Forbidden: bot was blocked by the user" **(unverified)**. Retrying is pointless. The interval before the next send is set after a failure too: otherwise a dead chat would get a request on every event. Blocking can also be learned in advance: in a private chat the `my_chat_member` update arrives only when the user blocks or unblocks the bot (verified).
+- A Telegram rejection doesn't crash the process. Sending lives in its own task, the error goes to the log at `warn`, the next iteration carries on.
 
-## Лимиты и очередь
+## Limits and the queue
 
-Лимиты из FAQ: в одном чате — не чаще сообщения в секунду, короткие всплески допустимы. В группе — не больше 20 сообщений в минуту. Рассылка — около 30 сообщений в секунду. Дальше Telegram отвечает 429. Текст `sendMessage` — от 1 до 4096 символов после разбора разметки.
+Limits from the FAQ: in one chat — no more than a message per second, short bursts are allowed. In a group — no more than 20 messages per minute. Broadcasting — about 30 messages per second. Beyond that Telegram answers 429. The `sendMessage` text is 1 to 4096 characters after markup parsing.
 
-**Правило.** Одна задача-диспетчер держит состояние по получателю: `pending`, `next_allowed: Option<Instant>`, `in_flight`. Партию она отправляет в отдельной задаче `tokio::spawn`, а итог возвращается вторым каналом. **Причина:** пауза или 429 у одного получателя не задерживает остальных.
+**Rule.** A single dispatcher task keeps per-recipient state: `pending`, `next_allowed: Option<Instant>`, `in_flight`. It sends a batch in a separate `tokio::spawn` task, and the result comes back on a second channel. **Reason:** a pause or a 429 for one recipient doesn't delay the others.
 
-**Правило.** Промежуток считается от конца отправки, включая её повторы. **Причина:** отправка, затянутая повторами дольше промежутка, иначе дала бы два сообщения подряд.
+**Rule.** The interval is counted from the end of a send, including its retries. **Reason:** otherwise a send dragged out by retries longer than the interval would produce two messages in a row.
 
-**Правило.** Всё, что пришло за промежуток, уходит одним сообщением. Длинная склейка режется на части по границе записи, не посреди неё. Очередь ограничена: сверх предела выбрасывается самое старое, выброшенное считается и первой строкой следующего сообщения выходит «Пропущено: N». **Причина:** склейка держит поток сообщений малым при любом всплеске, а молча пропавшая запись читается как «ничего не было».
+**Rule.** Everything that arrived during the interval goes out as one message. A long merged message is split into parts at a record boundary, not in the middle of one. The queue is bounded: beyond the limit the oldest is dropped, dropped items are counted, and the first line of the next message is "Skipped: N". **Reason:** merging keeps the message stream small under any burst, and a silently lost record reads as "nothing happened".
 
-**Правило повтора.** Пауза растёт ×2 от начальной до предела, через `saturating_mul`. На 429 пауза равна `max(пауза, retry_after)`. Названный срок соблюдается и сверх предела роста, но обрезается своим пределом `retry_after_max`: огромный срок не должен ни переполнить сложение `Instant` (`checked_add`), ни отложить доставку навсегда.
+**Retry rule.** The pause grows ×2 from the initial value up to the limit, via `saturating_mul`. On 429 the pause is `max(pause, retry_after)`. The stated delay is respected even beyond the growth limit, but capped by its own limit `retry_after_max`: a huge delay must neither overflow `Instant` addition (`checked_add`) nor postpone delivery forever.
 
 ```rust
 pub async fn send_with_retries<C: MessageSender>(client: &C, policy: &RetryPolicy,
     token: &BotToken, chat_id: &str, text: &str) -> Result<(), SendError>
 {
     let mut pause = policy.backoff_initial;
-    let mut last = SendError::Unavailable("нет ни одной попытки".to_owned());
+    let mut last = SendError::Unavailable("no attempts made".to_owned());
     for attempt in 0..policy.attempts {
         match client.send(token, chat_id, text).await {
             Ok(()) => return Ok(()),
@@ -120,18 +120,18 @@ pub async fn send_with_retries<C: MessageSender>(client: &C, policy: &RetryPolic
 }
 ```
 
-### Будильник без холостого цикла
+### An alarm without a busy loop
 
-**Правило.** Ветка `sleep_until` в `select!` диспетчера ждёт ближайший срок только тех записей, у которых пробуждение что-то сделает: есть что отправить или запись можно убрать. Нет таких — `std::future::pending()`.
+**Rule.** The `sleep_until` branch in the dispatcher's `select!` waits for the nearest deadline only of those entries for which waking up will do something: there is something to send, or the entry can be removed. None like that — `std::future::pending()`.
 
-**Причина.** Однажды запись, которую уже нельзя было убрать (держала счёт пропущенного), осталась в выборке будильника со сроком в прошлом. `sleep_until(прошлое)` срабатывал сразу, делать было нечего, и цикл занимал ядро на 100 %. Тест на паузированных часах цикл просто прокручивал и оставался зелёным. Инвариант «в выборке только те, кого есть зачем будить» проверяется счётчиком пробуждений под `#[cfg(test)]`: после нескольких `advance` без событий он не растёт. Правку условия уборки ревьюят вместе с будильником.
+**Reason.** Once, an entry that could no longer be removed (it held the skipped count) stayed in the alarm's selection with a deadline in the past. `sleep_until(past)` fired immediately, there was nothing to do, and the loop took a core at 100%. The test on paused time just spun the loop and stayed green. The invariant "only those worth waking are in the selection" is checked by a wake-up counter under `#[cfg(test)]`: after several `advance` calls without events it doesn't grow. A change to the cleanup condition is reviewed together with the alarm.
 
 ```rust
 fn earliest_wake(users: &HashMap<UserId, UserState>) -> Option<Instant> {
     users.values()
-        // Есть что отправить — или запись без дела, которую уборка уберёт в срок.
-        // Запись, которую уборка не уберёт, сюда не попадает: её срок в прошлом
-        // будил бы цикл на каждом обороте.
+        // There is something to send — or an idle entry that cleanup will remove on time.
+        // An entry that cleanup won't remove doesn't get here: its deadline in the past
+        // would wake the loop on every turn.
         .filter(|s| !s.in_flight && (!s.pending.is_empty() || s.removable_when_due()))
         .filter_map(|s| s.next_allowed)
         .min()
@@ -145,13 +145,13 @@ async fn wait_until(at: Option<Instant>) {
 }
 ```
 
-## Разметка и экранирование
+## Markup and escaping
 
-**Правило.** По умолчанию `parse_mode` не передаётся: текст уходит как есть, экранировать нечего, а имя с `_` или `*` не ломает запрос. Разметка нужна — выбирай `HTML`.
+**Rule.** By default `parse_mode` is not passed: the text goes as is, there is nothing to escape, and a name with `_` or `*` doesn't break the request. If markup is needed — choose `HTML`.
 
-- **HTML:** все `&`, `<` и `>` вне тегов заменяются на `&amp;`, `&lt;` и `&gt;` (сверено). Сначала экранируются вставляемые строки, потом вокруг них ставятся теги.
-- **MarkdownV2:** вне `pre` и `code` обратной косой чертой экранируются ``_ * [ ] ( ) ~ ` > # + - = | { } . !``, а сама `\` — всегда. Внутри `pre` и `code` экранируются только `` ` `` и `\`, внутри `(...)` ссылки — `)` и `\` (сверено). Набор велик и легко забыть знак, поэтому HTML надёжнее.
-- Предел 4096 считается после разбора разметки. Длина в байтах (`str::len`) не меньше длины в символах: резать по ней — с запасом.
+- **HTML:** every `&`, `<`, and `>` outside tags is replaced with `&amp;`, `&lt;`, and `&gt;` (verified). Inserted strings are escaped first, then the tags are placed around them.
+- **MarkdownV2:** outside `pre` and `code`, ``_ * [ ] ( ) ~ ` > # + - = | { } . !`` are escaped with a backslash, and `\` itself always is. Inside `pre` and `code` only `` ` `` and `\` are escaped, inside the `(...)` of a link — `)` and `\` (verified). The set is large and a character is easy to forget, so HTML is more reliable.
+- The 4096 limit is counted after markup parsing. The length in bytes (`str::len`) is no less than the length in characters: splitting by it leaves a margin.
 
 ```rust
 fn escape_html(text: &str) -> String {
@@ -168,18 +168,18 @@ fn escape_html(text: &str) -> String {
 }
 ```
 
-## Обновления: долгий опрос или webhook
+## Updates: long polling or a webhook
 
-**Правило.** По умолчанию — долгий опрос `getUpdates`. Webhook требует публичного HTTPS-адреса и проверки секрета: заголовок `X-Telegram-Bot-Api-Secret-Token` должен совпасть с `secret_token` из `setWebhook`. Пока webhook установлен, `getUpdates` не работает (сверено). Процесс, который и так ходит в Telegram исходящими запросами, обходится опросом.
+**Rule.** By default — `getUpdates` long polling. A webhook requires a public HTTPS address and a secret check: the `X-Telegram-Bot-Api-Secret-Token` header must match the `secret_token` from `setWebhook`. While a webhook is set, `getUpdates` doesn't work (verified). A process that already talks to Telegram with outgoing requests gets by with polling.
 
-- **offset.** Обновление подтверждено, когда `getUpdates` вызван с `offset` больше его `update_id`. После обработки ставится `offset = update_id + 1`. Неподтверждённые обновления Telegram хранит до 24 часов (сверено).
-- **offset в памяти.** После перезапуска первый опрос идёт без offset, и последний обработанный пакет приходит повторно. Обработчики поэтому идемпотентны. Сменился токен — offset сбрасывается: у другого бота свой счёт.
-- **Таймаут запроса** — `timeout` опроса плюс обычный таймаут запроса, через `saturating_add`. Иначе долгий опрос обрывается собственным таймаутом.
-- **`allowed_updates`** перечисляется явно, только нужные виды.
-- **Разбор по одному обновлению.** Неразборчивое обновление сводится к одному `update_id`, и offset уходит за него. Иначе опрос навсегда застревает на одном обновлении.
-- **Один опрашивающий на токен.** Второй процесс с тем же ботом получает отказ; ожидаемый код — 409 Conflict **(код не проверен по документации)**. Он пишет `warn` и ждёт.
-- **Чат проверяется.** Если бот служит конкретному чату, обновления из других чатов пропускаются без ответа, только offset сдвигается. `chat.id` — `i64`.
-- **Нажатие кнопки.** Сначала `answerCallbackQuery`, даже без текста: до этого клиент показывает у кнопки индикатор ожидания (сверено). `callback_data` — от 1 до 64 байт (сверено). `message` у нажатия необязателен: без него чат не проверить.
+- **offset.** An update is confirmed when `getUpdates` is called with an `offset` greater than its `update_id`. After processing, `offset = update_id + 1` is set. Telegram keeps unconfirmed updates for up to 24 hours (verified).
+- **offset in memory.** After a restart the first poll goes without an offset, and the last processed batch arrives again. So handlers are idempotent. The token changed — the offset is reset: another bot has its own counter.
+- **Request timeout** — the poll `timeout` plus the usual request timeout, via `saturating_add`. Otherwise long polling is cut off by its own timeout.
+- **`allowed_updates`** is listed explicitly, only the needed kinds.
+- **Parsing one update at a time.** An unparseable update is reduced to its `update_id`, and the offset moves past it. Otherwise polling gets stuck on one update forever.
+- **One poller per token.** A second process with the same bot gets a rejection; the expected code is 409 Conflict **(code not verified against the documentation)**. It writes a `warn` and waits.
+- **The chat is checked.** If the bot serves a specific chat, updates from other chats are skipped without a reply, only the offset moves. `chat.id` is `i64`.
+- **Button press.** `answerCallbackQuery` first, even without text: until then the client shows a waiting indicator on the button (verified). `callback_data` is 1 to 64 bytes (verified). The press's `message` is optional: without it the chat can't be checked.
 
 ```rust
 let mut offset: Option<i64> = None;
@@ -194,11 +194,11 @@ loop {
             }
         }
         Err(SendError::RetryAfter { after: Some(after), description }) => {
-            tracing::warn!(%description, "Telegram просит подождать");
+            tracing::warn!(%description, "Telegram asks to wait");
             tokio::time::sleep(after.min(cfg.retry_after_max())).await;
         }
         Err(e) => {
-            tracing::warn!(error = %e, "опрос Telegram не удался");
+            tracing::warn!(error = %e, "Telegram poll failed");
             let current = pause.unwrap_or(cfg.backoff_initial());
             tokio::time::sleep(current).await;
             pause = Some(current.saturating_mul(2).min(cfg.backoff_max()));
@@ -207,9 +207,9 @@ loop {
 }
 ```
 
-## Команды и `/help`
+## Commands and `/help`
 
-**Правило разбора.** Команда — первое слово текста. Суффикс `@<имя_бота>`, который Telegram дописывает в группах и по нажатию подсказки, отрезается. `/start` (его шлёт клиент при первом открытии бота) отвечает тем же, что `/help`. Неверные аргументы получают подсказку формата. Текст, который не команда, остаётся без ответа. Разбор — чистая функция с таблицей тестов: `/help@bot`, пробелы по краям, `/helpme` как не-команда.
+**Parsing rule.** A command is the first word of the text. The `@<bot_name>` suffix, which Telegram appends in groups and when a suggestion is tapped, is cut off. `/start` (the client sends it when the bot is first opened) answers the same as `/help`. Wrong arguments get a format hint. Text that isn't a command gets no reply. Parsing is a pure function with a table of tests: `/help@bot`, surrounding whitespace, `/helpme` as a non-command.
 
 ```rust
 pub fn parse(text: &str) -> Option<Command> {
@@ -229,13 +229,13 @@ pub fn parse(text: &str) -> Option<Command> {
 }
 ```
 
-**Правило справки.** Текст `/help` — константа рядом с разбором, и тест сверяет её построчно. Новая команда без строки в справке ломает тест, а не доходит до пользователя молча.
+**Help rule.** The `/help` text is a constant next to the parser, and a test checks it line by line. A new command without a line in the help breaks the test rather than silently reaching the user.
 
-**`setMyCommands`.** Меню команд видит любой, кто откроет бота. Бот отвечает только своему чату — меню не заводится либо ставится с областью `BotCommandScopeChat` на этот чат. Ограничения (сверено): имя команды — от 1 до 32 символов, только строчные латинские буквы, цифры и `_`. Описание — от 1 до 256 символов, команд не больше 100.
+**`setMyCommands`.** The command menu is visible to anyone who opens the bot. If the bot answers only its own chat, either no menu is set up or it is set with the `BotCommandScopeChat` scope for that chat. Constraints (verified): a command name is 1 to 32 characters, only lowercase Latin letters, digits, and `_`. A description is 1 to 256 characters, no more than 100 commands.
 
-## Тестирование
+## Testing
 
-**Узкие трейты.** Диспетчер и цикл опроса получают зависимости через трейты в объём того, что им нужно: отправитель `MessageSender` и источник настроек `DeliverySource`. Настоящие реализации делегируют клиенту и хранилищу, тестовые живут в памяти.
+**Narrow traits.** The dispatcher and the poll loop get their dependencies through traits scoped to what they need: the sender `MessageSender` and the settings source `DeliverySource`. The real implementations delegate to the client and the storage; the test ones live in memory.
 
 ```rust
 pub trait MessageSender: Send + Sync {
@@ -244,11 +244,11 @@ pub trait MessageSender: Send + Sync {
 }
 ```
 
-**Паузированные часы — только с подделками в памяти.** Под `tokio::time::pause()` простаивающий рантайм сам двигает часы до ближайшего таймера. Если тест ждёт настоящую базу или HTTP-заглушку фиксированным числом `yield_now`, на медленной машине часы убегают к таймауту пула или запроса. Локально такой тест зеленел десятки раз подряд, а на CI зависал. Признак беды: `pause()` в одном тесте с настоящим пулом, `reqwest` или «подождать N уступок планировщику».
+**Paused time — only with in-memory fakes.** Under `tokio::time::pause()`, an idle runtime advances the clock to the nearest timer on its own. If a test waits for a real database or an HTTP stub with a fixed number of `yield_now`, on a slow machine the clock runs off to the pool or request timeout. Locally such a test went green dozens of times in a row, and hung on CI. Warning sign: `pause()` in the same test as a real pool, `reqwest`, or "wait N scheduler yields".
 
-**Настоящая сеть — отдельным файлом.** Сценарии, которым нужна сеть или база, лежат в своём файле тестов в реальном времени, с малыми таймаутами и числом попыток. Заглушка Bot API — маленький HTTP-сервер на маршруте `/bot{token}/sendMessage`, и клиент смотрит на неё через `api_base`. Сетевую ошибку даёт закрытый порт.
+**Real network — in a separate file.** Scenarios that need the network or a database live in their own real-time test file, with small timeouts and attempt counts. The Bot API stub is a small HTTP server on the `/bot{token}/sendMessage` route, and the client points at it via `api_base`. A closed port produces a network error.
 
-**Граница таймера.** На паузированных часах `advance(d)` не будит таймер, срок которого ровно через `d`. Хелпер продвигает часы на `d + 1 мс`. Гипотеза о механизме: драйвер времени tokio округляет срок вверх до миллисекунды, а паузированные часы стартуют с дробной частью **(документацией tokio не проверено)**. Тест, который «висит» на паузированных часах, сначала проверяют на эту границу, и только потом подозревают код.
+**Timer boundary.** On paused time, `advance(d)` doesn't wake a timer whose deadline is exactly `d` away. The helper advances the clock by `d + 1 ms`. A hypothesis about the mechanism: the tokio time driver rounds the deadline up to a millisecond, and paused time starts with a fractional part **(not verified against the tokio documentation)**. A test that "hangs" on paused time is first checked for this boundary, and only then is the code suspected.
 
 ```rust
 async fn advance(d: Duration) {
@@ -259,7 +259,7 @@ async fn advance(d: Duration) {
 }
 ```
 
-**Перехват журнала.** Подписчик `set_default` ставится на поток, но кэш интереса места вызова у `tracing-core` один на процесс. Пока в процессе зарегистрирован ровно один диспетчер (`has_just_one`), интерес нового места вызова считается по подписчику того потока, который задел его первым. Параллельный тест без подписчика кэширует `Interest::never`, и перехват теряет строки. `rebuild_interest_cache()` не лечит: место вызова, впервые задетое после него, снова считается по одному потоку. Поэтому перехват ставится только через общий хелпер. Он держит второй, вечный диспетчер `NoSubscriber`, и реестр опрашивает всех живых подписчиков. Хелпер нужен и в интеграционных тестах, и в юнит-тестах крейта: их бинарь тоже общий. Не закрыт один случай: сосед задевает место вызова одновременно с первым перехватом в процессе. Такой тест держат в файле одного.
+**Log capture.** A `set_default` subscriber is set per thread, but `tracing-core`'s callsite interest cache is one per process. While exactly one dispatcher is registered in the process (`has_just_one`), the interest of a new callsite is computed from the subscriber of the thread that hit it first. A parallel test without a subscriber caches `Interest::never`, and the capture loses lines. `rebuild_interest_cache()` doesn't cure it: a callsite first hit after it is again computed from a single thread. So capture is set up only via a shared helper. It holds a second, permanent `NoSubscriber` dispatcher, and the registry then polls all live subscribers. The helper is needed both in integration tests and in the crate's unit tests: their binary is shared too. One case is not covered: a neighbor hits a callsite at the same moment as the first capture in the process. Such a test is kept alone in its file.
 
 ```rust
 pub fn capture_logs<S>(subscriber: S) -> tracing::subscriber::DefaultGuard
@@ -272,11 +272,11 @@ where
 }
 ```
 
-## Что обязано быть покрыто
+## What must be covered
 
-- Разбор ответа: успех, 429 с `retry_after` и без, 5xx, 4xx, тело не JSON.
-- Повторы: `Rejected` — одна попытка; 429 ждёт не меньше срока; пауза не растёт выше предела.
-- Очередь: склейка за промежуток, резка по 4096 на границе записи, вытеснение старого и «Пропущено: N», независимость получателей, будильник не крутится вхолостую.
-- Опрос: offset после пакета, неразборчивое обновление не стопорит offset, смена токена сбрасывает offset, чужой чат без ответа.
-- Команды: таблица разбора и построчная сверка `/help`.
-- Токен: нет в ошибках, ответах и журнале.
+- Response parsing: success, 429 with and without `retry_after`, 5xx, 4xx, a non-JSON body.
+- Retries: `Rejected` — one attempt; 429 waits no less than the delay; the pause doesn't grow above the limit.
+- Queue: merging over the interval, splitting at 4096 on a record boundary, evicting the oldest and "Skipped: N", recipient independence, the alarm doesn't spin idle.
+- Polling: offset after a batch, an unparseable update doesn't stall the offset, a token change resets the offset, a foreign chat gets no reply.
+- Commands: the parsing table and the line-by-line check of `/help`.
+- Token: absent from errors, responses, and the log.

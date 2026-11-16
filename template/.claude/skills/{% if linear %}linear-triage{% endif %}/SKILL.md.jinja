@@ -1,79 +1,79 @@
 {% set stages = stages_path %}
 ---
 name: linear-triage
-description: Use when the owner asks to разобрать Linear or входящие от заказчика, when a question has to go to the customer, when a change, fix or harness PR starts (it needs its {{ tracker_prefix }}-N), or when any tracked work reaches a PR, a merge or a deploy.
+description: Use when the owner asks to triage Linear or the customer's incoming issues, when a question has to go to the customer, when a change, fix or harness PR starts (it needs its {{ tracker_prefix }}-N), or when any tracked work reaches a PR, a merge or a deploy.
 ---
 
-# Linear: разбор и ведение работы
+# Linear: triage and tracking work
 
-Сначала проверь `.harness/local/skills/linear-triage.md`: если файл есть, прочитай его до начала работы. Это дополнение проекта — кто есть кто в workspace, как проверить выкатку, свои метки и правила разбора; при расхождении с текстом ниже верно дополнение.
+First check `.harness/local/skills/linear-triage.md`: if the file exists, read it before starting work. It is the project addendum — who is who in the workspace, how to verify a rollout, the project's own labels and triage rules; where it disagrees with the text below, the addendum wins.
 
-Linear несёт две роли. Первая — канал с заказчиком: он может быть не технарём, пишет задачи и замечания своими словами и читает ответы там же. Вторая — журнал всей работы: каждый change, фикс и PR обвязки — задача в проекте этапа. Linear не план: план живёт в `openspec/changes/<name>/tasks.md`, требования — в ТЗ (`{{ spec_path }}`), открытые вопросы — в `{{ open_questions_path }}`.
+Linear plays two roles. The first is the channel with the customer: they may not be technical, they write issues and remarks in their own words and read the answers there. The second is the journal of all work: every change, fix, and harness PR is an issue in the stage's project. Linear is not the plan: the plan lives in `openspec/changes/<name>/tasks.md`, requirements in the spec (`{{ spec_path }}`), open questions in `{{ open_questions_path }}`.
 
-Работа с Linear идёт через его MCP-сервер.
+Linear is accessed through its MCP server.
 
-## Ведение работы
+## Tracking work
 
-- **Одна задача на change, фикс или PR обвязки.** Заводится до первого пуша: при propose, при начале фикса. Проект — текущий этап (таблица этапов `{{ stages }}`), исполнитель — владелец, метки — одна из группы `Type` и области. Описание: имя change'а, параграф ТЗ, что меняется. Пункты `tasks.md` задачами не становятся.
-- **`{{ tracker_prefix }}-N` — в начале заголовка PR** («{{ tracker_prefix }}-34 <пакет>: …») и в теле. Так Linear привязывает PR к задаче.
-- **Работа из задачи заказчика** ведётся в его задаче, новая не заводится.
-- **Исполнитель в параллельной сессии** номер получает у куратора, задачу сам не заводит.
+- **One issue per change, fix, or harness PR.** Created before the first push: at propose, at the start of a fix. Project — the current stage (stage table `{{ stages }}`), assignee — the owner, labels — one from the `Type` group plus areas. Description: change name, spec paragraph, what changes. Items of `tasks.md` don't become issues.
+- **`{{ tracker_prefix }}-N` at the start of the PR title** ("{{ tracker_prefix }}-34 <package>: …") and in the body. That is how Linear links the PR to the issue.
+- **Work from a customer issue** is tracked in that issue; no new one is created.
+- **An executor in a parallel session** gets the number from the curator and doesn't create the issue itself.
 
-Разбор делает главная сессия, субагенту он не отдаётся: каждая задача — это решение, куда ей идти.
+Triage is done by the main session and is not handed to a subagent: every issue is a decision about where it goes.
 
-## Кто есть кто
+## Who is who
 
-Владелец решает требования и правит ТЗ. Заказчик — тот, для кого делается продукт и от кого приходят задачи и замечания. Кто есть кто в workspace — записано в дополнении скилла (`.harness/local/skills/linear-triage.md`) или в `AGENTS.md`; если нет и участников больше двух — спросить владельца, а не угадывать.
+The owner decides requirements and edits the spec. The customer is the one the product is built for and from whom issues and remarks come. Who is who in the workspace is recorded in the skill addendum (`.harness/local/skills/linear-triage.md`) or in `AGENTS.md`; if it isn't and there are more than two members, ask the owner rather than guess.
 
-## Неразобранная задача
+## Untriaged issue
 
-Неразобранная — та, у которой нет проекта и которая не в Canceled. У разобранной проект есть всегда: текущий этап или следующий. Выборка — задачи без фильтра проекта, затем отбросить задачи с проектом.
+Untriaged is an issue that has no project and is not in Canceled. A triaged issue always has a project: the current stage or the next one. Query — issues without a project filter, then drop the ones with a project.
 
-## Разбор одной задачи
+## Triaging one issue
 
-1. **Понять, о чём просят.** Не понятно — комментарий заказчику с вопросом. Задача остаётся без проекта, пока ответа нет.
-2. **Назвать вид**, и от вида зависит маршрут:
+1. **Understand what is asked.** Unclear — a comment to the customer with a question. The issue stays without a project until there is an answer.
+2. **Name the kind**; the route depends on it:
 
-| Вид | Признак | Маршрут |
+| Kind | Sign | Route |
 |---|---|---|
-| Ошибка | Система делает не то, что уже записано в ТЗ или `openspec/specs/` | `Bug`. Ведётся change'ем этапа или исправлением, решаем сами |
-| Просьба | Нужно то, чего в ТЗ нет: новая метрика, экран, правило | `Feature` и вопрос владельцу. Требования без ТЗ не бывает: пока владелец не внёс просьбу в ТЗ, change из неё не заводится |
-| Вопрос «как это работает» | Заказчик спрашивает, а не просит | Ответ комментарием, задача — Done |
-| Ответ на наш вопрос | Заказчик написал задачу вместо комментария | Перенести ответ в задачу с вопросом, эту — Duplicate |
+| Bug | The system does something other than what is already written in the spec or `openspec/specs/` | `Bug`. Handled by a stage change or a fix; we decide ourselves |
+| Request | Something not in the spec is needed: a new metric, screen, rule | `Feature` and a question to the owner. There are no requirements without the spec: until the owner adds the request to the spec, no change is created from it |
+| "How does this work" question | The customer asks rather than requests | Answer in a comment, issue — Done |
+| Answer to our question | The customer wrote an issue instead of a comment | Move the answer to the issue with the question, this one — Duplicate |
 
-3. **Разложить.** Проект этапа, одна метка группы `Type` (`Bug`, `Feature`, `Improvement`), метки области (по пакетам проекта и `harness` для обвязки) и `Customer` для задач заказчика. Метки — по-английски. Процессные метки — `Customer`, `Question for customer`, `Awaiting deploy`.
-4. **Ответить заказчику комментарием**: что поняли и что дальше — «взяли», «спросили владельца», «уже так работает, вот где посмотреть».
+3. **File it.** The stage project, one label from the `Type` group (`Bug`, `Feature`, `Improvement`), area labels (by project packages, and `harness` for the harness), and `Customer` for customer issues. Labels are in English. Process labels — `Customer`, `Question for customer`, `Awaiting deploy`.
+4. **Reply to the customer in a comment**: what we understood and what's next — "taken", "asked the owner", "it already works this way, here is where to look".
 
-## Как писать заказчику
+## How to write to the customer
 
-Его словами. Из ТЗ можно только слова раздела терминов. Внутренние имена кода, состояния, номера параграфов, имена changes и файлов — нельзя. Пример и варианты ответа лучше абстракции. Если ответ зависит от того, как заказчик пользуется продуктом, — вопрос ему. Если от того, как мы храним и когда делаем, — владельцу.
+In their words. From the spec, only the words of the glossary section. Internal code names, states, paragraph numbers, change and file names — not allowed. An example and answer options are better than abstraction. If the answer depends on how the customer uses the product — ask them. If it depends on how we store things and when we do them — ask the owner.
 
-## Наш вопрос заказчику
+## Our question to the customer
 
-Задача в проекте текущего этапа. Заголовок — сам вопрос, описание — текст для заказчика с примером, метка `Question for customer`, исполнитель — заказчик. В `{{ open_questions_path }}` у вопроса строка `Linear: {{ tracker_prefix }}-N`. Ответ пришёл — вопрос закрывается скиллом `knowledge-note` с цитатой ответа, задача — Done.
+An issue in the current stage's project. Title — the question itself, description — text for the customer with an example, label `Question for customer`, assignee — the customer. In `{{ open_questions_path }}` the question has a line `Linear: {{ tracker_prefix }}-N`. When the answer arrives, the question is closed with the `knowledge-note` skill quoting the answer, and the issue goes to Done.
 
-## Дальше по жизни задачи
+## Further along the issue's life
 
-| Событие | В Linear |
+| Event | In Linear |
 |---|---|
-| Заведён change или начат фикс | In Progress, имя change'а в описании |
-| Открыт PR | In Review, ссылка на PR |
-| PR влит | метка `Awaiting deploy` |
-| Выкачено | Done, снять `Awaiting deploy`; у задачи заказчика — комментарий ему: что изменилось и как проверить, его словами |
-| Change брошен | Canceled с причиной |
+| Change created or fix started | In Progress, change name in the description |
+| PR opened | In Review, link to the PR |
+| PR merged | label `Awaiting deploy` |
+| Rolled out | Done, remove `Awaiting deploy`; on a customer issue — a comment to them: what changed and how to check it, in their words |
+| Change abandoned | Canceled with the reason |
 
-Работа без выкатки (ТЗ, `knowledge/`, обвязка) выкатки не ждёт: Done при слиянии. Как проверить, что коммит слияния выкачен, — дополнение скилла; если его нет — спросить владельца и предложить записать ответ туда; каждый разбор проверяет и эту колонку: задачи с `Awaiting deploy` закрываются, как только их коммит выкачен.
+Work without a rollout (spec, `knowledge/`, harness) doesn't wait for one: Done on merge. How to check that the merge commit is rolled out is in the skill addendum; if there is none, ask the owner and offer to record the answer there. Every triage also checks this column: issues with `Awaiting deploy` are closed as soon as their commit is rolled out.
 
-Статусы двигаем только мы: автоматика Git в Linear держится выключенной, и номер `{{ tracker_prefix }}-N` в PR или ветке лишь добавляет к задаче ссылку. Если статус сменился сам, значит автоматику включили. Задачу вернуть в прежний статус и сказать владельцу.
+Only we move statuses: Linear's Git automation is kept off, and the `{{ tracker_prefix }}-N` number in a PR or branch only adds a link to the issue. If a status changed by itself, the automation was turned on. Return the issue to its previous status and tell the owner.
 
-## Отчёт владельцу
+## Report to the owner
 
-Три списка: что разложено и куда, что ждёт его решения (просьбы вне ТЗ), что ушло заказчику вопросом. Пустой разбор — одна строка.
+Three lists: what was filed and where, what awaits their decision (requests outside the spec), what went to the customer as a question. An empty triage is one line.
 
-## Чего не делать
+## What not to do
 
-- Не заводить change из просьбы, которой нет в ТЗ, и не дописывать ТЗ самому.
-- Не переносить в Linear пункты `tasks.md` и вопросы владельцу: вопросы владельцу задаются в чате.
-- Не пушить change или фикс без задачи: работа, которой нет в Linear, для владельца не существует.
-- Не ставить Done при слиянии кода, который ещё не выкачен: изменение видно только после выкатки.
-- Не оставлять задачу заказчика без ответа: разобранная задача всегда несёт комментарий.
+- Don't create a change from a request that isn't in the spec, and don't add to the spec yourself.
+- Don't move `tasks.md` items or questions for the owner into Linear: questions for the owner are asked in chat.
+- Don't push a change or fix without an issue: work that isn't in Linear doesn't exist for the owner.
+- Don't set Done on merging code that isn't rolled out yet: the change is visible only after rollout.
+- Don't leave a customer issue without an answer: a triaged issue always carries a comment.

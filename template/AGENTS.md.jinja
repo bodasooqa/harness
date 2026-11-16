@@ -1,29 +1,29 @@
 # AGENTS.md — {{ project_name }}
 
-Что делает проект — одним абзацем. ТЗ — `{{ spec_path }}`: источник истины о поведении, этот файл — правила работы.
+What the project does, in one paragraph. The spec — `{{ spec_path }}` — is the source of truth about behavior; this file holds the working rules.
 
-Общие правила процесса — из шаблона [harness](https://github.com/bodasooqa/harness), в управляемом файле `.harness/process.md`: прочитай его целиком до начала работы. Claude Code получает его импортом из `CLAUDE.md`, Pi — прослойкой `.pi/extensions/harness.ts`, остальные агенты читают файл сами. Этот файл — проектный: шаблон его больше не трогает. Правила проекта пишутся сюда, а не в `CLAUDE.md`: тот только подключает этот файл и правила процесса для Claude Code.
+Shared process rules come from the [harness](https://github.com/bodasooqa/harness) template, in the managed file `.harness/process.md`: read it in full before starting work. Claude Code gets it via an import from `CLAUDE.md`, Pi via the `.pi/extensions/harness.ts` shim, other agents read the file themselves. This file belongs to the project: the template no longer touches it. Project rules are written here, not in `CLAUDE.md`: that file only pulls in this one and the process rules for Claude Code.
 
-## Стек проекта
+## Project stack
 
-Языки, ключевые библиотеки и правила их использования, которых нет в общих правилах.
+Languages, key libraries, and rules for using them that the shared rules don't cover.
 
-## Границы пакетов
+## Package boundaries
 
-Карта пакетов и граф зависимостей между ними; инварианты, которые этот граф держит.
+Map of packages and the dependency graph between them; invariants this graph upholds.
 
-У каждого пакета свой `AGENTS.md` с локальными правилами; `CLAUDE.md` рядом с ним — строка `@AGENTS.md` для Claude Code.
+Each package has its own `AGENTS.md` with local rules; the `CLAUDE.md` next to it is a single `@AGENTS.md` line for Claude Code.
 
-## Источники правды
+## Sources of truth
 
-Что в репозитории является контрактом или generated и как оно меняется. Изменение любой строки этой таблицы — процедура, а не правка файла: скилл `contract-change`.
+What in the repository is a contract or generated, and how it changes. Changing any row of this table is a procedure, not a file edit: the `contract-change` skill.
 
-| Что | Где | Кто меняет |
+| What | Where | Who changes it |
 |---|---|---|
-| Доменная модель, требования, дефолты | `{{ spec_path }}`, журнал ревизий `{{ revisions_path }}` | ревизии по решениям владельца |
-| Команды и скиллы OpenSpec | `.claude/commands/opsx/`, `.claude/skills/openspec-*/`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/` | **generated**, только `openspec update` |
-| Оглавления и сводные блоки документов | блоки между метками `<!-- … -->` в `knowledge/`{% if doc_form == 'catalog' %} и в `{{ spec_path }}/README.md`{% endif %} | **generated**, только скрипты `knowledge/` |
+| Domain model, requirements, defaults | `{{ spec_path }}`, revision journal `{{ revisions_path }}` | revisions per the owner's decisions |
+| OpenSpec commands and skills | `.claude/commands/opsx/`, `.claude/skills/openspec-*/`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/` | **generated**, only `openspec update` |
+| Document tables of contents and summary blocks | blocks between `<!-- … -->` markers in `knowledge/`{% if doc_form == 'catalog' %} and in `{{ spec_path }}/README.md`{% endif %} | **generated**, only the `knowledge/` scripts |
 
-## Определения
+## Definitions
 
-Термины домена, которые легко перепутать, — коротко, со ссылкой на раздел ТЗ.
+Domain terms that are easy to confuse — briefly, with a link to the spec section.
