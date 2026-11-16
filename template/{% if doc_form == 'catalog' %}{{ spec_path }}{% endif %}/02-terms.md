@@ -1,3 +1,3 @@
-# 2. Термины
+# 2. Terms
 
-Слова предметной области, которые легко понять по-разному, — каждое с одним определением.
+Domain words that are easy to read differently — each with exactly one definition.

@@ -1,31 +1,31 @@
-# Уроки
+# Lessons
 
-Уроки — по файлу на урок: ревью, замер или сбой нашли дефект, и что из этого следует для работы дальше. Отделены от решений, чтобы журнал решений оставался сканируемым.
+Lessons — one file per lesson: a review, a measurement or a failure found a defect, and what follows from it for further work. Kept apart from decisions so the decision journal stays scannable.
 
-## Формат
+## Format
 
-Имя файла — `ГГГГ-ММ-ДД-slug.md`: дата урока и короткое имя латиницей в kebab-case.
+File name — `YYYY-MM-DD-slug.md`: the date of the lesson and a short Latin kebab-case name.
 
 ```markdown
-# Заголовок урока
+# Lesson title
 
-## Что случилось
+## What happened
 
-Дефект и как его нашли.
+The defect and how it was found.
 
-## Причина
+## Cause
 
-Почему он появился и почему не был пойман раньше.
+Why it appeared and why it was not caught earlier.
 
-## Что следует
+## What follows
 
-Правило, проверка или изменение процесса, которое не даст повториться.
+A rule, a check or a process change that keeps it from happening again.
 ```
 
-Журнал append-only: урок не переписывается. Устаревший урок отменяется новой записью со ссылкой на старую.
+The journal is append-only: a lesson is not rewritten. An outdated lesson is revoked by a new entry linking to the old one.
 
-## Уроки
+## Lessons
 
-<!-- оглавление: собирает knowledge/index.sh, руками не править -->
-_пусто_
-<!-- /оглавление -->
+<!-- toc: built by knowledge/index.sh, do not edit -->
+_empty_
+<!-- /toc -->

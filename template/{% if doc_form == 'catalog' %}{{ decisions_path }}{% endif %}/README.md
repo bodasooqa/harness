@@ -1,31 +1,31 @@
-# Решения
+# Decisions
 
-Журнал принятых решений — по файлу на решение, как ADR. Только принятые решения с причиной и последствием; варианты, которые ещё обсуждаются, — в открытых вопросах.
+The journal of decisions taken — one file per decision, like an ADR. Only decisions taken, with a reason and a consequence; options still under discussion belong in open questions.
 
-## Формат
+## Format
 
-Имя файла — `ГГГГ-ММ-ДД-slug.md`: дата решения и короткое имя латиницей в kebab-case (`2026-10-28-postgres-storage.md`).
+File name — `YYYY-MM-DD-slug.md`: the date of the decision and a short Latin kebab-case name (`2026-10-28-postgres-storage.md`).
 
 ```markdown
-# Заголовок решения
+# Decision title
 
-## Решение
+## Decision
 
-Что решили — одним абзацем.
+What was decided — in one paragraph.
 
-## Причина
+## Reason
 
-Почему так, а не иначе: что сравнивали, чьё это решение.
+Why this and not otherwise: what was compared, whose decision it is.
 
-## Последствие
+## Consequence
 
-Что из решения следует для кода, процесса и других решений.
+What follows from the decision for the code, the process and other decisions.
 ```
 
-Журнал append-only: запись не переписывается. Решение отменяется или меняется новой записью, которая ссылается на старую; в старой допустима только строка-ссылка на отменившую.
+The journal is append-only: an entry is not rewritten. A decision is revoked or changed by a new entry that links to the old one; the old one may only gain a line linking to the one that revoked it.
 
-## Решения
+## Decisions
 
-<!-- оглавление: собирает knowledge/index.sh, руками не править -->
-_пусто_
-<!-- /оглавление -->
+<!-- toc: built by knowledge/index.sh, do not edit -->
+_empty_
+<!-- /toc -->

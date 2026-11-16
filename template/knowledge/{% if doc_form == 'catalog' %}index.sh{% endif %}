@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# Оглавления каталогов решений и уроков.
+# Tables of contents for the decisions and lessons directories.
 #
-# Решения и уроки лежат по файлу на запись; оглавление каталога — список
-# записей в его README.md между метками
-#   <!-- оглавление: собирает knowledge/index.sh, руками не править -->
-#   <!-- /оглавление -->
-# Ручное оглавление разъезжается с содержимым первым же забытым файлом. Здесь
-# оно — производная от файлов, и держит его pre-commit, а не дисциплина.
+# Decisions and lessons are one file per entry; a directory's table of
+# contents is the list of entries in its README.md between the markers
+#   <!-- toc: built by knowledge/index.sh, do not edit -->
+#   <!-- /toc -->
+# A hand-kept table of contents drifts from the contents with the first
+# forgotten file. Here it is derived from the files, and pre-commit keeps it,
+# not discipline.
 #
-# Строка оглавления — `- [Заголовок](файл.md)`: заголовок — первая строка `# `
-# файла, порядок — по имени файла (имя начинается с даты).
+# A table of contents line is `- [Title](file.md)`: the title is the file's
+# first `# ` line, the order is by file name (the name starts with a date).
 #
-# Режимы:
-#   index.sh           переписывает оглавления; код 1, если в README нет меток
-#   index.sh --stage   то же и ставит в индекс изменённые README — так зовёт
-#                      pre-commit: новая запись в индексе, а README обычно нет
+# Modes:
+#   index.sh           rewrites the tables of contents; exit 1 if a README has no markers
+#   index.sh --stage   the same, and stages the changed READMEs — this is how
+#                      pre-commit calls it: the new entry is staged, the README usually is not
 #
-# Каталоги — `decisions_path` и `lessons_path` из `.rootstock.toml`.
+# Directories are `decisions_path` and `lessons_path` from `.rootstock.toml`.
 set -euo pipefail
 
 root=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
@@ -26,17 +27,17 @@ mode=${1:-}
 case "$mode" in
   "" | --stage) ;;
   --help | -h)
-    sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    printf 'index.sh: непонятный аргумент %s. Ожидается --stage или ничего.\n' "$mode" >&2
+    printf 'index.sh: unknown argument %s. Expected --stage or nothing.\n' "$mode" >&2
     exit 2
     ;;
 esac
 
-# Значение ключа из таблицы `[answers]` записи шаблона: `ключ = "значение"`,
-# кавычки снимаются. Экранирование в строке не раскрывается: в путях его нет.
+# Value of a key from the `[answers]` table of the template record:
+# `key = "value"`, quotes stripped. Escapes are not expanded: paths have none.
 answer() {
   local key=$1 value
   value=$(awk -v key="$key" -v q="'" '
@@ -53,7 +54,7 @@ answer() {
     }
   ' "$answers")
   if [[ -z "$value" ]]; then
-    printf 'index.sh: в %s нет ключа %s\n' "$answers" "$key" >&2
+    printf 'index.sh: %s has no key %s\n' "$answers" "$key" >&2
     exit 1
   fi
   value=${value#./}
@@ -62,7 +63,7 @@ answer() {
 }
 
 if [[ ! -f "$answers" ]]; then
-  printf 'index.sh: нет файла ответов шаблона %s\n' "$answers" >&2
+  printf 'index.sh: no template answers file %s\n' "$answers" >&2
   exit 1
 fi
 
@@ -75,22 +76,22 @@ for dir in "$(answer decisions_path)" "$(answer lessons_path)"; do
   rc=0
   perl -CSD -Mutf8 -0777 -e '
     my ($dir, $readme) = @ARGV;
-    open my $fh, "<:encoding(UTF-8)", $readme or die "не читается $readme: $!\n";
+    open my $fh, "<:encoding(UTF-8)", $readme or die "cannot read $readme: $!\n";
     my $text = do { local $/; <$fh> };
     close $fh;
 
-    unless ($text =~ /<!-- оглавление:.*?-->/s) {
-      warn "$readme: нет меток оглавления, пропущен\n";
+    unless ($text =~ /<!-- toc:.*?-->/s) {
+      warn "$readme: no table of contents markers, skipped\n";
       exit 3;
     }
 
-    opendir my $dh, $dir or die "не читается $dir: $!\n";
+    opendir my $dh, $dir or die "cannot read $dir: $!\n";
     my @files = sort grep { /\.md\z/ && $_ ne "README.md" && -f "$dir/$_" } readdir $dh;
     closedir $dh;
 
     my @items;
     for my $f (@files) {
-      open my $ef, "<:encoding(UTF-8)", "$dir/$f" or die "не читается $dir/$f: $!\n";
+      open my $ef, "<:encoding(UTF-8)", "$dir/$f" or die "cannot read $dir/$f: $!\n";
       my $title;
       local $/ = "\n";
       while (my $l = <$ef>) {
@@ -100,17 +101,17 @@ for dir in "$(answer decisions_path)" "$(answer lessons_path)"; do
       $title //= $f;
       push @items, "- [$title]($f)";
     }
-    my $block = @items ? join("\n", @items) : "_пусто_";
+    my $block = @items ? join("\n", @items) : "_empty_";
 
     my $new = $text;
-    $new =~ s{(<!-- оглавление:.*?-->\n).*?(<!-- /оглавление -->)}{$1$block\n$2}s
-      or die "$readme: метки оглавления не парные\n";
+    $new =~ s{(<!-- toc:.*?-->\n).*?(<!-- /toc -->)}{$1$block\n$2}s
+      or die "$readme: table of contents markers are not paired\n";
 
     exit 0 if $new eq $text;
-    open my $out, ">:encoding(UTF-8)", $readme or die "не пишется $readme: $!\n";
+    open my $out, ">:encoding(UTF-8)", $readme or die "cannot write $readme: $!\n";
     print $out $new;
     close $out;
-    print "оглавление обновлено: $readme\n";
+    print "table of contents updated: $readme\n";
     exit 4;
   ' "$dir" "$readme" || rc=$?
   case "$rc" in

@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# Ревизии ТЗ, ещё не сведённые в разделы.
+# Spec revisions not yet folded into the sections.
 #
-# Журнал ревизий — каталог, файл на ревизию (`NNNN-1.N.md`), во frontmatter
-# каждой — `folded: false|true`. Список несведённых собирается отсюда, а не
-# ведётся руками: рукописный список расходится с журналом в первую же неделю.
+# The revision journal is a directory, one file per revision (`NNNN-1.N.md`),
+# each with `folded: false|true` in its frontmatter. The list of unfolded ones
+# is built from here, not kept by hand: a hand-kept list drifts from the
+# journal within the first week.
 #
-# Режимы:
-#   spec-unfolded.sh           печатает несведённые ревизии, по строке на ревизию
-#   spec-unfolded.sh --write   переписывает блок между метками
-#                              `<!-- несведённые ревизии -->` и
-#                              `<!-- /несведённые ревизии -->` в README ТЗ
+# Modes:
+#   spec-unfolded.sh           prints unfolded revisions, one line per revision
+#   spec-unfolded.sh --write   rewrites the block between the markers
+#                              `<!-- unfolded revisions -->` and
+#                              `<!-- /unfolded revisions -->` in the spec README
 #
-# Пути к ТЗ и журналу берутся из `.rootstock.toml` в корне проекта
-# (`spec_path`, `revisions_path`), а не зашиты в скрипт.
+# Paths to the spec and the journal come from `.rootstock.toml` at the project
+# root (`spec_path`, `revisions_path`) and are not hardcoded in the script.
 set -euo pipefail
 
 root=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
@@ -22,17 +23,17 @@ mode=${1:-}
 case "$mode" in
   "" | --write) ;;
   --help | -h)
-    sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    printf 'spec-unfolded.sh: непонятный аргумент %s. Ожидается --write или ничего.\n' "$mode" >&2
+    printf 'spec-unfolded.sh: unknown argument %s. Expected --write or nothing.\n' "$mode" >&2
     exit 2
     ;;
 esac
 
-# Значение ключа из таблицы `[answers]` записи шаблона: `ключ = "значение"`,
-# кавычки снимаются. Экранирование в строке не раскрывается: в путях его нет.
+# Value of a key from the `[answers]` table of the template record:
+# `key = "value"`, quotes stripped. Escapes are not expanded: paths have none.
 answer() {
   local key=$1 value
   value=$(awk -v key="$key" -v q="'" '
@@ -49,16 +50,16 @@ answer() {
     }
   ' "$answers")
   if [[ -z "$value" ]]; then
-    printf 'spec-unfolded.sh: в %s нет ключа %s\n' "$answers" "$key" >&2
+    printf 'spec-unfolded.sh: %s has no key %s\n' "$answers" "$key" >&2
     exit 1
   fi
-  # Путь от корня проекта: без ведущего `./` и завершающего `/`.
+  # Path from the project root: no leading `./` and no trailing `/`.
   value=${value#./}
   value=${value%/}
   printf '%s\n' "$value"
 }
 
-# Путь `to` относительно каталога `from`; оба — от корня проекта.
+# Path `to` relative to directory `from`; both from the project root.
 relative_path() {
   local from=$1 to=$2 up=""
   while [[ -n "$from" && "$to" != "$from/"* ]]; do
@@ -76,7 +77,7 @@ relative_path() {
 }
 
 if [[ ! -f "$answers" ]]; then
-  printf 'spec-unfolded.sh: нет файла ответов шаблона %s\n' "$answers" >&2
+  printf 'spec-unfolded.sh: no template answers file %s\n' "$answers" >&2
   exit 1
 fi
 
@@ -85,13 +86,13 @@ revisions_path=$(answer revisions_path)
 spec_readme="$root/$spec_path/README.md"
 revisions_dir="$root/$revisions_path"
 
-# Строки списка: `- [1.N](путь) — ГГГГ-ММ-ДД — заголовок`, путь — от README ТЗ.
+# List lines: `- [1.N](path) — YYYY-MM-DD — title`, path relative to the spec README.
 lines=""
 if [[ -d "$revisions_dir" ]]; then
   for file in "$revisions_dir"/[0-9][0-9][0-9][0-9]-*.md; do
     [[ -e "$file" ]] || continue
-    # version, date, folded из frontmatter и первый заголовок `# ` после него.
-    # Разделитель полей — \037: пробельный IFS склеил бы пустые поля.
+    # version, date, folded from the frontmatter and the first `# ` heading after it.
+    # The field separator is \037: a whitespace IFS would merge empty fields.
     fields=$(awk -v q="'" '
       NR == 1 { if ($0 != "---") exit; in_front = 1; next }
       in_front && $0 == "---" { in_front = 0; next }
@@ -117,7 +118,7 @@ if [[ -d "$revisions_dir" ]]; then
       true) continue ;;
       false) ;;
       *)
-        printf 'spec-unfolded.sh: у %s во frontmatter нет folded: true|false (найдено «%s»)\n' \
+        printf 'spec-unfolded.sh: %s has no folded: true|false in its frontmatter (found "%s")\n' \
           "$revisions_path/$name" "$folded" >&2
         exit 1
         ;;
@@ -136,14 +137,14 @@ if [[ -z "$mode" ]]; then
 fi
 
 if [[ ! -f "$spec_readme" ]]; then
-  printf 'spec-unfolded.sh: нет README ТЗ %s\n' "$spec_readme" >&2
+  printf 'spec-unfolded.sh: no spec README %s\n' "$spec_readme" >&2
   exit 1
 fi
 
-start='<!-- несведённые ревизии -->'
-end='<!-- /несведённые ревизии -->'
+start='<!-- unfolded revisions -->'
+end='<!-- /unfolded revisions -->'
 if ! grep -qxF "$start" "$spec_readme" || ! grep -qxF "$end" "$spec_readme"; then
-  printf 'spec-unfolded.sh: в %s нет меток %s и %s\n' "$spec_path/README.md" "$start" "$end" >&2
+  printf 'spec-unfolded.sh: %s has no markers %s and %s\n' "$spec_path/README.md" "$start" "$end" >&2
   exit 1
 fi
 
@@ -153,7 +154,7 @@ trap 'rm -f "$block" "$out"' EXIT
 if [[ -n "$lines" ]]; then
   printf '%s' "$lines" >"$block"
 else
-  printf 'Несведённых ревизий нет.\n' >"$block"
+  printf 'No unfolded revisions.\n' >"$block"
 fi
 
 awk -v start="$start" -v end="$end" -v block="$block" '

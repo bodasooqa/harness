@@ -1,29 +1,29 @@
-# knowledge — накопленное знание
+# knowledge — accumulated knowledge
 
-Третье место документации в репозитории, и у каждого своя природа. Не смешивать.
+The third place for documentation in the repository, and each has its own nature. Do not mix them.
 
-| Место | Что это | Кто владеет |
+| Place | What it is | Who owns it |
 |---|---|---|
-| `{{ spec_path }}` | **Требования и домен.** Что система должна делать. Источник истины. | Владелец. Claude читает и спрашивает, а не дополняет. |
-| `openspec/specs/` | **Реализованное поведение** по капабилити. Производно от ТЗ. | OpenSpec, через `/opsx:propose` → `/opsx:apply` → `/opsx:archive`. |
-| `knowledge/` | **Почему так и что мы выяснили.** Решения с причинами, уроки, особенности внешних API, открытые вопросы. | Общее. Пополняется по ходу работы. |
+| `{{ spec_path }}` | **Requirements and domain.** What the system must do. The source of truth. | The owner. Claude reads and asks, does not add. |
+| `openspec/specs/` | **Implemented behavior** by capability. Derived from the spec. | OpenSpec, via `/opsx:propose` → `/opsx:apply` → `/opsx:archive`. |
+| `knowledge/` | **Why it is so and what we found out.** Decisions with reasons, lessons, quirks of external APIs, open questions. | Shared. Grows as work goes on. |
 
-Проверка, куда класть запись:
+Where does an entry go:
 
-- «Система обязана …» — это требование. Оно либо уже в ТЗ, либо его надо спросить у владельца. Не сюда.
-- «При таком-то входе система делает …» — это поведение. В `openspec/specs/`.
-- «Внешний API отдаёт максимум N записей, поэтому мы …» — сюда.
-- «Выбрали X вместо Y, потому что …» — сюда, файлом в `{{ decisions_path }}`.
-- «Ревью нашло дефект, и вот что из этого следует» — сюда, файлом в `{{ lessons_path }}`.
-- «Непонятно, как считать …» — сюда, в `{{ open_questions_path }}`, и в отчёт по этапу.
+- "The system must …" — that is a requirement. It is either already in the spec or has to be asked of the owner. Not here.
+- "On such-and-such input the system does …" — that is behavior. In `openspec/specs/`.
+- "The external API returns at most N records, so we …" — here.
+- "We chose X over Y because …" — here, as a file in `{{ decisions_path }}`.
+- "Review found a defect, and here is what follows from it" — here, as a file in `{{ lessons_path }}`.
+- "It is unclear how to count …" — here, in `{{ open_questions_path }}`, and in the stage report.
 
-## Что здесь лежит
+## What lives here
 
-- `{{ decisions_path }}` — решения, по файлу на решение. Формат — в README каталога.
-- `{{ lessons_path }}` — уроки, по файлу на урок. Формат — в README каталога.
-- `{{ open_questions_path }}` — открытые вопросы со сроками, одним файлом; закрытые уходят в `{{ open_questions_path[:-3] if open_questions_path.endswith('.md') else open_questions_path }}-closed.md`.
-- `due.sh` — открытые вопросы, которым настал срок, по таблице этапов `{{ stages_path }}`; `--overdue` — только просрочка (pre-push).
-- `archive-questions.sh` — переносит закрытые вопросы в архив (pre-commit).
-- `index.sh` — оглавления `{{ decisions_path }}/README.md` и `{{ lessons_path }}/README.md` между метками (pre-commit).
-- `tests/` — тесты скриптов; гоняются на pre-push и в CI.
-- `spec-unfolded.sh` — список ревизий ТЗ, ещё не сведённых в разделы; с `--write` обновляет блок в README ТЗ. Тест — `tests/spec-unfolded.sh`.
+- `{{ decisions_path }}` — decisions, one file per decision. The format is in the directory README.
+- `{{ lessons_path }}` — lessons, one file per lesson. The format is in the directory README.
+- `{{ open_questions_path }}` — open questions with deadlines, in one file; closed ones go to `{{ open_questions_path[:-3] if open_questions_path.endswith('.md') else open_questions_path }}-closed.md`.
+- `due.sh` — open questions whose deadline has come, by the stage table `{{ stages_path }}`; `--overdue` — overdue only (pre-push).
+- `archive-questions.sh` — moves closed questions to the archive (pre-commit).
+- `index.sh` — tables of contents of `{{ decisions_path }}/README.md` and `{{ lessons_path }}/README.md` between the markers (pre-commit).
+- `tests/` — tests of the scripts; run on pre-push and in CI.
+- `spec-unfolded.sh` — the list of spec revisions not yet folded into the sections; with `--write` it updates the block in the spec README. Test — `tests/spec-unfolded.sh`.

@@ -1,21 +1,21 @@
-# Открытые вопросы
+# Open questions
 
-Вопросы, на которые ни ТЗ, ни принятые решения пока не отвечают. Вопрос закрывается ссылкой на решение в `{{ decisions_path }}` или на раздел ТЗ.
-Открытый вопрос не повод остановить работу целиком: делается всё, что от него не зависит, а зависящее фиксируется явным допущением и выносится в отчёт по этапу.
+Questions that neither the spec nor the decisions taken answer yet. A question is closed with a link to a decision in `{{ decisions_path }}` or to a spec section.
+An open question is no reason to stop the work as a whole: everything that does not depend on it gets done, and what does depend on it is recorded as an explicit assumption and carried into the stage report.
 
-Формат: вопрос — раздел второго уровня ниже черты.
+Format: a question is a second-level section below the rule.
 
 ```markdown
-## Заголовок вопроса
+## Question title
 
-Откуда вопрос (дата, change, ревью), что неясно и какие есть варианты.
+Where the question comes from (date, change, review), what is unclear and what the options are.
 
-Нужно к: этапу N.
+Due: stage N.
 ```
 
-- Срок обязателен — строка «Нужно к: этапу N» с номером этапа из таблицы состояния этапов (`{{ stages_path }}`). Прозаический срок («когда понадобится») проверить нечем: он считается отсутствующим. Сроки сверяет `knowledge/due.sh`.
-- Закрытие — зачёркнутый заголовок со ссылкой на ответ: `## ~~Заголовок вопроса~~ — закрыт ДД.ММ.ГГГГ`. При коммите `knowledge/archive-questions.sh` переносит закрытый раздел в архив рядом с этим файлом (`…-closed.md`).
+- A deadline is required — a "Due: stage N" line with a stage number from the stage state table (`{{ stages_path }}`). A prose deadline ("when it is needed") cannot be checked: it counts as missing. Deadlines are checked by `knowledge/due.sh`.
+- Closing — a struck-through heading with a link to the answer: `## ~~Question title~~ — closed YYYY-MM-DD`. On commit `knowledge/archive-questions.sh` moves the closed section to the archive next to this file (`…-closed.md`).
 
 ---
 
-Открытых вопросов нет.
+No open questions.
