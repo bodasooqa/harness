@@ -1,147 +1,147 @@
-# Инвентаризация обвязки screener
+# Inventory of the screener harness
 
-Фаза 1 плана. Снято с `bodasooqa/screener` на коммите `main` от 28.10.2026 (после #548). Каждый файл обвязки получает вид:
+Phase 1 of the plan. Taken from `bodasooqa/screener` at the `main` commit of 28.10.2026 (after #548). Each harness file gets a kind:
 
-- **общее** — управляемый файл шаблона, есть в каждом проекте;
-- **модуль `<имя>`** — управляемый, есть при ответе «да» на вопрос шаблона (`rust`, `frontend`, `linear`, `orca`, `telegram`);
-- **стартовое** — создаётся один раз, дальше принадлежит проекту;
-- **screener** — остаётся проектным расширением screener, в шаблон не идёт.
+- **common** — a managed template file, present in every project;
+- **module `<name>`** — managed, present when a template question is answered "yes" (`rust`, `frontend`, `linear`, `orca`, `telegram`);
+- **starter** — created once, owned by the project afterwards;
+- **screener** — stays a screener project extension, does not go into the template.
 
-«Параметры» — что в файле зашито под screener и становится ответом шаблона или настройкой: `{{name}}` — имя проекта, `{{spec}}` — пути документов, `{{tracker}}` — префикс задач.
+"Parameters" — what is hard-coded for screener in the file and becomes a template answer or a setting: `{{name}}` — the project name, `{{spec}}` — document paths, `{{tracker}}` — the task prefix.
 
-## Агенты `.claude/agents/`
+## Agents `.claude/agents/`
 
-| Файл | Вид | Параметры и что уходит в дополнение screener |
+| File | Kind | Parameters and what goes to the screener addendum |
 |---|---|---|
-| `rust-developer.md` | модуль `rust` | Пути к скиллам — в общий вид. В дополнение screener: цены `i64` в тиках, `Decimal`, `now_ms`, FSM, синхронизация стаканов, `sqlx prepare` |
-| `rust-reviewer.md` | модуль `rust` | Общее: паники, `unsafe`, блокирующее в async, магические числа, `println!`, дифф ветки. В дополнение: `f64` в ценах, FSM, спаны `exchange`/`market`/`symbol` |
-| `frontend-developer.md` | модуль `frontend` | `@screener/*` → `@{{name}}/*`; граница `uikit` и экранов — общее. В дополнение: домен плотностей, IPC |
-| `frontend-reviewer.md` | модуль `frontend` | То же: токены темы, shadcn, типы только из контракта — общее; домен — в дополнение |
-| `spec-auditor.md` | общее | Пути ТЗ и журнала — `{{spec}}`. В дополнение: инварианты ядра §4.3–§4.5, §6, §11 |
-| `video-developer.md` | screener | Remotion, эпизоды из библиотеки прода |
+| `rust-developer.md` | module `rust` | Skill paths — to the common form. To the screener addendum: `i64` prices in ticks, `Decimal`, `now_ms`, FSM, order book sync, `sqlx prepare` |
+| `rust-reviewer.md` | module `rust` | Common: panics, `unsafe`, blocking in async, magic numbers, `println!`, branch diff. To the addendum: `f64` in prices, FSM, `exchange`/`market`/`symbol` spans |
+| `frontend-developer.md` | module `frontend` | `@screener/*` → `@{{name}}/*`; the boundary between `uikit` and screens is common. To the addendum: the density domain, IPC |
+| `frontend-reviewer.md` | module `frontend` | Same: theme tokens, shadcn, types only from the contract are common; the domain goes to the addendum |
+| `spec-auditor.md` | common | Spec and journal paths — `{{spec}}`. To the addendum: core invariants §4.3–§4.5, §6, §11 |
+| `video-developer.md` | screener | Remotion, episodes from the production library |
 
-## Скиллы `.claude/skills/`
+## Skills `.claude/skills/`
 
-| Скилл | Вид | Параметры |
+| Skill | Kind | Parameters |
 |---|---|---|
-| `change-finish` | общее | Команды проверок — по модулям `rust`/`frontend`; `DEN-N` и Linear — в модуль `linear`; пути `{{spec}}` |
-| `knowledge-note` | общее | Пути `knowledge/` и форма документов (старая у screener, новая по файлу на запись) |
-| `stage-acceptance` | общее | `{{spec}}` §12 → «раздел этапов ТЗ» по пути из настроек |
-| `stage-grooming` | общее | То же; `due.sh` |
-| `contract-change` | общее (обобщённый) | Процедура «сначала ТЗ → регенерация → потребители» общая; список контрактов берётся из таблицы источников правды `CLAUDE.md` проекта. Четыре контракта screener (proto, `MarketEvent`, миграции, `default.toml`) — в его `CLAUDE.md` |
-| `uikit-component` | модуль `frontend` | `@screener/uikit` → `@{{name}}/uikit`; в раскладке без монорепо — `src/components/ui` |
-| `linear-triage` | модуль `linear` | Команда, префикс `{{tracker}}`, роли «владелец/трейдер» → «владелец/заказчик» по настройке; словарь трейдера — screener |
-| `core-fsm-test` | screener | FSM плотностей |
-| `new-exchange-adapter` | screener | Адаптеры бирж |
-| `reel` | screener | Ролики kelv |
-| `telegram-bot` | модуль `telegram` (новый) | Пишется по `crates/daemon/src/alerting/telegram.rs` и `owner_bot/` |
-| `openspec-*`, `.claude/commands/opsx/` | generated | Ставит `openspec init --tools claude,pi`, в шаблон не кладутся |
+| `change-finish` | common | Check commands — per module `rust`/`frontend`; `DEN-N` and Linear — to the `linear` module; paths `{{spec}}` |
+| `knowledge-note` | common | `knowledge/` paths and the document form (old in screener, new one file per entry) |
+| `stage-acceptance` | common | `{{spec}}` §12 → "the spec's stages section" at the path from settings |
+| `stage-grooming` | common | Same; `due.sh` |
+| `contract-change` | common (generalized) | The "spec first → regeneration → consumers" procedure is common; the list of contracts is taken from the source-of-truth table in the project's `CLAUDE.md`. screener's four contracts (proto, `MarketEvent`, migrations, `default.toml`) go to its `CLAUDE.md` |
+| `uikit-component` | module `frontend` | `@screener/uikit` → `@{{name}}/uikit`; in the non-monorepo layout — `src/components/ui` |
+| `linear-triage` | module `linear` | Team, prefix `{{tracker}}`, roles "owner/trader" → "owner/customer" per setting; the trader vocabulary is screener's |
+| `core-fsm-test` | screener | Density FSM |
+| `new-exchange-adapter` | screener | Exchange adapters |
+| `reel` | screener | kelv videos |
+| `telegram-bot` | module `telegram` (new) | Written from `crates/daemon/src/alerting/telegram.rs` and `owner_bot/` |
+| `openspec-*`, `.claude/commands/opsx/` | generated | Installed by `openspec init --tools claude,pi`, not put into the template |
 
-## Хуки `.claude/hooks/` и `settings.json`
+## Hooks `.claude/hooks/` and `settings.json`
 
-| Файл | Событие | Вид | Параметры |
+| File | Event | Kind | Parameters |
 |---|---|---|---|
-| `guard-staging.sh` | PreToolUse/Bash | общее | — |
-| `bash-edit.sh` | PostToolUse/Bash | общее | Текст подсказки — по модулям (rustfmt/clippy — `rust`, biome/tsc — `frontend`) |
-| `session-tree.sh` | SessionStart | общее | `knowledge/due.sh` → путь из настроек. Orca не вызывает, работает по `git worktree` |
-| `session-leftovers.sh` | SessionEnd | общее | — |
-| `knowledge-due.sh` | UserPromptSubmit | общее | Путь `due.sh` |
-| `lib/bash-scan.sh`, `lib/staleness.sh` | библиотека | общее | — |
-| `rust-fmt.sh` | PostToolUse/Write\|Edit | модуль `rust` | — |
-| `rust-clippy.sh` | то же, асинхронный | модуль `rust` | `screener-$crate` → `{{name}}-$crate`; переменная `SCREENER_CLIPPY_STATE` → общее имя; раскладка без воркспейса (один крейт) |
-| `js-fmt.sh` | PostToolUse/Write\|Edit | модуль `frontend` | — |
-| `js-typecheck.sh` | то же, асинхронный | модуль `frontend` | Раскладка без монорепо |
-| `contract-touch.sh` | PostToolUse/Write\|Edit | screener | Пути proto, миграций, `default.toml`, generated. Общей версии нет: проектный хук |
-| `guard-data.sh` | PreToolUse/Bash | screener | Библиотека сайзов, записи реплея |
-| `tests/run.sh` (1456 строк) | тесты | общее + screener | Разделить: случаи общих хуков — в shared (на синтетическом репозитории, без путей screener); случаи `contract-touch`, `guard-data`, protocol-generated — проектные тесты screener |
-| `settings.json` | проводка | общее | Хуки → диспетчер. `permissions.allow`: общие (`git`, `rg`, `jq`, `openspec`, `lefthook`), `rust` (`cargo …`, `rustfmt`), `frontend` (`bun`, `bunx`, `turbo`, `biome`); `cargo run -p screener-daemon`, `sqlx` — screener. `permissions.deny`: `.env*`, generated OpenSpec — общее; `config/local.toml`, `fixtures/replay`, `data`, `.sqlx`, `packages/protocol/src/generated` — screener. `worktree.symlinkDirectories: node_modules` — модуль `frontend`. Плагин `rust-analyzer-lsp` — модуль `rust` |
+| `guard-staging.sh` | PreToolUse/Bash | common | — |
+| `bash-edit.sh` | PostToolUse/Bash | common | Hint text — per module (rustfmt/clippy — `rust`, biome/tsc — `frontend`) |
+| `session-tree.sh` | SessionStart | common | `knowledge/due.sh` → path from settings. Does not call Orca, works via `git worktree` |
+| `session-leftovers.sh` | SessionEnd | common | — |
+| `knowledge-due.sh` | UserPromptSubmit | common | Path to `due.sh` |
+| `lib/bash-scan.sh`, `lib/staleness.sh` | library | common | — |
+| `rust-fmt.sh` | PostToolUse/Write\|Edit | module `rust` | — |
+| `rust-clippy.sh` | same, async | module `rust` | `screener-$crate` → `{{name}}-$crate`; the `SCREENER_CLIPPY_STATE` variable → a common name; layout without a workspace (single crate) |
+| `js-fmt.sh` | PostToolUse/Write\|Edit | module `frontend` | — |
+| `js-typecheck.sh` | same, async | module `frontend` | Non-monorepo layout |
+| `contract-touch.sh` | PostToolUse/Write\|Edit | screener | Paths of proto, migrations, `default.toml`, generated. No common version: a project hook |
+| `guard-data.sh` | PreToolUse/Bash | screener | Size library, replay recordings |
+| `tests/run.sh` (1456 lines) | tests | common + screener | Split: cases for common hooks — to shared (on a synthetic repository, without screener paths); cases for `contract-touch`, `guard-data`, protocol-generated — screener project tests |
+| `settings.json` | wiring | common | Hooks → dispatcher. `permissions.allow`: common (`git`, `rg`, `jq`, `openspec`, `lefthook`), `rust` (`cargo …`, `rustfmt`), `frontend` (`bun`, `bunx`, `turbo`, `biome`); `cargo run -p screener-daemon`, `sqlx` — screener. `permissions.deny`: `.env*`, generated OpenSpec — common; `config/local.toml`, `fixtures/replay`, `data`, `.sqlx`, `packages/protocol/src/generated` — screener. `worktree.symlinkDirectories: node_modules` — module `frontend`. The `rust-analyzer-lsp` plugin — module `rust` |
 
-## Git-хуки и CI
+## Git hooks and CI
 
-| Файл | Вид | Параметры и что уходит в screener |
+| File | Kind | Parameters and what goes to screener |
 |---|---|---|
-| `lefthook.yml` | общее + стартовое | Управляемый общий: `secrets`, `knowledge-index`, `claude-hooks`, `knowledge-due-tests`, `knowledge-due`; `rustfmt` — `rust`; `biome` — `frontend`. Стартовый `lefthook.yml` проекта с `extends`. `protocol-generated` — screener |
-| `.lefthook/no-secrets.sh` | общее | — |
-| `.lefthook/push-files.sh` | общее | — |
+| `lefthook.yml` | common + starter | Managed common: `secrets`, `knowledge-index`, `claude-hooks`, `knowledge-due-tests`, `knowledge-due`; `rustfmt` — `rust`; `biome` — `frontend`. The project's starter `lefthook.yml` with `extends`. `protocol-generated` — screener |
+| `.lefthook/no-secrets.sh` | common | — |
+| `.lefthook/push-files.sh` | common | — |
 | `.lefthook/check-protocol-generated.sh` | screener | — |
-| `.github/workflows/ci.yml` | общее + стартовое | Джобы `changes` (фильтры путей), `rust`, `js`, `harness` — управляемый workflow с параметрами раннера (`runs-on`), фильтры путей по модулям. `spec-defaults`, Postgres-сервис и `sqlx` в `rust` — screener. Метки раннеров (`mac`, `netcup-ci`) — настройка проекта |
-| `.github/workflows/release.yml`, `deploy.yml` | screener | Образ и выкатка демона |
+| `.github/workflows/ci.yml` | common + starter | Jobs `changes` (path filters), `rust`, `js`, `harness` — a managed workflow with runner parameters (`runs-on`), path filters per module. `spec-defaults`, the Postgres service and `sqlx` in `rust` — screener. Runner labels (`mac`, `netcup-ci`) — a project setting |
+| `.github/workflows/release.yml`, `deploy.yml` | screener | Daemon image and rollout |
 
-## Документы и знание
+## Documents and knowledge
 
-| Файл | Вид | Параметры |
+| File | Kind | Parameters |
 |---|---|---|
-| `knowledge/index.sh` | общее (старая форма) | Оглавления монолитных документов. У новой формы — свой скрипт индекса каталога. Если общий не потянет обе формы — у screener остаётся проектным. Остался проектным: в форме monolith общая джоба `knowledge` и CI зовут проектный `knowledge/index.sh`, если он есть |
-| `knowledge/due.sh`, `knowledge/tests/due.sh` | общее | Срок «этап N §12» — путь раздела этапов из настроек; примеры тестов без плотностей |
-| `knowledge/README.md` | стартовое | Правило «куда класть»; список файлов — проектный |
-| `knowledge/bot-*.sql/py/sh`, `research-*` | screener | Исследования |
-| `openspec/config.yaml` | общее + стартовое | Правила артефактов, язык, kebab-case — общее; контекст проекта (домен, крейты, ТЗ-пути) — стартовая часть. Если OpenSpec не умеет склеивать два файла — файл стартовый, общий текст правил шаблон пишет в него один раз |
-| `docs/DENSITY_SCREENER_SPEC*.md` | screener | Новая форма ТЗ — стартовый каталог |
-| `.mcp.json` | модуль `linear` | Сервер Linear |
+| `knowledge/index.sh` | common (old form) | Tables of contents for monolithic documents. The new form has its own catalog index script. If the common one cannot handle both forms, screener keeps it as a project file. It stayed a project file: in the monolith form the common `knowledge` job and CI call the project's `knowledge/index.sh` if it exists |
+| `knowledge/due.sh`, `knowledge/tests/due.sh` | common | The "stage N §12" due date — the stages section path from settings; test examples without densities |
+| `knowledge/README.md` | starter | The "where to put things" rule; the file list is project-specific |
+| `knowledge/bot-*.sql/py/sh`, `research-*` | screener | Research |
+| `openspec/config.yaml` | common + starter | Artifact rules, language, kebab-case — common; project context (domain, crates, spec paths) — the starter part. If OpenSpec cannot merge two files, the file is starter, and the template writes the common rules text into it once |
+| `docs/DENSITY_SCREENER_SPEC*.md` | screener | The new spec form is a starter directory |
+| `.mcp.json` | module `linear` | Linear server |
 
 ## `CLAUDE.md`
 
-Корневой `CLAUDE.md` screener по разделам:
+screener's root `CLAUDE.md` by section:
 
-| Раздел | Вид |
+| Section | Kind |
 |---|---|
-| Вступление, «ТЗ большое…» | стартовое (с путями `{{spec}}`) |
-| Стек | модули `rust`/`frontend`: общая часть (edition 2024, `[workspace.dependencies]`, bun, biome); `rust_decimal`, `sqlx`, `figment`, «никаких `f64`» — screener |
-| Границы пакетов, четыре инварианта | screener (карта пакетов проекта); правило «у каждого пакета свой `CLAUDE.md`» — общее |
-| Источники правды | стартовое: таблица проекта; строка «изменение — процедура `contract-change`» — общее |
-| Три места документации | общее |
-| Рабочий процесс, OpenSpec, superpowers | общее |
-| Обвязка вне OpenSpec | общее |
-| Своё дерево на сессию | общее + модуль `orca` (абзац Orca) |
-| Never edit generated | общее (список generated — проектный: `.sqlx`, `Cargo.lock`, …) |
-| Правь Write/Edit | общее |
-| Команды | модули `rust`/`frontend`; `docker compose`, `record`/`replay`, `screenerd` — screener |
-| Порядок работы по этапам | общее |
-| Коммиты | общее; префиксы пакетов — проектные; `DEN-N` — модуль `linear` |
-| Правила кода | общие (английские идентификаторы, конфиг вместо магических чисел, UTC `i64` мс, `tracing`/без `println!`, без `unwrap` вне тестов) — модуль `rust`; адаптеры, FSM, якорь, ММ-флаги — screener |
-| Тесты | screener (по пакетам) |
-| Чего не делать | общее: ORM, `unsafe`, длинные пояснения; биржи, Postgres-решение — screener |
-| Обвязка репозитория (скиллы, исполнители, хуки, lefthook, OpenSpec, Linear) | общее, собирается по модулям |
-| Разделение головы и рук | общее |
-| Определения | screener |
+| Introduction, "The spec is large…" | starter (with `{{spec}}` paths) |
+| Stack | modules `rust`/`frontend`: the common part (edition 2024, `[workspace.dependencies]`, bun, biome); `rust_decimal`, `sqlx`, `figment`, "no `f64`" — screener |
+| Package boundaries, four invariants | screener (the project's package map); the rule "each package has its own `CLAUDE.md`" is common |
+| Sources of truth | starter: the project's table; the line "a change goes through the `contract-change` procedure" is common |
+| Three places for documentation | common |
+| Workflow, OpenSpec, superpowers | common |
+| Harness outside OpenSpec | common |
+| A worktree per session | common + module `orca` (the Orca paragraph) |
+| Never edit generated | common (the generated list is project-specific: `.sqlx`, `Cargo.lock`, …) |
+| Edit with Write/Edit | common |
+| Commands | modules `rust`/`frontend`; `docker compose`, `record`/`replay`, `screenerd` — screener |
+| Working order by stages | common |
+| Commits | common; package prefixes are project-specific; `DEN-N` — module `linear` |
+| Code rules | common (English identifiers, config instead of magic numbers, UTC `i64` ms, `tracing`/no `println!`, no `unwrap` outside tests) — module `rust`; adapters, FSM, anchor, MM flags — screener |
+| Tests | screener (per package) |
+| What not to do | common: ORM, `unsafe`, long explanations; exchanges, the Postgres decision — screener |
+| Repository harness (skills, executors, hooks, lefthook, OpenSpec, Linear) | common, assembled per module |
+| Separating head and hands | common |
+| Definitions | screener |
 
-`CLAUDE.md` пакетов:
+Package `CLAUDE.md` files:
 
-| Файл | Вид |
+| File | Kind |
 |---|---|
-| `packages/uikit/CLAUDE.md` | модуль `frontend`, стартовое (границы, shadcn, цвет токенами, проверки) |
-| `apps/web/CLAUDE.md` | модуль `frontend`, стартовое — общий каркас «Границы / Проверки»; «Главное правило», «Отображение», «Доставка» — screener |
+| `packages/uikit/CLAUDE.md` | module `frontend`, starter (boundaries, shadcn, color via tokens, checks) |
+| `apps/web/CLAUDE.md` | module `frontend`, starter — the common "Boundaries / Checks" skeleton; "Main rule", "Display", "Delivery" — screener |
 | `crates/*/CLAUDE.md`, `packages/protocol/CLAUDE.md`, `apps/landing/CLAUDE.md`, `apps/video/CLAUDE.md` | screener |
 
-## Стек (стартовые файлы)
+## Stack (starter files)
 
-| Файл | Вид | Параметры |
+| File | Kind | Parameters |
 |---|---|---|
-| `Cargo.toml` (корень) | стартовое, `rust` | `[workspace]` с пустым `members`, `[workspace.dependencies]` с общими (`tokio`, `serde`, `tracing`, `thiserror`, `anyhow`); доменные (`sqlx`, `rust_decimal`, `tokio-tungstenite`, `figment`) — нет |
-| `rust-toolchain.toml`, `rustfmt.toml` | общее, `rust` | — |
-| `package.json` (корень) | стартовое, `frontend` | `name`, скрипты `typecheck`/`build`/`test`/`lint`/`dev` через turbo |
-| `turbo.json`, `tsconfig.base.json` | общее, `frontend` | — |
-| `biome.json` | общее + стартовое | Управляемый общий конфиг; стартовый `biome.json` с `extends`; исключения `.sqlx`, fixtures — screener |
-| `packages/uikit/` | стартовое, `frontend` | Только каркас пакета, без примитивов (решение владельца 28.10.2026): `package.json` (`@{{name}}/uikit`, экспорты как у screener), `tsconfig`, `components.json` для shadcn, `CLAUDE.md`, `src/styles/globals.css` с токенами нейтральной темы shadcn (zinc), `src/lib/utils.ts` (`cn`), пустые `components/` и `hooks/`. Компоненты в каждом проекте свои; screener'овские не копируются |
-| `apps/web/` | стартовое, `frontend` | Пустое Vite + React SPA на `uikit` |
+| `Cargo.toml` (root) | starter, `rust` | `[workspace]` with empty `members`, `[workspace.dependencies]` with common ones (`tokio`, `serde`, `tracing`, `thiserror`, `anyhow`); domain ones (`sqlx`, `rust_decimal`, `tokio-tungstenite`, `figment`) are not included |
+| `rust-toolchain.toml`, `rustfmt.toml` | common, `rust` | — |
+| `package.json` (root) | starter, `frontend` | `name`, scripts `typecheck`/`build`/`test`/`lint`/`dev` via turbo |
+| `turbo.json`, `tsconfig.base.json` | common, `frontend` | — |
+| `biome.json` | common + starter | A managed common config; a starter `biome.json` with `extends`; `.sqlx` and fixtures exclusions — screener |
+| `packages/uikit/` | starter, `frontend` | Only the package skeleton, no primitives (owner's decision of 28.10.2026): `package.json` (`@{{name}}/uikit`, exports as in screener), `tsconfig`, `components.json` for shadcn, `CLAUDE.md`, `src/styles/globals.css` with shadcn neutral theme tokens (zinc), `src/lib/utils.ts` (`cn`), empty `components/` and `hooks/`. Components are each project's own; screener's are not copied |
+| `apps/web/` | starter, `frontend` | An empty Vite + React SPA on `uikit` |
 | `docker-compose.yml` | screener | Postgres |
 
-## Итого
+## Summary
 
-| Вид | Сколько |
+| Kind | How many |
 |---|---|
-| общее | 6 скиллов (с обобщённым `contract-change`), `spec-auditor`, 7 хуков и `lib/`, тесты хуков (общая часть), скрипты `knowledge/`, lefthook-скрипты, конфиги lefthook/biome/CI (общая часть) |
-| модуль `rust` | 2 агента, 2 хука, toolchain, rustfmt, разрешения cargo |
-| модуль `frontend` | 2 агента, `uikit-component`, 2 хука, turbo, tsconfig, разрешения bun |
-| модуль `linear` | `linear-triage`, `.mcp.json`, `DEN-N` в `change-finish` и коммитах |
-| модуль `orca` | абзац «Своё дерево на сессию» про Orca; скиллы Orca ставит сама Orca |
-| модуль `telegram` | новый `telegram-bot` |
-| screener | 4 скилла, `video-developer`, 2 хука, protocol-generated, release/deploy, доменные абзацы агентов и `CLAUDE.md`, `spec-defaults`, исследования |
+| common | 6 skills (with the generalized `contract-change`), `spec-auditor`, 7 hooks and `lib/`, hook tests (common part), `knowledge/` scripts, lefthook scripts, lefthook/biome/CI configs (common part) |
+| module `rust` | 2 agents, 2 hooks, toolchain, rustfmt, cargo permissions |
+| module `frontend` | 2 agents, `uikit-component`, 2 hooks, turbo, tsconfig, bun permissions |
+| module `linear` | `linear-triage`, `.mcp.json`, `DEN-N` in `change-finish` and commits |
+| module `orca` | the Orca paragraph in "A worktree per session"; Orca installs its skills itself |
+| module `telegram` | the new `telegram-bot` |
+| screener | 4 skills, `video-developer`, 2 hooks, protocol-generated, release/deploy, domain paragraphs of agents and `CLAUDE.md`, `spec-defaults`, research |
 
-## Спорное — на решение владельца
+## Disputed — for the owner to decide
 
-Ничего: классификация следует дизайну. Решения, которые принял я:
+Nothing: the classification follows the design. Decisions I made:
 
-- `contract-change` — общий, а не screener: процедура не зависит от домена, зависит только список контрактов.
-- `session-tree` — общее, а не модуль `orca`: хук работает через `git worktree` и Orca не вызывает.
-- ~~Иней, замки тарифов и бренд kelv из `uikit` не идут, остальные примитивы копируются~~ — заменено решением владельца: стартовый `uikit` — пустой каркас с токенами zinc и `cn`, без примитивов.
+- `contract-change` is common, not screener: the procedure does not depend on the domain, only the list of contracts does.
+- `session-tree` is common, not module `orca`: the hook works via `git worktree` and does not call Orca.
+- ~~Frost, plan locks and the kelv brand do not go from `uikit`, the remaining primitives are copied~~ — replaced by the owner's decision: the starter `uikit` is an empty skeleton with zinc tokens and `cn`, no primitives.

@@ -1,206 +1,207 @@
-# Shared-харнесс: дизайн
+# Shared harness: design
 
-Дата: 2026-10-28. Автор — Claude по разговору с владельцем (bodasooqa). Здесь «владелец» — его слова и решения; «моё решение» — то, что решил я и что владелец может оспорить.
+Date: 2026-10-28. Author: Claude, from a conversation with the owner (bodasooqa). Here "the owner" means his words and decisions; "my decision" means something I decided and the owner may challenge.
 
-## Зачем
+## Why
 
-За два месяца на screener сложились стек и обвязка, которые владельцу нравятся: Rust и React в одном монорепо, bun, turbo, biome, lefthook, CI на своих раннерах, процесс «ТЗ → OpenSpec → этапы → `knowledge/`», исполнители и ревьюеры, хуки на правку, Orca для рабочих деревьев. Владелец хочет вынести это в отдельный репозиторий и вести на нём и screener, и следующие проекты.
+Over two months on screener, a stack and harness took shape that the owner likes: Rust and React in one monorepo, bun, turbo, biome, lefthook, CI on own runners, the "spec → OpenSpec → stages → `knowledge/`" process, executors and reviewers, edit hooks, Orca for worktrees. The owner wants to move this into a separate repository and run both screener and future projects on it.
 
-Суть, словами владельца: **улучшения обвязки доезжают до всех проектов**. Это не одноразовый шаблон, а живой дистрибутив с версиями. Работать он обязан и в Claude Code, и в Pi: владелец уже начал пользоваться Pi.
+The point, in the owner's words: **harness improvements reach all projects**. This is not a one-off template but a living, versioned distribution. It must work in both Claude Code and Pi: the owner has already started using Pi.
 
-## Цели
+## Goals
 
-1. Новый проект создаётся одной командой с выбором частей: Rust (да/нет), фронт (да/нет), монорепо (да/нет). Любая комбинация, где есть хотя бы Rust или фронт.
-2. Улучшение обвязки, влитое в shared, автоматически приходит PR'ом во все проекты; PR без конфликтов и с зелёным CI вливается сам.
-3. Сессия любого проекта может сама открыть PR в shared с улучшением.
-4. Обвязка работает в Claude Code и в Pi с первого дня.
-5. screener переводится на shared и становится первым потребителем.
+1. A new project is created with one command, choosing its parts: Rust (yes/no), frontend (yes/no), monorepo (yes/no). Any combination with at least Rust or frontend.
+2. A harness improvement merged into shared automatically arrives as a PR in every project; a PR with no conflicts and green CI merges itself.
+3. A session in any project can open a PR with an improvement to shared on its own.
+4. The harness works in Claude Code and Pi from day one.
+5. screener moves onto shared and becomes its first consumer.
 
-## Не цели
+## Non-goals
 
-- **Не библиотека кода.** Каркас кода и `uikit` — стартовые файлы: создаются один раз и дальше принадлежат проекту. Владелец: «новый проект стартует с шаблона uikit из screener, и дальше у каждого проекта свой вид»; уточнил: в шаблоне только каркас пакета, токены темы zinc и утилиты, «компоненты в каждом проекте свои».
-- **Не скелет приложения.** Демон, `proto` с генерацией TS-типов, Postgres — не в шаблоне. Владелец: «пустое приложение с настроенными базовыми инструментами, т.к. проекты будут сильно отличаться от скринера».
-- Не другие агенты, кроме Claude Code и Pi (Codex, Cursor и прочие — вне рамок сейчас).
-- Не английская версия. Обвязка только на русском; язык станет вопросом шаблона мажорной версией, если понадобится проект на английском.
-- Не скрытый репозиторий: shared пока публичный (см. ниже), поэтому в нём нет ни секретов, ни доменного знания проектов.
+- **Not a code library.** The code skeleton and `uikit` are starter files: created once and owned by the project afterwards. The owner: "a new project starts from the uikit template from screener, and then each project has its own look"; he clarified: the template has only the package skeleton, zinc theme tokens and utilities, "components are each project's own".
+- **Not an application skeleton.** The daemon, `proto` with TS type generation, Postgres are not in the template. The owner: "an empty application with basic tools configured, since projects will differ a lot from the screener".
+- No agents other than Claude Code and Pi (Codex, Cursor and others are out of scope for now).
+- No per-project choice of artifact language. Since v2.0.0 the harness and everything it generates are in English: skills, prompts, hook messages, documents, comments, the knowledge journal, commits. Agents talk to the owner in the chat language from the `chat_language` template answer (Russian by default). Markers that scripts parse are English too: `<!-- unfolded revisions -->`, `<!-- toc: built by knowledge/index.sh, do not edit -->` / `<!-- /toc -->`, stage states `in progress` / `closed`, `# Closed questions`.
+- Not a hidden repository: shared is public for now (see below), so it holds no secrets and no domain knowledge of projects.
 
-## Анти-цели
+## Anti-goals
 
-Владелец назвал прямо: конфликты при обновлении и миграции — нормальный рабочий процесс, а не провал. Провал — если улучшение, сделанное в одном проекте, не доходит до других, или если обновление молча затирает то, что проект поправил у себя.
+The owner said it directly: conflicts during updates and migrations are a normal workflow, not a failure. Failure is when an improvement made in one project does not reach the others, or when an update silently overwrites what a project changed for itself.
 
-## Решённое владельцем
+## Decided by the owner
 
-| Вопрос | Ответ |
+| Question | Answer |
 |---|---|
-| Шаблон или живой дистрибутив | Живой: улучшения доезжают до всех проектов |
-| Репозиторий | Новый; пока публичный, CI shared — на раннерах GitHub |
-| Вливание в shared | PR в shared вливает главная сессия Claude сама, после зелёного CI (разрешение владельца 28.10.2026: «я разрешаю тебе самостоятельно вливать»); тег patch/minor ставится автоматически при вливании; мажорная версия — только вручную, с заметкой о миграции |
-| Язык | Только русский |
-| Telegram-боты | Скилл, а не отдельный субагент; необязательный модуль |
-| Linear в Pi | Владелец сам настроит MCP в Pi позже; Linear вообще необязателен |
-| Pi | С первого дня |
-| Процесс | Весь: ТЗ с журналом ревизий, OpenSpec, этапы, `knowledge/`, Orca. Linear — по желанию проекта |
-| Альтернативы процессу (Spec Kit, Kiro, BMAD) | Не нужны, процесс устраивает |
-| screener | Переводится на shared |
-| Доставка обновлений | Автоматический PR; вливается сам, если CI зелёный и конфликтов нет |
-| `uikit` | Стартовый файл: пустой каркас пакета — токены нейтральной темы shadcn (zinc) и `cn`, без примитивов; компоненты в каждом проекте свои (уточнение владельца 28.10.2026) |
-| Каркас | Пустые воркспейсы с настроенными инструментами |
-| Состав | Rust и фронт опциональны; монорепо тоже |
-| Orca | Основной инструмент сейчас, но может смениться |
-| Улучшения в shared | Сессия проекта сама открывает PR в shared |
+| Template or living distribution | Living: improvements reach all projects |
+| Repository | New; public for now, shared CI on GitHub runners |
+| Merging into shared | The main Claude session merges PRs into shared itself, after green CI (owner's permission of 28.10.2026: "I allow you to merge on your own"); a patch/minor tag is set automatically on merge; a major version only manually, with a migration note |
+| Language | Everything in English; agents talk to the owner in the chat language (`chat_language`, Russian by default) |
+| Telegram bots | A skill, not a separate subagent; an optional module |
+| Linear in Pi | The owner will set up MCP in Pi himself later; Linear is optional altogether |
+| Pi | From day one |
+| Process | All of it: spec with a revision journal, OpenSpec, stages, `knowledge/`, Orca. Linear at the project's choice |
+| Alternatives to the process (Spec Kit, Kiro, BMAD) | Not needed, the process works |
+| screener | Moves onto shared |
+| Update delivery | Automatic PR; merges itself if CI is green and there are no conflicts |
+| `uikit` | Starter file: an empty package skeleton — shadcn neutral theme tokens (zinc) and `cn`, no primitives; components are each project's own (owner's clarification of 28.10.2026) |
+| Skeleton | Empty workspaces with configured tools |
+| Composition | Rust and frontend are optional; so is the monorepo |
+| Orca | The main tool for now, but may change |
+| Improvements to shared | A project session opens a PR to shared itself |
 
-## Механизм доставки — rootstock
+## Delivery mechanism — rootstock
 
-С v1.0.0 shared — шаблон [rootstock](https://github.com/bodasooqa/rootstock): конфиг `rootstock.toml` в корне, файлы шаблона в `template/`. `rootstock new` создаёт проект и пишет запись `.rootstock.toml` (источник, версия, ответы, инвентарь); `rootstock update` накатывает новую версию шаблона трёхсторонним слиянием и сохраняет правки проекта; конфликт виден в файле. Стартовые файлы — список `starter`: обновление их не трогает, удалённый проектом не возвращается. Задачи шаблона при `new` — `openspec init --tools claude,pi` и `lefthook install`; нет инструмента в PATH — предупреждение, а не молчание. rootstock 0.1 делает `git init` после задач, поэтому git-хуки при `new --git` обычно ставятся руками, и задача говорит об этом.
+Since v1.0.0 shared is a [rootstock](https://github.com/bodasooqa/rootstock) template: the `rootstock.toml` config at the root, template files in `template/`. `rootstock new` creates a project and writes the `.rootstock.toml` record (source, version, answers, inventory); `rootstock update` applies a new template version with a three-way merge and keeps the project's changes; a conflict is visible in the file. Starter files are the `starter` list: an update does not touch them, and one the project deleted does not come back. Template tasks on `new` are `openspec init --tools claude,pi` and `lefthook install`; a tool missing from PATH gives a warning, not silence. rootstock 0.1 runs `git init` after the tasks, so on `new --git` git hooks are usually installed by hand, and the task says so.
 
-До v1.0.0 тем же был [Copier](https://copier.readthedocs.io/en/latest/updating/) (`copier.yml`, `.copier-answers.yml`) — моё решение, владелец видел сравнение и не возражал. rootstock — его замена на Rust, отдельный проект владельца, начатый ради этого шаблона: тот же формат шаблона и то же трёхстороннее слияние, без Python и без дефектов Copier с рендером стартовых путей и пересозданием удалённых стартовых файлов. Переход проектов — выпуск-мост v0.5.x, затем v1.0.0 (п. 4 «Доставка» ниже, шаги — `CHANGELOG.md`).
+Before v1.0.0 the same role was played by [Copier](https://copier.readthedocs.io/en/latest/updating/) (`copier.yml`, `.copier-answers.yml`) — my decision; the owner saw the comparison and did not object. rootstock is its replacement in Rust, a separate project of the owner's started for this template: the same template format and the same three-way merge, without Python and without Copier's defects in rendering starter paths and recreating deleted starter files. Projects moved over via the bridge release v0.5.x, then v1.0.0 (item 4 "Delivery" below; steps are in `CHANGELOG.md`).
 
-Отвергнуто:
+Rejected:
 
-- **rulesync** — генерирует конфиги под многих агентов, но у Pi в нём нет субагентов, а из чужого репозитория он тянет только правила и скиллы. Про стек (Cargo, bun, biome, CI) ничего не знает. Может пригодиться позже как генератор, если появится третий агент.
-- **Microsoft APM** — пакетный менеджер обвязки, но без Pi и до 1.0.
-- **Плагин Claude Code + пакет Pi** — нативно и с автообновлением, но покрывает только агентскую часть; конфигам проекта всё равно нужен шаблон. Два механизма вместо одного.
-- **Renovate с менеджером Copier** — не сохраняет флаг исполняемости (а хуки — shell-скрипты) и не краснеет на конфликте слияния.
+- **rulesync** — generates configs for many agents, but has no subagents for Pi, and from another repository it pulls only rules and skills. It knows nothing about the stack (Cargo, bun, biome, CI). May be useful later as a generator if a third agent appears.
+- **Microsoft APM** — a harness package manager, but without Pi and pre-1.0.
+- **Claude Code plugin + Pi package** — native and auto-updating, but covers only the agent part; project configs still need a template. Two mechanisms instead of one.
+- **Renovate with the Copier manager** — does not keep the executable bit (and hooks are shell scripts) and does not go red on a merge conflict.
 
-**Механизм может смениться.** Так Copier и сменился rootstock'ом. Чтобы замена проходила без ручной миграции проектов, shared не опирается на то, что трудно повторить вне одного инструмента: никаких расширений Jinja на Python, хуки шаблона — shell-скриптами. Связь проекта с механизмом — только формат шаблона (Jinja2 через minijinja) и запись `.rootstock.toml`; скрипты обвязки читают из неё ответы (таблица `[answers]`) сами, без бинарника rootstock.
+**The mechanism may change.** That is how Copier was replaced by rootstock. So that a replacement goes through without manual migration of projects, shared does not rely on anything hard to reproduce outside one tool: no Python Jinja extensions, template hooks as shell scripts. The project's link to the mechanism is only the template format (Jinja2 via minijinja) and the `.rootstock.toml` record; harness scripts read answers from it (the `[answers]` table) themselves, without the rootstock binary.
 
-### Два вида файлов
+### Two kinds of files
 
-- **Управляемые** — обновляются у всех: скиллы, агенты, хуки и их тесты, прослойка Pi, скрипты `knowledge/`, общая часть CI, lefthook, biome, конфиг OpenSpec.
-- **Стартовые** — создаются один раз (список `starter` в `rootstock.toml`: удалённый проектом стартовый файл не возвращается), обновление их не трогает: каркас кода, `uikit`, правила проекта `AGENTS.md` и `CLAUDE.md` из импортов, пустое ТЗ, `README.md`, проектные расширения. `.gitignore` и `.gitattributes` — тоже стартовые: в них проект дописывает своё (у screener `.gitattributes` был свой раньше шаблонного, и стартовый его не трогает, а проекту без него создаётся). Шаблонный `.gitattributes` держит LF на любой системе: с CRLF от `core.autocrlf=true` на Windows падают скрипты обвязки.
+- **Managed** — updated everywhere: skills, agents, hooks and their tests, the Pi shim, `knowledge/` scripts, the shared part of CI, lefthook, biome, the OpenSpec config.
+- **Starter** — created once (the `starter` list in `rootstock.toml`: a starter file the project deleted does not come back); updates do not touch them: the code skeleton, `uikit`, project rules `AGENTS.md` and `CLAUDE.md` made of imports, the empty spec, `README.md`, project extensions. `.gitignore` and `.gitattributes` are starter too: the project adds its own entries to them (screener had its own `.gitattributes` before the template's, and the starter one does not touch it, while a project without one gets it created). The template `.gitattributes` keeps LF on any system: with CRLF from `core.autocrlf=true` on Windows, harness scripts fail.
 
-### Точки расширения
+### Extension points
 
-Правило: проект не правит управляемый файл, а дописывает своё в стартовый файл, который управляемый подключает. Тогда обновление почти не конфликтует. Как подключать — моё решение по каждому виду:
+Rule: a project does not edit a managed file, it adds its own content to a starter file that the managed one includes. Then updates almost never conflict. How each kind is included is my decision:
 
-| Что | Управляемое | Проектное |
+| What | Managed | Project |
 |---|---|---|
-| Инструкции агенту | общие правила процесса — отдельным управляемым файлом `.harness/process.md` | `AGENTS.md` проекта (стартовый): домен, инварианты, определения; велит прочитать общий. `CLAUDE.md` (стартовый) — только импорты `@AGENTS.md` и `@.harness/process.md` для Claude Code. Один файл правил на всех агентов (Claude Code, Pi, Codex и другие, кто читает `AGENTS.md`); импорт `@файл` понимает только Claude Code, поэтому он живёт в `CLAUDE.md`, а не в `AGENTS.md`. Пакеты — так же: `AGENTS.md` с правилами, `CLAUDE.md` из `@AGENTS.md` |
-| Хуки | диспетчер: `settings.json` Claude и расширение Pi зовут один скрипт-диспетчер на событие | `<каталог харнесса>/local/hooks/<событие>/*.sh` — диспетчер запускает их после общих |
-| Агенты | общий промпт агента | дополнение `<каталог харнесса>/local/agents/<имя>.md`; агент обязан прочитать его, если файл есть |
-| Скиллы | общие скиллы | свои скиллы проекта рядом, под своими именами; дополнение общего скилла — `<каталог харнесса>/local/skills/<скилл>.md`, скилл читает его первым шагом, если файл есть |
-| CI | управляемый workflow с общими джобами | стартовый `ci.yml` проекта: свои джобы (у screener — `spec-defaults`) |
-| lefthook | управляемый общий конфиг | стартовый `lefthook.yml` с `extends` на общий |
-| Оглавления документов формы monolith | джоба `knowledge` в pre-commit и шаг «Оглавления собраны» в CI зовут `knowledge/index.sh`, если он есть | проектный `knowledge/index.sh`: с `--stage` переписывает оглавления и ставит их в индекс, без аргумента — только переписывает |
-| biome | управляемый общий конфиг | стартовый `biome.json` с `extends` на общий |
+| Agent instructions | common process rules as a separate managed file `.harness/process.md` | the project's `AGENTS.md` (starter): domain, invariants, definitions; tells the agent to read the common one. `CLAUDE.md` (starter) holds only the imports `@AGENTS.md` and `@.harness/process.md` for Claude Code. One rules file for all agents (Claude Code, Pi, Codex and others that read `AGENTS.md`); only Claude Code understands the `@file` import, so it lives in `CLAUDE.md`, not in `AGENTS.md`. Packages do the same: `AGENTS.md` with rules, `CLAUDE.md` made of `@AGENTS.md` |
+| Hooks | dispatcher: Claude's `settings.json` and the Pi extension call one dispatcher script per event | `<harness dir>/local/hooks/<event>/*.sh` — the dispatcher runs them after the common ones |
+| Agents | the common agent prompt | addendum `<harness dir>/local/agents/<name>.md`; the agent must read it if the file exists |
+| Skills | common skills | the project's own skills alongside, under their own names; an addendum to a common skill is `<harness dir>/local/skills/<skill>.md`, the skill reads it as its first step if the file exists |
+| CI | a managed workflow with common jobs | the project's starter `ci.yml`: its own jobs (screener has `spec-defaults`) |
+| lefthook | a managed common config | a starter `lefthook.yml` with `extends` to the common one |
+| Tables of contents for monolith-form documents | the `knowledge` job in pre-commit and the "Tables of contents built" step in CI call `knowledge/index.sh` if it exists | the project's `knowledge/index.sh`: with `--stage` it rewrites the tables of contents and stages them, without arguments it only rewrites |
+| biome | a managed common config | a starter `biome.json` with `extends` to the common one |
 
-Где именно лежит «каталог харнесса» (`.harness/` или иначе) — на строителе.
+Where exactly the "harness dir" lives (`.harness/` or otherwise) is up to the builder.
 
-У screener доменные хуки `contract-touch.sh` и `guard-data.sh`, доменные скиллы `new-exchange-adapter`, `core-fsm-test`, `reel`, `contract-change` в нынешнем виде, агент `video-developer` уходят в проектные расширения. Доменные абзацы промптов `rust-developer` и `rust-reviewer` (цены в тиках, `f64`, FSM, спаны `exchange`/`market`/`symbol`) — в дополнения агентов.
+screener's domain hooks `contract-touch.sh` and `guard-data.sh`, the domain skills `new-exchange-adapter`, `core-fsm-test`, `reel`, `contract-change` in their current form, and the `video-developer` agent go to project extensions. The domain paragraphs of the `rust-developer` and `rust-reviewer` prompts (prices in ticks, `f64`, FSM, `exchange`/`market`/`symbol` spans) go to agent addenda.
 
-## Вопросы шаблона
+## Template questions
 
-- `rust`, `frontend`, `monorepo` — булевы, как выше.
-- `linear` — подключать ли модуль Linear (скилл `linear-triage`, `DEN-N` в заголовке PR, строки Linear в `change-finish`). Без него задача называется именем change'а. Модуль работает через MCP Linear; в Pi — когда владелец настроит там MCP, до того в Pi Linear недоступен.
-- `telegram` — скилл `telegram-bot` для `rust-developer` (читается файлом по пути, как `core-fsm-test`): лимиты отправки и очередь с паузой на 429, разметка и экранирование, webhook или long polling, команды бота. Наполняется опытом screener: там бот на голом `reqwest` — алерты, бот владельца, `/help`, тарифы (`crates/daemon/src/alerting/telegram.rs`, `crates/daemon/src/owner_bot/`). Есть только при `rust`.
-- `orca` — модуль Orca: правило «дерево на сессию» через `orca worktree`, хук `session-tree` и требование, чтобы Orca была установлена. Скиллы `orca-cli` и `orchestration` в шаблон не входят: их ставит и обновляет сама Orca глобально, как superpowers (моё решение). По умолчанию включён. Без него — `git worktree`. Процесс не должен ссылаться на Orca напрямую, только через модуль: владелец допускает смену инструмента.
-- Пути к документам: ТЗ, журнал ревизий, решения, уроки, открытые вопросы. Скиллы, агенты и хуки берут пути отсюда, а не из зашитых строк. Так screener со старой формой и новые проекты с новой работают на одной обвязке.
-- Имя проекта, префикс задач в Linear, имена пакетов (`<проект>-<крейт>`, `@<проект>/<имя>`).
+- `rust`, `frontend`, `monorepo` — booleans, as above.
+- `linear` — whether to include the Linear module (the `linear-triage` skill, `DEN-N` in the PR title, Linear lines in `change-finish`). Without it a task is named after the change. The module works via Linear MCP; in Pi, once the owner sets up MCP there; until then Linear is unavailable in Pi.
+- `telegram` — the `telegram-bot` skill for `rust-developer` (read as a file by path, like `core-fsm-test`): send limits and a queue with a pause on 429, markup and escaping, webhook or long polling, bot commands. Filled with screener's experience: there the bot is on bare `reqwest` — alerts, the owner bot, `/help`, plans (`crates/daemon/src/alerting/telegram.rs`, `crates/daemon/src/owner_bot/`). Available only with `rust`.
+- `orca` — the Orca module: the "worktree per session" rule via `orca worktree`, the `session-tree` hook and the requirement that Orca be installed. The `orca-cli` and `orchestration` skills are not part of the template: Orca itself installs and updates them globally, like superpowers (my decision). Enabled by default. Without it — `git worktree`. The process must not refer to Orca directly, only through the module: the owner allows for the tool changing.
+- `chat_language` — the language agents use to talk to the owner (Russian by default). Everything else — artifacts, comments, the journal — is in English regardless of the answer.
+- Document paths: spec, revision journal, decisions, lessons, open questions. Skills, agents and hooks take paths from here, not from hard-coded strings. That way screener with the old form and new projects with the new form run on the same harness.
+- Project name, Linear task prefix, package names (`<project>-<crate>`, `@<project>/<name>`).
 
-### Раскладки
+### Layouts
 
-| Rust | Фронт | Монорепо | Раскладка |
+| Rust | Frontend | Monorepo | Layout |
 |---|---|---|---|
-| да | да | да | `crates/`, `apps/web`, `packages/uikit`; Cargo + bun + turbo |
-| да | нет | да | `crates/`, Cargo-воркспейс |
-| да | нет | нет | один крейт в корне |
-| нет | да | да | `apps/web`, `packages/uikit`; bun + turbo |
-| нет | да | нет | одно приложение в корне, компоненты в `src/components/ui` по соглашению shadcn |
-| да | да | нет | не бывает: Rust и фронт вместе — всегда монорепо (моё решение) |
+| yes | yes | yes | `crates/`, `apps/web`, `packages/uikit`; Cargo + bun + turbo |
+| yes | no | yes | `crates/`, Cargo workspace |
+| yes | no | no | a single crate at the root |
+| no | yes | yes | `apps/web`, `packages/uikit`; bun + turbo |
+| no | yes | no | a single application at the root, components in `src/components/ui` per the shadcn convention |
+| yes | yes | no | does not exist: Rust and frontend together are always a monorepo (my decision) |
 
-Что зависит от ответов: без Rust нет `rust-developer`, `rust-reviewer`, хуков `rustfmt`/`clippy`, Rust-джобы CI и Rust-команд lefthook; без фронта — то же для фронта, `uikit-component`, `biome` для TS. Всегда есть: процесс, ТЗ, OpenSpec, `knowledge/`, `spec-auditor`, `change-finish`, `stage-*`, `knowledge-note`, хуки на сессию и на постановку в индекс.
+What depends on the answers: without Rust there is no `rust-developer`, `rust-reviewer`, `rustfmt`/`clippy` hooks, Rust CI job or Rust lefthook commands; without frontend, the same for frontend, `uikit-component`, `biome` for TS. Always present: the process, the spec, OpenSpec, `knowledge/`, `spec-auditor`, `change-finish`, `stage-*`, `knowledge-note`, session hooks and staging hooks.
 
-Стек стартовых файлов — как у screener: Rust stable edition 2024, `[workspace.dependencies]` с закреплёнными версиями; React SPA на Vite, bun, turbo, biome, Tailwind и соглашение shadcn в `uikit`. Пустое приложение — собирается, проходит typecheck, lint и пустые тесты.
+The starter files' stack is the same as screener's: stable Rust, edition 2024, `[workspace.dependencies]` with pinned versions; a React SPA on Vite, bun, turbo, biome, Tailwind and the shadcn convention in `uikit`. The empty application builds and passes typecheck, lint and empty tests.
 
-## Форма документов в новом проекте
+## Document form in a new project
 
-Процесс тот же, форма другая — из-за боли screener: ТЗ выросло до 894 КБ, `decisions.md` до 7 тысяч строк, ни то ни другое не читается целиком (DEN-173, DEN-172).
+The process is the same, the form differs — because of screener's pain: the spec grew to 894 KB, `decisions.md` to 7 thousand lines, neither can be read in full (DEN-173, DEN-172).
 
-- ТЗ — каталог, по файлу на раздел.
-- Журнал ревизий — по файлу на ревизию; у ревизии в заголовке или frontmatter отмечено, сведена ли она в разделы ТЗ. Список несведённых собирается скриптом, а не ведётся руками.
-- Решения и уроки — по файлу на запись, как ADR.
-- Открытые вопросы остаются одним файлом со сроками (`due.sh` работает как сейчас), закрытые уходят в архив скриптом.
+- The spec is a directory, one file per section.
+- The revision journal is one file per revision; a revision's heading or frontmatter marks whether it is folded into the spec sections. The list of unfolded revisions is built by a script, not maintained by hand.
+- Decisions and lessons are one file per entry, like ADRs.
+- Open questions stay in one file with due dates (`due.sh` works as now); closed ones are moved to the archive by a script.
 
-screener сохраняет свою форму (ТЗ файлом плюс журнал файлом после DEN-173, монолитные `decisions.md` и `lessons.md`): ссылок на неё сотни, а журналы append-only. Отсюда требование: скрипты `knowledge/` и скиллы работают с обеими формами, или скрипты старой формы остаются у screener проектными. Как именно — на строителе.
+screener keeps its form (the spec as a file plus the journal as a file after DEN-173, monolithic `decisions.md` and `lessons.md`): there are hundreds of links to it, and the journals are append-only. Hence the requirement: `knowledge/` scripts and skills work with both forms, or the old-form scripts stay with screener as project files. How exactly is up to the builder.
 
-Сделано так (моё решение): `due.sh` и `archive-questions.sh` общие для обеих форм; оглавления у формы catalog собирает общий `knowledge/index.sh`, а у формы monolith общего скрипта нет — оглавление монолита у каждого проекта своё (метки, якоря, какие файлы). Проект кладёт свой `knowledge/index.sh`, и общая джоба `knowledge` зовёт его после архива вопросов, а CI сверяет оглавления тем же шагом, что у catalog. Имя одно на обе формы: джобе и CI не нужна ветка, тесты проекта в `knowledge/tests/` будит та же джоба `knowledge-tests`. Отдельной джобой проектный скрипт не сделать: обе писали бы `open-questions.md` и индекс git наперегонки, а переопределить `run` общей джобы при `extends` lefthook не даёт. Шаблон в форме monolith файл `knowledge/index.sh` не создаёт, поэтому обновление его не трогает.
+Done this way (my decision): `due.sh` and `archive-questions.sh` are shared by both forms; tables of contents for the catalog form are built by the common `knowledge/index.sh`, while the monolith form has no common script — each project's monolith table of contents is its own (labels, anchors, which files). The project puts in its own `knowledge/index.sh`, the common `knowledge` job calls it after archiving questions, and CI checks the tables of contents with the same step as for catalog. One name for both forms: the job and CI need no branch, and project tests in `knowledge/tests/` are triggered by the same `knowledge-tests` job. A separate job for the project script is not possible: both would write `open-questions.md` and the git index in a race, and lefthook does not allow overriding `run` of a common job via `extends`. In the monolith form the template does not create `knowledge/index.sh`, so updates do not touch it.
 
-## Claude Code и Pi
+## Claude Code and Pi
 
-Проверено по документации Pi 1.4.0 (`~/.pi/agent/install/releases/1.4.0/.../docs`) и по установке владельца.
+Checked against Pi 1.4.0 documentation (`~/.pi/agent/install/releases/1.4.0/.../docs`) and the owner's installation.
 
-| Часть | Claude Code | Pi | Как сделать |
+| Part | Claude Code | Pi | How |
 |---|---|---|---|
-| Инструкции | `CLAUDE.md`, импорт `@файл` | грузит из каталога один context file, `AGENTS.md` раньше `CLAUDE.md`; импорт `@файл` не понимает | правила проекта — в `AGENTS.md`: его читают Pi, Codex и другие агенты, один источник на всех. `CLAUDE.md` — только `@AGENTS.md` и `@.harness/process.md`, чтобы Claude Code получил оба. До Pi `.harness/process.md` доводит прослойка: добавляет в context files следом за главным файлом. `CLAUDE.md` при `AGENTS.md` она не добавляет, пока в нём одни импорты; со своими правилами — добавляет: обновление создаёт стартовый `AGENTS.md` заготовкой и в проекте, который правила ещё держит в `CLAUDE.md`, и без этого Pi их потерял бы. Раньше правила жили в `CLAUDE.md` с импортом `@.harness/process.md`, и Codex их не видел (DEN-228) |
-| Скиллы | `.claude/skills/` | стандарт Agent Skills: `.agents/skills/`, `.pi/skills/` или пакет | один экземпляр файлов, видимый обоим. Текст скиллов без имён инструментов одного агента (`Agent`, `Skill`, `TodoWrite`) — действием, как в superpowers |
-| Агенты | `.claude/agents/<имя>.md` | пакет `@gotgenes/pi-subagents`: `.pi/agents/<имя>.md`, похожий frontmatter | одно описание → два файла генерацией. Отображение инструментов (`Read`→`read`, `Glob`→`find`, `Bash`→`bash`…) и моделей (`opus`→`anthropic/claude-opus-…`) — в генераторе |
-| Хуки | shell-скрипты в `settings.json` | расширение на TypeScript: `tool_call` (может блокировать), `tool_result`, `session_start`, `session_shutdown`, `input`, `agent_before_settle` (может продолжить запуск) | логика — в shell-скриптах с общим входом JSON; тонкие прослойки на каждого агента. Тесты хуков гоняются через обе прослойки |
-| OpenSpec | `openspec init --tools claude` | `--tools pi` поддерживается (OpenSpec 1.12) | `--tools claude,pi`; файлы OpenSpec — generated, как сейчас |
-| superpowers | плагин | пакет Pi | ставится пользователем, в шаблон не входит |
-| Разрешения | `settings.json` | `@gotgenes/pi-permission-system`, свой формат | только Claude; в Pi — вне рамок первой версии (моё решение) |
+| Instructions | `CLAUDE.md`, `@file` import | loads one context file per directory, `AGENTS.md` before `CLAUDE.md`; does not understand the `@file` import | project rules go in `AGENTS.md`: Pi, Codex and other agents read it, one source for all. `CLAUDE.md` holds only `@AGENTS.md` and `@.harness/process.md`, so Claude Code gets both. The shim brings `.harness/process.md` to Pi: it adds it to context files right after the main file. With `AGENTS.md` present it does not add `CLAUDE.md` while that file holds only imports; with its own rules it does add it: the update creates a starter `AGENTS.md` stub even in a project that still keeps its rules in `CLAUDE.md`, and without this Pi would lose them. Previously rules lived in `CLAUDE.md` with an `@.harness/process.md` import, and Codex did not see them (DEN-228) |
+| Skills | `.claude/skills/` | the Agent Skills standard: `.agents/skills/`, `.pi/skills/` or a package | one copy of the files, visible to both. Skill text without tool names specific to one agent (`Agent`, `Skill`, `TodoWrite`) — described as an action, as in superpowers |
+| Agents | `.claude/agents/<name>.md` | the `@gotgenes/pi-subagents` package: `.pi/agents/<name>.md`, similar frontmatter | one description → two files by generation. Tool mapping (`Read`→`read`, `Glob`→`find`, `Bash`→`bash`…) and model mapping (`opus`→`anthropic/claude-opus-…`) live in the generator |
+| Hooks | shell scripts in `settings.json` | a TypeScript extension: `tool_call` (can block), `tool_result`, `session_start`, `session_shutdown`, `input`, `agent_before_settle` (can continue the run) | logic in shell scripts with a common JSON input; thin shims per agent. Hook tests run through both shims |
+| OpenSpec | `openspec init --tools claude` | `--tools pi` is supported (OpenSpec 1.12) | `--tools claude,pi`; OpenSpec files are generated, as now |
+| superpowers | plugin | Pi package | installed by the user, not part of the template |
+| Permissions | `settings.json` | `@gotgenes/pi-permission-system`, its own format | Claude only; Pi is out of scope for the first version (my decision) |
 
-У владельца в Pi уже стоят `pi-subagents`, `pi-permission-system`, `pi-subagents-worktrees`, `pi-autoformat`, `rpiv-ask-user-question`, `rpiv-todo` и расширения Orca. Шаблон может требовать `pi-subagents` как зависимость.
+The owner's Pi already has `pi-subagents`, `pi-permission-system`, `pi-subagents-worktrees`, `pi-autoformat`, `rpiv-ask-user-question`, `rpiv-todo` and the Orca extensions. The template may require `pi-subagents` as a dependency.
 
-Модели в Pi у владельца идут через OpenRouter. Отображение моделей агентов (`opus`, `sonnet` → идентификатор Pi) — таблица в настройках проекта, а не зашитые строки: провайдер может смениться. По умолчанию — модели Anthropic через того провайдера, что настроен; тексты скиллов настроены под Claude (моё решение).
+The owner's models in Pi go through OpenRouter. The agent model mapping (`opus`, `sonnet` → Pi identifier) is a table in project settings, not hard-coded strings: the provider may change. By default — Anthropic models through whichever provider is configured; skill texts are tuned for Claude (my decision).
 
-Асинхронные хуки Claude (clippy и tsc в фоне с пробуждением при ошибке, выход 2) в Pi надо воспроизвести средствами расширения или честно отметить, что в Pi они синхронные или отсутствуют. Решение — на строителе, но расхождение записывается в документацию shared.
+Claude's async hooks (clippy and tsc in the background with a wake-up on error, exit 2) must be reproduced in Pi with extension means, or it must be honestly noted that in Pi they are synchronous or absent. The decision is up to the builder, but the divergence is recorded in shared's documentation.
 
-### Проверки исполнителя на выходе (DEN-229)
+### Executor checks on exit (DEN-229)
 
-Асинхронные проверки правку субагента не будят: исполнитель идёт по TDD, красное между его правками — рабочий ход. Поэтому отчёт с красным fmt, clippy или tsc ловил только полный прогон главной сессии, и исполнителя перезапускали. Решение владельца: исполнитель не завершается, пока по затронутым им пакетам красные быстрые проверки. Хук `agent-checks.sh`, слоты `subagent-stop` и `pre-handback`; как устроен — README хуков, «Проверки исполнителя».
+Async checks do not wake a subagent's edits: the executor follows TDD, and red between its edits is part of the work. So a report with red fmt, clippy or tsc was caught only by the main session's full run, and the executor was restarted. The owner's decision: the executor does not finish while fast checks are red for the packages it touched. The `agent-checks.sh` hook, slots `subagent-stop` and `pre-handback`; how it works — hooks README, "Executor checks".
 
-- **Кто исполнитель.** Агент с именем `*-developer`, а не список имён: соглашение об именах агентов уже есть в шаблоне (`rust-developer`, `frontend-developer`, ревьюеры — `*-reviewer`), проектный исполнитель того же вида (`video-developer` у screener) подхватывается без правки обвязки, а второй список отставал бы от агентов. Точка расширения — имя агента.
-- **Что проверяется.** Изменения рабочего дерева относительно HEAD плюс неотслеживаемые, сведённые к крейтам и пакетам; команды и разбор пути — общие с `rust-clippy` и `js-typecheck` (`lib/rust-crate.sh`, `lib/js-package.sh`). Чью правку видит git, он не знает: изменения главной сессии до запуска исполнителя тоже попадают в набор.
-- **Один раз.** Отказ — один раз на остановку (`stop_hook_active`) и на отчёт: исполнитель, который не может исправить в пределах задачи, возвращает вопрос, а не крутится.
-- **`SubagentHandback`.** Сверено с документацией Claude Code: в auto mode субагент сдаёт отчёт этим инструментом до остановки, и `SubagentStop` наступает, когда отчёт уже у главной сессии. Поэтому сверх `SubagentStop` проведён `PreToolUse` на `SubagentHandback`: отказ отчёту — один раз, метка в каталоге git дерева. Отказывать больше нельзя: после трёх отказов Claude Code завершает агента без отчёта.
-- **Без `Stop`.** В главной сессии правки проверяет `post-edit-async` с пробуждением, хвосты — `session-end`, перед PR — полный прогон; `Stop` на каждом ходу стоил бы времени. Исполнитель отдельной сессией получает `Stop`, а не `SubagentStop`; надёжный признак такой сессии — `agent_type`, который Claude Code кладёт во вход, только если сессия запущена с `claude --agent <имя>`. Оркестратор, запускающий исполнителя обычной сессией (Orca `worker-start --agent claude` — это выбор агента-программы, а не `--agent` Claude Code), признака не даёт, а выдумывать его по переменным окружения шаблон не стал. Хук понимает и `Stop`: проект, запускающий исполнителей через `--agent`, проводит `Stop` → `dispatch.sh subagent-stop` своей строкой в `.claude/settings.json`.
-- **Pi.** Аналог `SubagentStop` есть: `agent_before_settle` в сессии ребёнка `pi-subagents` (тот же процесс, то же расширение) может дописать сообщение и продолжить запуск один раз (`continue: true`) до того, как ответ уйдёт родителю. `SubagentHandback` в Pi нет — слот `pre-handback` не проводится.
+- **Who is an executor.** An agent named `*-developer`, not a list of names: the agent naming convention already exists in the template (`rust-developer`, `frontend-developer`, reviewers are `*-reviewer`), a project executor of the same kind (`video-developer` in screener) is picked up without editing the harness, and a second list would lag behind the agents. The extension point is the agent name.
+- **What is checked.** Working-tree changes relative to HEAD plus untracked files, reduced to crates and packages; commands and path parsing are shared with `rust-clippy` and `js-typecheck` (`lib/rust-crate.sh`, `lib/js-package.sh`). Git does not know whose edit it sees: the main session's changes before the executor started are included too.
+- **Once.** The refusal happens once per stop (`stop_hook_active`) and once per report: an executor that cannot fix it within the task returns a question instead of looping.
+- **`SubagentHandback`.** Checked against Claude Code documentation: in auto mode a subagent hands in its report with this tool before stopping, and `SubagentStop` fires when the report is already with the main session. So on top of `SubagentStop`, `PreToolUse` on `SubagentHandback` is wired: the report is refused once, with a marker in the worktree's git directory. Refusing more is not allowed: after three refusals Claude Code terminates the agent without a report.
+- **No `Stop`.** In the main session edits are checked by `post-edit-async` with a wake-up, leftovers by `session-end`, and before a PR by a full run; `Stop` on every turn would cost time. An executor running as a separate session gets `Stop`, not `SubagentStop`; the reliable sign of such a session is `agent_type`, which Claude Code puts in the input only if the session was started with `claude --agent <name>`. An orchestrator that starts the executor as an ordinary session (Orca `worker-start --agent claude` chooses the agent program, it is not Claude Code's `--agent`) gives no such sign, and the template chose not to invent one from environment variables. The hook understands `Stop` too: a project that starts executors via `--agent` wires `Stop` → `dispatch.sh subagent-stop` with its own line in `.claude/settings.json`.
+- **Pi.** There is an analogue of `SubagentStop`: `agent_before_settle` in a `pi-subagents` child session (same process, same extension) can append a message and continue the run once (`continue: true`) before the answer goes to the parent. Pi has no `SubagentHandback`, so the `pre-handback` slot is not wired.
 
-### Разрешения Claude Code
+### Claude Code permissions
 
-`permissions.allow` в `.claude/settings.json` — команды, которые агент зовёт постоянно, без запроса. Правило Claude Code `Bash(<префикс> *)` пропускает всё, что идёт после префикса, поэтому в allow — только формы, чьи аргументы не несут в себе исполнения или записи в произвольный путь (#21): иначе команда, похожая на «поиск» или «лог», проходит без подтверждения, в том числе по prompt-injection из прочитанного текста.
+`permissions.allow` in `.claude/settings.json` lists commands the agent calls constantly, without a prompt. A Claude Code rule `Bash(<prefix> *)` lets through everything after the prefix, so allow holds only forms whose arguments carry no execution or writing to an arbitrary path (#21): otherwise a command that looks like a "search" or a "log" goes through without confirmation, including via prompt injection from text it has read.
 
-- **Нет в allow:** `rg` (`--pre <команда>`), `git diff`/`git log` (`--output=<файл>`, `--ext-diff`), `lefthook` кроме `lefthook validate` (`lefthook run` исполняет `lefthook.yml`), `bunx` кроме `tsc --noEmit` и `biome` (`bunx <любой пакет>` качает и запускает чужой код), `bun` кроме перечисленных скриптов `package.json`, `turbo` кроме `turbo run`, `openspec` кроме чтения и работы с change'ами (`init`, `update`, `config`, `completion`, `feedback` — с запросом). Безопасные формы `git diff`, `git log`, `git status` Claude Code и так пускает без запроса — встроенный набор read-only команд с проверкой флагов; поиск — инструмент поиска агента, а не `rg` в оболочке.
-- **В allow с хвостовым `*`:** `cargo check|build|test|clippy|fmt|tree|metadata`, `bun test`, `biome check|format|lint`, `turbo run`, `gh pr|run` на чтение, `jq`, `shellcheck`, `git add`. Они исполняют код проекта (тесты, `build.rs`, скрипты), но этот код агент пишет правкой файлов, а она идёт через свои разрешения.
-- **deny** — флаги, которые превращают разрешённую или встроенную read-only команду в исполнение или запись: `rg --pre`, `git diff|log|show --output|--ext-diff`, `cargo --config` (`build.rustc-wrapper`), файлы отчётов и журналов `biome`, `turbo`, `bun test`. deny сильнее allow любого уровня, так что держит и широкое правило из личных настроек. Длинные флаги git и rg не сокращаются, поэтому шаблон `*--output*` не обходится сокращением.
+- **Not in allow:** `rg` (`--pre <command>`), `git diff`/`git log` (`--output=<file>`, `--ext-diff`), `lefthook` other than `lefthook validate` (`lefthook run` executes `lefthook.yml`), `bunx` other than `tsc --noEmit` and `biome` (`bunx <any package>` downloads and runs third-party code), `bun` other than the listed `package.json` scripts, `turbo` other than `turbo run`, `openspec` other than reading and working with changes (`init`, `update`, `config`, `completion`, `feedback` — with a prompt). Claude Code already lets safe forms of `git diff`, `git log`, `git status` through without a prompt — a built-in set of read-only commands with flag checks; searching is done with the agent's search tool, not `rg` in the shell.
+- **In allow with a trailing `*`:** `cargo check|build|test|clippy|fmt|tree|metadata`, `bun test`, `biome check|format|lint`, `turbo run`, read-only `gh pr|run`, `jq`, `shellcheck`, `git add`. They execute project code (tests, `build.rs`, scripts), but the agent writes that code by editing files, and editing goes through its own permissions.
+- **deny** — flags that turn an allowed or built-in read-only command into execution or writing: `rg --pre`, `git diff|log|show --output|--ext-diff`, `cargo --config` (`build.rustc-wrapper`), report and log files of `biome`, `turbo`, `bun test`. deny beats allow at any level, so it also holds against a broad rule from personal settings. Long git and rg flags are not abbreviated, so the `*--output*` pattern cannot be bypassed by abbreviation.
 
-Это не граница безопасности: правило сопоставляется с текстом команды, `sh -c '…'` или полный путь к программе его обходят, — граница там песочница Claude Code. Цель — чтобы обычная команда агента, с запросом или без, не делала больше, чем выглядит. Проекту нужно больше — своя строка в своём `.claude/settings.json` (управляемый файл, правка проекта переживает обновление) или в `.claude/settings.local.json`. В Pi разрешений шаблон не задаёт (таблица выше).
+This is not a security boundary: a rule is matched against the command text, and `sh -c '…'` or a full program path bypasses it — the boundary there is the Claude Code sandbox. The goal is that an ordinary agent command, prompted or not, does no more than it appears to. A project that needs more adds its own line in its `.claude/settings.json` (a managed file; the project's edit survives updates) or in `.claude/settings.local.json`. In Pi the template sets no permissions (table above).
 
-## Поток обновлений
+## Update flow
 
-1. **Улучшение.** Сессия проекта правит клон shared на своей ветке и открывает PR в shared. Где лежит клон — на строителе (рядом с проектами или временный). Пока PR не влит, проект может поправить свой файл сам: обновление потом увидит ту же правку и пройдёт без конфликта.
-2. **Проверка shared.** CI shared генерирует каждую из пяти раскладок, прогоняет в ней сборку, typecheck, lint, тесты и тесты хуков через обе прослойки. Отдельная джоба на `windows-latest` (Git Bash) проверяет git-хуки проекта (`scripts/check-lefthook.sh`: коммит и пуш через lefthook, pre-push без upstream и с ним, тесты `knowledge/`, окончания строк): у разработчика на Windows хуки должны работать без `LEFTHOOK=0`. Отсюда правила общего `lefthook.yml`: `files:` lefthook на Windows исполняет без оболочки, поэтому скрипт зовётся `sh ./…` и написан на POSIX sh; `run:` идёт через `sh -c`, но в двойных кавычках без экранирования — двойных кавычек в `run:` нет. У shared свой `CLAUDE.md` с правилами работы над ним.
-3. **Версия.** PR в shared вливает главная сессия после зелёного CI. При вливании автоматически ставится тег patch или minor. Ломающее изменение (переименован путь, изменился вопрос шаблона) — мажорная версия, только вручную, с заметкой о миграции; её PR в проектах сам не вливается.
-4. **Доставка.** Shared событий не рассылает: проект сам раз в сутки (и вручную) сверяет теги shared со своей версией (`version` в `.rootstock.toml`). Управляемый workflow `harness-update.yml` ставит rootstock закреплённой версии со сверкой суммы, делает `rootstock update` до тега, конфликты — маркерами в файлах, PR «Обновление харнесса до vX» с метками `harness:major` и `harness:conflict` по случаю. Переход с Copier: workflow выпуска-моста v0.5.x на теге с `rootstock.toml` первым коммитом PR делает `rootstock import-copier` (проект переходит на `.rootstock.toml` на прежней версии), вторым — `rootstock update` до тега; на теге без него — `copier update`. Поэтому мажор v1.0.0 доходит до проекта только через мост.
-5. **Вливание.** PR вливается сам, если CI зелёный и маркеров конфликта нет. Вливание срабатывает по событию завершения CI (`workflow_run` или `check_suite`), а не ожиданием внутри джобы: при одном раннере на репозиторий ждущая джоба заняла бы раннер и заблокировала бы сам CI (моё решение). Своё вливание нужно, потому что CI в screener не обязателен (решение владельца «пока не надо»), и штатный auto-merge GitHub без обязательных проверок влил бы PR сразу.
-6. **Конфликт.** PR остаётся открытым, CI красный на маркерах. Разбирает сессия Claude как обычную задачу.
+1. **Improvement.** A project session edits a clone of shared on its own branch and opens a PR to shared. Where the clone lives is up to the builder (next to the projects or temporary). Until the PR is merged, the project may fix its own file itself: the update will later see the same edit and go through without conflict.
+2. **Shared checks.** Shared's CI generates each of the five layouts and runs build, typecheck, lint, tests and hook tests through both shims in each. A separate job on `windows-latest` (Git Bash) checks the project's git hooks (`scripts/check-lefthook.sh`: commit and push via lefthook, pre-push without and with upstream, `knowledge/` tests, line endings): for a developer on Windows, hooks must work without `LEFTHOOK=0`. Hence the rules of the common `lefthook.yml`: on Windows lefthook executes `files:` without a shell, so the script is called as `sh ./…` and written in POSIX sh; `run:` goes through `sh -c`, but in double quotes without escaping — there are no double quotes in `run:`. Shared has its own `CLAUDE.md` with rules for working on it.
+3. **Version.** The main session merges PRs into shared after green CI. On merge a patch or minor tag is set automatically. A breaking change (a path renamed, a template question changed) is a major version, only manually, with a migration note; its PR in projects does not merge itself.
+4. **Delivery.** Shared does not broadcast events: each project itself, once a day (and manually), compares shared's tags with its own version (`version` in `.rootstock.toml`). The managed workflow `harness-update.yml` installs a pinned rootstock version with a checksum check, runs `rootstock update` to the tag, conflicts as markers in files, and opens a PR "Harness update to vX" with the `harness:major` and `harness:conflict` labels as applicable. Moving off Copier: the bridge release v0.5.x workflow, on a tag with `rootstock.toml`, makes `rootstock import-copier` the PR's first commit (the project moves to `.rootstock.toml` at its previous version) and `rootstock update` to the tag the second; on a tag without it, `copier update`. So the v1.0.0 major reaches a project only through the bridge.
+5. **Merge.** The PR merges itself if CI is green and there are no conflict markers. The merge is triggered by the CI completion event (`workflow_run` or `check_suite`), not by waiting inside a job: with one runner per repository, a waiting job would occupy the runner and block CI itself (my decision). A custom merge is needed because CI in screener is not required (owner's decision "not needed yet"), and GitHub's built-in auto-merge without required checks would merge the PR immediately.
+6. **Conflict.** The PR stays open, CI is red on the markers. A Claude session resolves it as an ordinary task.
 
-**Раннеры и доступ.**
-- CI самого shared идёт на раннерах GitHub: репозиторий публичный, минуты для него бесплатны.
-- Проекты (screener) остаются на своих self-hosted раннерах. У личного аккаунта раннер привязывается к одному репозиторию, поэтому workflow обновления и автовливания должны уживаться с одним раннером на проект (вливание по событию — см. п. 5). rootstock workflow ставит сам, закреплённой версией со сверкой суммы; нет `gh` — ставит и его. Всё — в каталог джоба, систему раннера не трогая.
-- Shared публичный, поэтому проекты читают его без токена.
-- PR, открытый штатным `GITHUB_TOKEN`, не запускает CI проекта, а пушить правки в `.github/workflows/` ему нельзя. Поэтому PR обновления открывает и вливает секрет проекта `HARNESS_UPDATE_TOKEN` — fine-grained PAT владельца (Contents, Pull requests, Workflows — RW, Metadata — R); секрет создаёт владелец. Рассылки из shared нет — проекты проверяют теги по расписанию, и shared не нужен доступ к ним. Раннер workflow обновления — переменная репозитория `HARNESS_RUNNER`, источник тегов — `HARNESS_TEMPLATE_URL` (для проверки на копии шаблона). Подключение — `.harness/local/README.md` проекта.
-- Где идёт CI новых проектов (свой раннер на репозиторий или раннеры GitHub) — решается при создании первого нового проекта.
+**Runners and access.**
+- Shared's own CI runs on GitHub runners: the repository is public, minutes for it are free.
+- Projects (screener) stay on their self-hosted runners. On a personal account a runner is bound to one repository, so the update and auto-merge workflows must coexist with one runner per project (merge by event — see item 5). The workflow installs rootstock itself, a pinned version with a checksum check; if `gh` is missing, it installs that too. Everything goes into the job directory without touching the runner's system.
+- Shared is public, so projects read it without a token.
+- A PR opened with the standard `GITHUB_TOKEN` does not trigger the project's CI, and it may not push changes to `.github/workflows/`. So the update PR is opened and merged with the project secret `HARNESS_UPDATE_TOKEN` — the owner's fine-grained PAT (Contents, Pull requests, Workflows — RW, Metadata — R); the owner creates the secret. There is no broadcast from shared — projects check tags on a schedule, and shared needs no access to them. The update workflow's runner is the repository variable `HARNESS_RUNNER`, the tag source is `HARNESS_TEMPLATE_URL` (for testing on a copy of the template). Setup is in the project's `.harness/local/README.md`.
+- Where new projects' CI runs (own runner per repository or GitHub runners) is decided when the first new project is created.
 
-## Перевод screener
+## Moving screener over
 
-Одной миграцией, отдельным PR в screener: шаблон накладывается на существующий репозиторий с ответами screener (Rust, фронт, монорепо, Linear, Orca, пути к старой форме документов), расхождения разбираются вручную один раз. После этого обычные обновления. Доменное screener'а переезжает в проектные расширения (см. «Точки расширения»). Видео (`apps/video`, `video-developer`, `reel`) — проектное.
+In one migration, a separate PR in screener: the template is applied to the existing repository with screener's answers (Rust, frontend, monorepo, Linear, Orca, paths to the old document form), and divergences are resolved by hand once. After that, regular updates. screener's domain content moves to project extensions (see "Extension points"). Video (`apps/video`, `video-developer`, `reel`) is project-specific.
 
-## Порядок работ
+## Order of work
 
-1. Shared вырастает из обвязки screener: общее отделяется от доменного, пути становятся параметрами, появляются прослойка Pi и генератор агентов.
-2. CI shared на пяти раскладках.
-3. Перевод screener — первый потребитель, проверка на живом.
-4. Автоматическая доставка обновлений.
-5. Первый новый проект.
+1. Shared grows out of screener's harness: the common is separated from the domain, paths become parameters, the Pi shim and the agent generator appear.
+2. Shared CI on five layouts.
+3. Moving screener over — the first consumer, a check on a live project.
+4. Automatic update delivery.
+5. The first new project.
 
-Владелец: «Сначала shared из screener, потом screener на нём, потом новый проект» — это моя формулировка, с которой он не спорил.
+The owner: "First shared from screener, then screener on it, then a new project" — this is my wording, which he did not dispute.
 
-## На строителе
+## Up to the builder
 
-- Имя репозитория (предложение — `bodasooqa/harness`) и раскладка каталога харнесса внутри проекта.
-- Формат описания агента-источника и генератора.
-- Как именно скилл видят оба агента без дублирования файлов.
-- Форма скриптов `knowledge/` для двух форм документов.
-- Механика рассылки события о новой версии и вид секрета.
-- Задачи в Linear: shared — работа обвязки screener, ведётся в его Linear под своими задачами, пока владелец не решит иначе.
+- The repository name (proposal: `bodasooqa/harness`) and the layout of the harness dir inside a project.
+- The format of the source agent description and the generator.
+- How exactly a skill is seen by both agents without duplicating files.
+- The shape of `knowledge/` scripts for the two document forms.
+- The mechanics of broadcasting a new-version event and the kind of secret.
+- Linear tasks: shared is screener harness work, tracked in its Linear under its own tasks until the owner decides otherwise.
