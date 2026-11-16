@@ -9,6 +9,23 @@ When a note is written here:
 
 New entries go on top.
 
+## v2.0.0 — the harness in English
+
+Everything the harness ships is now English: skills, agents, prompts, hook messages, managed docs, starter documents, starter code, comments, and the vocabulary the `knowledge/` scripts parse. Projects write their artifacts, code comments, error messages, commits, PRs, and the knowledge journal in English (`.harness/process.md`, section "Language"; `openspec/config.yaml`). The only exception is chat: agents talk to the owner in the language of the new template question `chat_language` (default `Russian`).
+
+**What the update does in a connected project.** Managed files (skills, agents, hooks, `process.md`, `openspec/config.yaml`, workflows) arrive in English. `chat_language` is filled with its default by `rootstock update --defaults`, so the update PR needs no answer. Starter files the project already has — the spec, the stages table, open questions, the decisions and lessons READMEs — are not touched, and the scripts no longer understand their Russian markers. The PR carries the `harness:major` label and does not merge itself.
+
+**Migration** — on the update branch before merging it (your own commit disables automerge, merge it by hand after green CI):
+
+1. **Stages table** (`stages_path`; both forms): states `в работе` → `in progress`, `закрыт` → `closed`, `не начат` / `не начаты` → `not started`. `knowledge/due.sh` matches `in progress` and `closed` case-insensitively as whole words.
+2. **Open questions** (`open_questions_path`; both forms): every `Нужно к: этапу N` → `Due: stage N` (a change stays in backticks: ``Due: `stage1-name` ``). Without it `due.sh --overdue` counts every question as overdue with no deadline, and pre-push goes red. Update the format example in the file header too. Closing convention from now on: `## ~~Question title~~ — closed YYYY-MM-DD`; the script only looks at `## ~~`, so already closed questions need no change.
+3. **Spec README** (catalog form): `<!-- несведённые ревизии -->` / `<!-- /несведённые ревизии -->` → `<!-- unfolded revisions -->` / `<!-- /unfolded revisions -->`, then `knowledge/spec-unfolded.sh --write` (it rewrites the block body, e.g. `No unfolded revisions.`).
+4. **Decisions and lessons READMEs** (catalog form): `<!-- оглавление: собирает knowledge/index.sh, руками не править -->` / `<!-- /оглавление -->` → `<!-- toc: built by knowledge/index.sh, do not edit -->` / `<!-- /toc -->`, then `knowledge/index.sh`. A monolith project with its own `knowledge/index.sh` updates its own markers.
+5. **Optional.** The archive heading `# Закрытые вопросы` → `# Closed questions` (the script creates it only for a new archive). Translating the rest of the existing documents is up to the project; new entries are written in English.
+6. **Chat language.** If the owner should be addressed in a language other than Russian, set `chat_language` in `[answers]` of `.rootstock.toml` and run `rootstock update` again.
+
+Script output changed with the vocabulary (`Overdue questions: N`, `No overdue questions.`, `Open questions for stage N.`, `closed questions moved: N`, `table of contents updated:`); a project script that parses it needs the new strings. The update PR title is now "Update harness to vX.Y.Z".
+
 ## Executor checks on exit (minor)
 
 An executor (a `*-developer` agent: `rust-developer`, `frontend-developer`, and project agents of the same kind) no longer hands in work with red fast checks. The new shared hook `agent-checks.sh` takes the worktree changes relative to HEAD plus untracked files, maps them to crates and packages, and runs `rustfmt --check`, clippy per crate, and `tsc --noEmit` per package — according to the project's modules. Red means a single refusal, with the error output in the reason; the executor fixes it or returns a question.
