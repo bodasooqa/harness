@@ -48,8 +48,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Нейтральная тема shadcn zinc (реестр shadcn, colors/zinc). Новый цвет —
-   токен сразу в оба блока, `:root` и `.dark`. */
+/* Neutral shadcn zinc theme (shadcn registry, colors/zinc). A new color is a
+   token added to both blocks at once, `:root` and `.dark`. */
 :root {
   color-scheme: light;
   --radius: 0.625rem;

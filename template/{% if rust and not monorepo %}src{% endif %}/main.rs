@@ -1,19 +1,19 @@
-//! Точка входа приложения.
+//! Application entry point.
 
 use tracing_subscriber::EnvFilter;
 
 fn main() {
-    // Уровень журнала — из `RUST_LOG`, по умолчанию `info`.
+    // Log level comes from `RUST_LOG`, `info` by default.
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tracing::info!("{}", greeting());
 }
 
-/// Строка о запуске: имя пакета и версия.
+/// Startup line: package name and version.
 fn greeting() -> String {
     format!(
-        "{} {} запущен",
+        "{} {} started",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
     )
