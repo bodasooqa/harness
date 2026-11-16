@@ -1,23 +1,23 @@
-# ТЗ {{ project_name }}
+# {{ project_name }} spec
 
-Техническое задание — источник истины о поведении системы. Каталог, а не один файл: целиком ТЗ не читают, нужный раздел находится по имени файла.
+The spec is the source of truth about the system's behavior. A directory, not a single file: nobody reads the whole spec, the needed section is found by file name.
 
-## Как устроено
+## How it works
 
-- Файл на раздел, имя — `NN-slug.md`: двузначный номер раздела и короткое имя латиницей (`01-purpose.md`). Номер задаёт порядок чтения и ссылку на раздел — «§N».
-- Разделы содержат сведённые требования. Метка версии «(1.N)» в тексте раздела отмечает, какой ревизией пришло или поменялось требование.
-- Изменения ТЗ идут ревизиями: журнал — `{{ revisions_path }}`, файл на ревизию (формат — в README журнала). Ревизия сначала записывается в журнал, потом сводится в разделы, и в её frontmatter ставится `folded: true`.
+- One file per section, named `NN-slug.md`: a two-digit section number and a short Latin name (`01-purpose.md`). The number sets the reading order and the section reference — "§N".
+- Sections contain folded requirements. A version label "(1.N)" in a section's text marks which revision brought or changed the requirement.
+- Spec changes go through revisions: the journal is `{{ revisions_path }}`, one file per revision (the format is in the journal README). A revision is first written to the journal, then folded into the sections, and its frontmatter gets `folded: true`.
 
-## Разделы
+## Sections
 
-- [01. Назначение](01-purpose.md)
-- [02. Термины](02-terms.md)
-- [03. Этапы реализации](03-stages.md)
+- [01. Purpose](01-purpose.md)
+- [02. Terms](02-terms.md)
+- [03. Implementation stages](03-stages.md)
 
-## Несведённые ревизии
+## Unfolded revisions
 
-Список собирает `knowledge/spec-unfolded.sh --write`, руками не править.
+The list is built by `knowledge/spec-unfolded.sh --write`, do not edit by hand.
 
-<!-- несведённые ревизии -->
-Несведённых ревизий нет.
-<!-- /несведённые ревизии -->
+<!-- unfolded revisions -->
+No unfolded revisions.
+<!-- /unfolded revisions -->

@@ -1,11 +1,11 @@
-# 3. Этапы реализации
+# 3. Implementation stages
 
-Порядок работ по этапам; у каждого этапа — что в него входит и критерий приёмки, по которому этап считается закрытым.
+The order of work by stage; each stage has what it includes and an acceptance criterion by which the stage counts as closed.
 
-## Состояние этапов
+## Stage states
 
-Таблицу читает `knowledge/due.sh`: сроки открытых вопросов («Нужно к: этапу N») сверяются с ней. Строка — `| N. Название | состояние |`, одна строка может покрывать диапазон (`| 4–6. Название | не начаты |`). Состояния — «не начат», «в работе», «закрыт»; этап «в работе» один. Таблицу ведёт приёмка этапа.
+The table is read by `knowledge/due.sh`: deadlines of open questions ("Due: stage N") are checked against it. A row is `| N. Name | state |`, one row may cover a range (`| 4–6. Name | not started |`). States are "not started", "in progress", "closed"; only one stage is "in progress". The table is kept by stage acceptance.
 
-| Этап | Состояние |
+| Stage | State |
 |---|---|
-| 1. Первый этап | не начат |
+| 1. First stage | not started |

@@ -1,3 +1,3 @@
-# 1. Назначение
+# 1. Purpose
 
-Зачем система и для кого: задача, которую она решает, и чем результат полезен.
+Why the system exists and for whom: the problem it solves and how the result is useful.

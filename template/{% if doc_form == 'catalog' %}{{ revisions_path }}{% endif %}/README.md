@@ -1,25 +1,25 @@
-# Журнал ревизий ТЗ
+# Spec revision journal
 
-Файл на ревизию. Журнал append-only: ревизия не переписывается задним числом, ошибка исправляется следующей ревизией.
+One file per revision. The journal is append-only: a revision is not rewritten after the fact, a mistake is fixed by the next revision.
 
-## Формат
+## Format
 
-Имя файла — `NNNN-1.N.md`: четырёхзначный порядковый номер и версия ТЗ (`0001-1.1.md`, `0012-1.12.md`). Номер задаёт порядок, версия — метку «(1.N)», которой ревизия отмечается в разделах ТЗ.
+File name — `NNNN-1.N.md`: a four-digit sequence number and the spec version (`0001-1.1.md`, `0012-1.12.md`). The number sets the order, the version is the "(1.N)" label that marks the revision in the spec sections.
 
 ```markdown
 ---
 version: "1.N"
-date: ГГГГ-ММ-ДД
+date: YYYY-MM-DD
 folded: false
 ---
 
-# Короткий заголовок ревизии
+# Short revision title
 
-Что поменялось и почему: чьё решение или ответ, какие разделы ТЗ затронуты.
+What changed and why: whose decision or answer, which spec sections are affected.
 ```
 
-- `version` — в кавычках: без них YAML прочтёт `1.10` как число `1.1`.
-- `date` — день, когда ревизия принята.
-- `folded` — сведена ли ревизия в разделы ТЗ. Новая ревизия — `false`; после сведения в разделы — `true`.
+- `version` — quoted: without quotes YAML reads `1.10` as the number `1.1`.
+- `date` — the day the revision was accepted.
+- `folded` — whether the revision is folded into the spec sections. A new revision is `false`; after folding into the sections — `true`.
 
-Список несведённых не ведётся руками: `knowledge/spec-unfolded.sh` печатает его, а с флагом `--write` переписывает блок в README ТЗ.
+The list of unfolded revisions is not kept by hand: `knowledge/spec-unfolded.sh` prints it, and with `--write` rewrites the block in the spec README.

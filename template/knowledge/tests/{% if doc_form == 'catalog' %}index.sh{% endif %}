@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Тесты `knowledge/index.sh`: оглавление собирается из файлов каталога,
-# повторный прогон его не меняет, README без меток — ошибка, `--stage` ставит
-# изменённый README в индекс. Проект синтетический, во временном каталоге.
+# Tests for `knowledge/index.sh`: the table of contents is built from the
+# directory's files, a second run does not change it, a README without markers
+# is an error, `--stage` stages the changed README. The project is synthetic,
+# in a temporary directory.
 #
-# Запуск: knowledge/tests/index.sh
+# Run: knowledge/tests/index.sh
 set -uo pipefail
 
-# Под git-хуком в окружении стоят GIT_DIR и прочие: git смотрел бы в репозиторий
-# хука, а не во временный.
+# Under a git hook the environment carries GIT_DIR and friends: git would look
+# at the hook's repository instead of the temporary one.
 while IFS='=' read -r name _; do
   case "$name" in GIT_*) unset "$name" ;; esac
 done < <(env)
@@ -21,63 +22,63 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
-bad() { fail=$((fail + 1)); printf '  ПРОВАЛ %s\n     ожидалось: %s\n     получено: %s\n' "$1" "$2" "${3:-<пусто>}"; }
+bad() { fail=$((fail + 1)); printf '  FAIL %s\n     expected: %s\n     got: %s\n' "$1" "$2" "${3:-<empty>}"; }
 
-toc='<!-- оглавление: собирает knowledge/index.sh, руками не править -->\n_пусто_\n<!-- /оглавление -->\n'
+toc='<!-- toc: built by knowledge/index.sh, do not edit -->\n_empty_\n<!-- /toc -->\n'
 
 setup() {
   rm -rf "$tmp/repo"
   mkdir -p "$tmp/repo/knowledge/decisions" "$tmp/repo/knowledge/lessons"
   cp "$script" "$tmp/repo/knowledge/"
   printf '[answers]\ndecisions_path = "knowledge/decisions"\nlessons_path = "knowledge/lessons"\n' > "$tmp/repo/.rootstock.toml"
-  printf "# Решения\n\nФормат.\n\n$toc" > "$tmp/repo/knowledge/decisions/README.md"
-  printf "# Уроки\n\n$toc" > "$tmp/repo/knowledge/lessons/README.md"
+  printf "# Decisions\n\nFormat.\n\n$toc" > "$tmp/repo/knowledge/decisions/README.md"
+  printf "# Lessons\n\n$toc" > "$tmp/repo/knowledge/lessons/README.md"
 }
 
 echo "index.sh"
 
 setup
 out=$("$tmp/repo/knowledge/index.sh" 2>&1); code=$?
-{ [ $code -eq 0 ] && [ -z "$out" ] && grep -q '^_пусто_$' "$tmp/repo/knowledge/decisions/README.md"; } \
-  && ok "пустой каталог — оглавление пустое, файлы не трогаются" \
-  || bad "пустой каталог — оглавление пустое, файлы не трогаются" "молчание, _пусто_" "код $code: $out"
+{ [ $code -eq 0 ] && [ -z "$out" ] && grep -q '^_empty_$' "$tmp/repo/knowledge/decisions/README.md"; } \
+  && ok "empty directory — empty table of contents, files untouched" \
+  || bad "empty directory — empty table of contents, files untouched" "silence, _empty_" "exit $code: $out"
 
-printf '# Второе решение\n\nТекст.\n' > "$tmp/repo/knowledge/decisions/2026-10-02-second.md"
-printf '# Первое решение\n\nТекст.\n' > "$tmp/repo/knowledge/decisions/2026-10-01-first.md"
-printf '# Урок\n' > "$tmp/repo/knowledge/lessons/2026-10-03-lesson.md"
+printf '# Second decision\n\nText.\n' > "$tmp/repo/knowledge/decisions/2026-10-02-second.md"
+printf '# First decision\n\nText.\n' > "$tmp/repo/knowledge/decisions/2026-10-01-first.md"
+printf '# Lesson\n' > "$tmp/repo/knowledge/lessons/2026-10-03-lesson.md"
 "$tmp/repo/knowledge/index.sh" >/dev/null 2>&1; code=$?
-block=$(sed -n '/<!-- оглавление/,/<!-- \/оглавление/p' "$tmp/repo/knowledge/decisions/README.md" | sed '1d;$d')
-want='- [Первое решение](2026-10-01-first.md)
-- [Второе решение](2026-10-02-second.md)'
+block=$(sed -n '/<!-- toc:/,/<!-- \/toc -->/p' "$tmp/repo/knowledge/decisions/README.md" | sed '1d;$d')
+want='- [First decision](2026-10-01-first.md)
+- [Second decision](2026-10-02-second.md)'
 { [ $code -eq 0 ] && [ "$block" = "$want" ]; } \
-  && ok "оглавление решений по именам файлов" || bad "оглавление решений по именам файлов" "$want" "код $code: $block"
-grep -qF -- '- [Урок](2026-10-03-lesson.md)' "$tmp/repo/knowledge/lessons/README.md" \
-  && ok "оглавление уроков" || bad "оглавление уроков" "строка урока" "$(cat "$tmp/repo/knowledge/lessons/README.md")"
-grep -q '^Формат\.$' "$tmp/repo/knowledge/decisions/README.md" \
-  && ok "текст вне меток не тронут" || bad "текст вне меток не тронут" "Формат." "$(cat "$tmp/repo/knowledge/decisions/README.md")"
+  && ok "decisions table of contents by file name" || bad "decisions table of contents by file name" "$want" "exit $code: $block"
+grep -qF -- '- [Lesson](2026-10-03-lesson.md)' "$tmp/repo/knowledge/lessons/README.md" \
+  && ok "lessons table of contents" || bad "lessons table of contents" "the lesson line" "$(cat "$tmp/repo/knowledge/lessons/README.md")"
+grep -q '^Format\.$' "$tmp/repo/knowledge/decisions/README.md" \
+  && ok "text outside the markers untouched" || bad "text outside the markers untouched" "Format." "$(cat "$tmp/repo/knowledge/decisions/README.md")"
 
 before=$(cat "$tmp/repo/knowledge/decisions/README.md")
 out=$("$tmp/repo/knowledge/index.sh" 2>&1)
 { [ -z "$out" ] && [ "$before" = "$(cat "$tmp/repo/knowledge/decisions/README.md")" ]; } \
-  && ok "повторный прогон ничего не меняет" || bad "повторный прогон ничего не меняет" "молчание" "$out"
+  && ok "a second run changes nothing" || bad "a second run changes nothing" "silence" "$out"
 
-printf '# Уроки\n\nБез меток.\n' > "$tmp/repo/knowledge/lessons/README.md"
+printf '# Lessons\n\nNo markers.\n' > "$tmp/repo/knowledge/lessons/README.md"
 out=$("$tmp/repo/knowledge/index.sh" 2>&1); code=$?
-{ [ $code -eq 1 ] && [[ "$out" == *"нет меток оглавления"* ]]; } \
-  && ok "README без меток — код 1" || bad "README без меток — код 1" "код 1 и жалоба" "код $code: $out"
+{ [ $code -eq 1 ] && [[ "$out" == *"no table of contents markers"* ]]; } \
+  && ok "README without markers — exit 1" || bad "README without markers — exit 1" "exit 1 and a complaint" "exit $code: $out"
 
-# --stage: новая запись в индексе, README — нет; после прогона README тоже там.
+# --stage: the new entry is staged, the README is not; after the run the README is too.
 setup
 git -C "$tmp/repo" init -q
 git -C "$tmp/repo" add -A
 git -C "$tmp/repo" -c user.email=t@t -c user.name=t commit -q -m base
-printf '# Решение\n' > "$tmp/repo/knowledge/decisions/2026-10-05-new.md"
+printf '# Decision\n' > "$tmp/repo/knowledge/decisions/2026-10-05-new.md"
 git -C "$tmp/repo" add knowledge/decisions/2026-10-05-new.md
 (cd "$tmp/repo" && ./knowledge/index.sh --stage >/dev/null 2>&1)
 staged=$(git -C "$tmp/repo" diff --cached --name-only | sort | tr '\n' ' ')
 [ "$staged" = "knowledge/decisions/2026-10-05-new.md knowledge/decisions/README.md " ] \
-  && ok "--stage ставит README в индекс" || bad "--stage ставит README в индекс" "запись и README" "$staged"
+  && ok "--stage stages the README" || bad "--stage stages the README" "the entry and the README" "$staged"
 
 echo
-printf 'итого: %d прошло, %d провалено\n' "$pass" "$fail"
+printf 'total: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
