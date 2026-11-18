@@ -9,6 +9,12 @@ When a note is written here:
 
 New entries go on top.
 
+## Codex support
+
+The template now installs Codex skill entries, project agent profiles, and hooks backed by the shared dispatcher. New projects initialize OpenSpec for Claude Code, Pi, and Codex.
+
+After updating an existing project, run `openspec init --tools claude,pi,codex --no-animation` to add the Codex OpenSpec skills. Review the project hooks in Codex with `/hooks`. The update leaves the project's instructions and OpenSpec history in place.
+
 ## v2.0.0 — the harness in English
 
 Everything the harness ships is now English: skills, agents, prompts, hook messages, managed docs, starter documents, starter code, comments, and the vocabulary the `knowledge/` scripts parse. Projects write their artifacts, code comments, error messages, commits, PRs, and the knowledge journal in English (`.harness/process.md`, section "Language"; `openspec/config.yaml`). The only exception is chat: agents talk to the owner in the language of the new template question `chat_language` (default `Russian`).

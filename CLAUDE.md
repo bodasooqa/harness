@@ -11,7 +11,7 @@ Why and how it works — `docs/design.md`. Order of work and phase criteria — 
 - **Two kinds of template files.** Managed files are updated in every project; starter files are created once and belong to the project from then on. For a new file, first decide which kind it is. An edit to a managed file reaches every project: check it on all layouts.
 - **Extension points instead of edits.** If a project needs something of its own, give it a place for its file (project hooks, agent addenda, its own CI file), not a branch in the shared one.
 - **Only what is reproducible outside one tool.** No Python Jinja extensions; template hooks are shell. Harness scripts read `.rootstock.toml` themselves, without the rootstock binary.
-- **Claude Code and Pi.** Every piece of the harness is checked in both. Hook logic lives in shell scripts, shims are thin. Agents have one source, generated into both formats. Skill texts don't name tools of a single agent.
+- **Claude Code, Pi, and Codex.** Check the shared behavior across all three clients. Hook logic lives in shell scripts and the adapters translate events. Agent profiles share one source across formats. Keep shared skills independent of any client's tools.
 - **Edit files** with the Write and Edit tools, not the shell.
 
 ## Merge and versions

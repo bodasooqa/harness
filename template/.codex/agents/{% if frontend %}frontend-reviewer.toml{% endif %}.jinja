@@ -1,0 +1,10 @@
+{% from 'template/_partials/agents/meta.jinja' import agents with context %}
+name = "frontend-reviewer"
+description = "{{ agents['frontend-reviewer'].description | replace('\\', '\\\\') | replace('"', '\\"') }}"
+developer_instructions = '''
+Read the root AGENTS.md and .harness/process.md before starting.
+
+Use read-only commands and leave the working tree as you found it.
+
+{% include 'template/_partials/agents/frontend-reviewer.md.jinja' %}
+'''

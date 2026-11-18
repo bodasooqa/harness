@@ -4,6 +4,10 @@ A managed directory: updated by the template in all projects, not edited by hand
 
 The agent doesn't call hooks one by one but a dispatcher: `dispatch.sh <slot>` with the event JSON on stdin. In Claude Code the wiring is in `.claude/settings.json`; another agent's shim calls the same dispatcher with the same input.
 
+## Codex adapter
+
+Codex loads `.codex/hooks.json` after the project and its hooks are trusted. Bash events and executor `SubagentStop` events use the dispatcher contract directly. The adapter reads the file directives in an `apply_patch` event, runs the edit slots for each affected path, and returns one response. It runs the `post-edit-async` slot synchronously and translates its stderr notification into tool-response context. The `pre-handback` slot is specific to Claude Code.
+
 ## Slots
 
 | Slot | Claude Code event | Shared hooks in order |

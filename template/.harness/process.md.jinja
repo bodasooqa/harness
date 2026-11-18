@@ -19,7 +19,7 @@ The root `README.md` is not a fourth place but a showcase: what the system does,
 
 ## Workflow
 
-Work goes through OpenSpec: propose → apply → archive (in Claude Code — `/opsx:propose`, `/opsx:apply`, `/opsx:archive`; in Pi — `/opsx-propose`, `/opsx-apply`, `/opsx-archive`). Capability and change names are kebab-case in English. Artifact rules and project context — in `openspec/config.yaml`.
+Work goes through OpenSpec: propose → apply → archive. Use `/opsx:propose`, `/opsx:apply`, and `/opsx:archive` in Claude Code, `/opsx-propose`, `/opsx-apply`, and `/opsx-archive` in Pi, or `$openspec-propose`, `$openspec-apply-change`, and `$openspec-archive-change` in Codex. Capability and change names are kebab-case in English. Artifact rules and project context are in `openspec/config.yaml`.
 
 One stage — several changes. A change name starts with the stage number: `stage3-<name>`. A stage is closed when all its changes are archived, the acceptance criterion from the spec's stages section is met (the `stage-acceptance` skill), and the stage table `{{ stages }}` shows it as `closed`. A change of the next stage does not start before that — and does not start before grooming of open questions (the `stage-grooming` skill, the list is printed by `knowledge/due.sh`).
 
@@ -57,14 +57,14 @@ Only with the corresponding command:
 {% if frontend %}
 - `node_modules/**`, `bun.lock` — bun;
 {% endif %}
-- `.claude/commands/opsx/**`, `.claude/skills/openspec-*/**`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/**` — `openspec update`;
+- `.claude/commands/opsx/**`, `.claude/skills/openspec-*/**`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/**`, `.agents/skills/openspec-*/**` — `openspec update`;
 - blocks between `<!-- … -->` markers in `knowledge/` documents{% if doc_form == 'catalog' %} and in `{{ spec_path }}/README.md`{% endif %} — the `knowledge/` scripts;
 - `.rootstock.toml` and managed template files — `rootstock update`;
 - project generated files — per the "Sources of truth" table in the root `AGENTS.md`.
 
 ### Editing files
 
-Edit files with the agent's edit tools (in Claude Code — Write and Edit, in Pi — `write` and `edit`), not with the shell. The harness hangs on edits: formatting, checks for the touched package, a procedure reminder when a contract is touched. An edit via `sed -i`, a heredoc or a redirect triggers none of this. The shell is for commands.
+Edit files with the client's edit tools: Write and Edit in Claude Code, `write` and `edit` in Pi, or `apply_patch` in Codex. These edits trigger formatting, checks for the touched package, and a procedure reminder when a contract is touched. Use the shell for running commands.
 
 ## Commands
 
@@ -153,10 +153,10 @@ Implement strictly stage by stage from the spec's stages section. Don't start th
 ## Repository harness
 
 - **Skills:** `change-finish`, `contract-change`, `harness-upstream`, `knowledge-note`, `stage-acceptance`, `stage-grooming`{% if frontend %}, `uikit-component`{% endif %}{% if linear %}, `linear-triage`{% endif %}{% if telegram %}, `telegram-bot`{% endif %}. Which one when — in their descriptions. The project's own skills sit next to them under their own names.
-- **Subagents:**{% if rust %} executor `rust-developer`{% if monorepo %} (only `crates/`){% endif %}{% if frontend %} and{% endif %}{% endif %}{% if frontend %} executor `frontend-developer`{% if monorepo %} (`apps/` and `packages/`){% endif %}{% endif %} — Sonnet; reviewers{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor` — Opus. Executors don't invoke skills but read them as files: the path is named in their prompt. In Claude Code agents live in `.claude/agents/`, in Pi — in `.pi/agents/` and are run by the `pi-subagents` extension; the prompt is shared.
+- **Subagents:**{% if rust %} executor `rust-developer`{% if monorepo %} (only `crates/`){% endif %}{% if frontend %} and{% endif %}{% endif %}{% if frontend %} executor `frontend-developer`{% if monorepo %} (`apps/` and `packages/`){% endif %}{% endif %}; reviewers{% if rust %} `rust-reviewer`,{% endif %}{% if frontend %} `frontend-reviewer`,{% endif %} `spec-auditor`. Executors read the skills named in their prompts. The prompts are shared across Claude Code (`.claude/agents/`), Pi (`.pi/agents/`, through the `pi-subagents` extension), and Codex (`.codex/agents/`). Codex inherits the parent session's model.
 - **Agent addenda:** `.harness/local/agents/<name>.md` — domain, invariants, project skills for the agent `<name>`; the agent reads it before starting work, and on conflict the addendum wins over the shared prompt. The `.harness/local/` directory belongs to the project; what lives there — its README.
 - **Skill addenda:** `.harness/local/skills/<skill>.md` — the project's own additions to a template skill: who merges PRs, who is who in the tracker, how to check a rollout, and other rules the skill calls a "project rule". The skill reads it as its first step, and on conflict the addendum wins over the shared text.
-- **Hooks** live in `.harness/hooks/` and are called by one dispatcher per event from the agent settings (in Claude Code — `.claude/settings.json`, in Pi — the `.pi/extensions/harness.ts` extension): on edit — formatting and package checks, on command — guarding the shared directory, on start and exit — a report on the worktree and leftovers. An executor (`*-developer`) does not hand in its report while {% if rust %}rustfmt and clippy{% if frontend %}, {% endif %}{% endif %}{% if frontend %}tsc{% endif %} are red for the packages it touched: a hook stops it once with the error output. Project hooks — `.harness/local/hooks/<slot>/`, the contract is in `.harness/hooks/README.md`.
+- **Hooks** live in `.harness/hooks/` and are called by one dispatcher per event from `.claude/settings.json`, the `.pi/extensions/harness.ts` extension, and `.codex/hooks.json`. They run formatting and package checks on edit, guard the shared directory on shell commands, and report worktree status at startup and exit. An executor (`*-developer`) with failing {% if rust %}rustfmt or clippy{% if frontend %}, or {% endif %}{% endif %}{% if frontend %}tsc{% endif %} checks gets the error output and one chance to retry before handing in its report. Put project hooks in `.harness/local/hooks/<slot>/`. The contract is in `.harness/hooks/README.md`.
 - **Git hooks (lefthook):** pre-commit — formatting staged files, secrets, moving closed questions to the archive{% if doc_form == 'catalog' %} and the `knowledge/` tables of contents{% else %} and document tables of contents via the project's `knowledge/index.sh`, if it exists{% endif %}; pre-push — only rare invariant checks. Full checks — in CI.
 - **OpenSpec:** propose/apply/archive, configuration in `openspec/config.yaml`, state — `openspec list`, `openspec status`.
 {% if linear %}

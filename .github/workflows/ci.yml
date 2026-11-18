@@ -79,6 +79,9 @@ jobs:
 
       - uses: ./.github/actions/rootstock
 
+      - name: openspec
+        run: npm install --global "@fission-ai/openspec@$OPENSPEC_VERSION"
+
       - name: check-update.sh
         run: scripts/check-update.sh
 

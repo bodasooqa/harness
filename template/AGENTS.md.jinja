@@ -12,7 +12,7 @@ Languages, key libraries, and rules for using them that the shared rules don't c
 
 Map of packages and the dependency graph between them; invariants this graph upholds.
 
-Each package has its own `AGENTS.md` with local rules; the `CLAUDE.md` next to it is a single `@AGENTS.md` line for Claude Code.
+Read the local `AGENTS.md` of every package you touch, even when your session started at the project root. The neighboring `CLAUDE.md` imports those rules for Claude Code.
 
 ## Sources of truth
 
@@ -21,7 +21,7 @@ What in the repository is a contract or generated, and how it changes. Changing 
 | What | Where | Who changes it |
 |---|---|---|
 | Domain model, requirements, defaults | `{{ spec_path }}`, revision journal `{{ revisions_path }}` | revisions per the owner's decisions |
-| OpenSpec commands and skills | `.claude/commands/opsx/`, `.claude/skills/openspec-*/`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/` | **generated**, only `openspec update` |
+| OpenSpec commands and skills | `.claude/commands/opsx/`, `.claude/skills/openspec-*/`, `.pi/prompts/opsx-*`, `.pi/skills/openspec-*/`, `.agents/skills/openspec-*/` | **generated**, only `openspec update` |
 | Document tables of contents and summary blocks | blocks between `<!-- … -->` markers in `knowledge/`{% if doc_form == 'catalog' %} and in `{{ spec_path }}/README.md`{% endif %} | **generated**, only the `knowledge/` scripts |
 
 ## Definitions
