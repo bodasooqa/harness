@@ -244,6 +244,12 @@ check_harness_files() {
     bad=1
   fi
 
+  file=.github/workflows/harness.yml
+  sed -n '/^            harness:$/,/^$/p' "$file" | grep -qxF '              - .codex/**' ||
+    { echo "Codex changes do not trigger the harness job"; bad=1; }
+  grep -qxF '        run: bash ./.harness/hooks/tests/codex.test.sh' "$file" ||
+    { echo "the harness job does not run the Codex adapter tests"; bad=1; }
+
   # Project rules are in AGENTS.md; CLAUDE.md only includes them and the process
   # rules for Claude Code: an `@file` import is a whole line.
   for path in @AGENTS.md @.harness/process.md; do
