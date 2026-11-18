@@ -60,7 +60,7 @@ starter = [
 
 [[hooks]]
 when = ["new"]
-run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi --no-animation; else echo "harness: openspec not found in PATH, run openspec init --tools claude,pi in the project" >&2; fi'
+run = 'if command -v openspec >/dev/null 2>&1; then openspec init --tools claude,pi,codex --no-animation; else echo "harness: openspec not found in PATH, run openspec init --tools claude,pi,codex in the project" >&2; fi'
 
 # Git hooks (lefthook). Installed only if the project already has its own
 # repository (`.git` at the root): otherwise `lefthook install` would find an

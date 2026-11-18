@@ -3,7 +3,7 @@
 #
 # Usage: dispatch.sh <slot> < event.json
 #
-# The agent (Claude Code, the Pi shim `.pi/extensions/harness.ts`) calls the dispatcher, not hooks one by one:
+# Claude Code, Pi, and Codex call the dispatcher, not hooks one by one:
 # this way a project adds its hooks as a file in `.harness/local/hooks/<slot>/`
 # without touching the managed wiring. The slot contract is in `README.md` next door.
 #

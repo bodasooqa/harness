@@ -16,7 +16,7 @@ prompt=$(jq -r '.prompt // empty' 2>/dev/null) || exit 0
 # Only change creation. `/opsx:apply` and `/opsx:archive` work on a decision
 # already made, and the reference there is noise.
 case "$prompt" in
-  *opsx:propose*) ;;
+  *opsx:propose*|*opsx-propose*|*'$openspec-propose'*) ;;
   *) exit 0 ;;
 esac
 

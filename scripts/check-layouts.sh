@@ -88,6 +88,7 @@ layout_shape() {
   common="$common +.claude/settings.json +lefthook.yml +.harness/lefthook.yml"
   common="$common +.github/workflows/ci.yml +.github/workflows/harness.yml +knowledge/due.sh"
   common="$common +.pi/settings.json +.pi/extensions/harness.ts +.harness/hooks/tests/pi.test.ts"
+  common="$common +.codex/hooks.json +.harness/hooks/codex.sh +.harness/hooks/tests/codex.test.sh"
   common="$common +.github/workflows/harness-update.yml +.github/workflows/harness-automerge.yml"
   common="$common +.harness/update/next-version.sh +.harness/update/conflict-markers.sh +.gitattributes"
   common="$common +AGENTS.md +CLAUDE.md"
@@ -205,6 +206,16 @@ check_harness_files() {
       bad=1
     fi
   done
+  found=$(find .codex/agents -name '*.toml' -exec basename {} .toml \; | sort | tr '\n' ' ')
+  if [[ "$found" != "$expected" ]]; then
+    echo "Codex agents: expected '${expected}', got '${found}'"
+    bad=1
+  fi
+  for file in .codex/agents/*.toml; do
+    bun -e 'const profile = Bun.TOML.parse(await Bun.file(process.argv[1]).text());
+      if (profile.name !== process.argv[2] || !profile.description || !profile.developer_instructions) process.exit(1);' \
+      "$file" "$(basename "$file" .toml)" || { echo "invalid Codex profile $file"; bad=1; }
+  done
   # A Pi agent without a model silently takes the parent's: every one has an explicit model.
   for file in .pi/agents/*.md; do
     grep -qE '^model: [^ ]+/' "$file" || { echo "no model: provider/model in $file"; bad=1; }
@@ -220,7 +231,18 @@ check_harness_files() {
   for path in $skills; do
     grep -qF ".harness/local/skills/$path.md" ".claude/skills/$path/SKILL.md" ||
       { echo "skill $path doesn't read .harness/local/skills/$path.md"; bad=1; }
+    grep -qF ".claude/skills/$path/SKILL.md" ".agents/skills/$path/SKILL.md" ||
+      { echo "Codex skill $path doesn't point at the shared skill"; bad=1; }
   done
+  found=$(find .agents/skills -mindepth 1 -maxdepth 1 -type d -not -name 'openspec-*' -exec basename {} \; | sort | tr '\n' ' ')
+  if [[ "$found" != "$expected" ]]; then
+    echo "Codex skills: expected '${expected}', got '${found}'"
+    bad=1
+  fi
+  if command -v openspec >/dev/null && [[ ! -f .agents/skills/openspec-propose/SKILL.md ]]; then
+    echo "OpenSpec did not install its Codex skills"
+    bad=1
+  fi
 
   # Project rules are in AGENTS.md; CLAUDE.md only includes them and the process
   # rules for Claude Code: an `@file` import is a whole line.
@@ -375,6 +397,7 @@ for layout in $layouts; do
     step "git init" git init -q -b main
     step "hook tests" .harness/hooks/tests/run.sh
     step "pi tests" bun test ./.harness/hooks/tests/pi.test.ts
+    step "codex tests" bash .harness/hooks/tests/codex.test.sh
     step "hooks as hook" under_git_hook .harness/hooks/tests/run.sh
     step "pi as hook" under_git_hook bun test ./.harness/hooks/tests/pi.test.ts
     step "knowledge" run_knowledge_tests
